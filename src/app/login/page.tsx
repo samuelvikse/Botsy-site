@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, Loader2, Phone, Apple, Building2 } from 'lucide-react'
@@ -32,12 +32,24 @@ export default function LoginPage() {
     signInWithMicrosoft,
     sendPhoneVerification,
     verifyPhoneCode,
+    sendMfaCode,
     verifyMfaCode,
     mfaResolver,
     error,
     clearError
   } = useAuth()
   const router = useRouter()
+  const [mfaCodeSent, setMfaCodeSent] = useState(false)
+
+  // Send MFA code when modal is shown
+  useEffect(() => {
+    if (showMfaVerification && mfaResolver && !mfaCodeSent) {
+      setMfaCodeSent(true)
+      sendMfaCode().catch(() => {
+        // Error will be shown in the error state
+      })
+    }
+  }, [showMfaVerification, mfaResolver, mfaCodeSent, sendMfaCode])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

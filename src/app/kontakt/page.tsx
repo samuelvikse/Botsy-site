@@ -47,13 +47,44 @@ export default function ContactPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setIsSubmitting(false)
-    setIsSubmitted(true)
+    setSubmitError(null)
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formState),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setIsSubmitted(true)
+        setFormState({ name: '', email: '', company: '', message: '', type: 'general' })
+      } else {
+        setSubmitError(data.error || 'Kunne ikke sende melding. Prøv igjen.')
+      }
+    } catch {
+      setSubmitError('En feil oppstod. Prøv igjen.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleBookMeeting = async () => {
+    // Pre-fill the form for booking
+    setFormState({
+      ...formState,
+      type: 'demo',
+      message: formState.message || 'Jeg ønsker å booke en 30 minutters demo av Botsy.\n\nMitt foretrukne tidspunkt: '
+    })
+    // Scroll to form
+    document.querySelector('form')?.scrollIntoView({ behavior: 'smooth' })
   }
 
   return (
@@ -214,6 +245,11 @@ export default function ContactPage() {
                   </motion.div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6 relative">
+                    {submitError && (
+                      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                        <p className="text-red-400 text-sm">{submitError}</p>
+                      </div>
+                    )}
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div>
                         <label className="text-white text-sm font-medium block mb-2">
@@ -362,12 +398,10 @@ export default function ContactPage() {
                   <div>
                     <h3 className="text-white font-semibold mb-1">Book et møte</h3>
                     <p className="text-[#A8B4C8] text-sm mb-3">30 min demo av Botsy</p>
-                    <a href="mailto:hei@botsy.no?subject=Book%20demo%20av%20Botsy&body=Hei!%0A%0AJeg%20ønsker%20å%20booke%20en%2030%20minutters%20demo%20av%20Botsy.%0A%0AMitt%20foretrukne%20tidspunkt%3A%0A%0AMed%20vennlig%20hilsen">
-                      <Button variant="outline" size="sm">
-                        Velg tidspunkt
-                        <ArrowRight className="h-3 w-3" />
-                      </Button>
-                    </a>
+                    <Button variant="outline" size="sm" onClick={handleBookMeeting}>
+                      Book demo
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
               </Card>

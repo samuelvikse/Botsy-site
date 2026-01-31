@@ -76,6 +76,7 @@ interface AuthContextType {
   setupTwoFactor: (phoneNumber: string, recaptchaContainerId: string) => Promise<void>
   verifyTwoFactorSetup: (code: string) => Promise<void>
   disableTwoFactor: () => Promise<void>
+  sendMfaCode: () => Promise<void>
   verifyMfaCode: (code: string) => Promise<void>
 }
 
@@ -558,6 +559,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Send MFA verification code during sign-in
+  const sendMfaCode = useCallback(async () => {
+    if (!mfaResolver || !auth) {
+      throw new Error('Ingen MFA-utfordring aktiv')
+    }
+
+    try {
+      setError(null)
+
+      // Clear any existing recaptcha
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear()
+      }
+
+      // Create new recaptcha verifier
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+      })
+      setRecaptchaVerifier(verifier)
+
+      // Get the phone hint for the enrolled factor
+      const phoneInfoOptions = {
+        multiFactorHint: mfaResolver.hints[0],
+        session: mfaResolver.session,
+      }
+
+      const phoneAuthProvider = new PhoneAuthProvider(auth)
+      const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, verifier)
+
+      // Store verification ID for later use
+      setConfirmationResult({ verificationId } as unknown as ConfirmationResult)
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    }
+  }, [mfaResolver, recaptchaVerifier])
+
   // Verify MFA code during sign-in
   const verifyMfaCode = useCallback(async (code: string) => {
     if (!mfaResolver || !auth) {
@@ -568,28 +607,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null)
       setLoading(true)
 
-      // Get the phone hint for the enrolled factor
-      const phoneInfoOptions = {
-        multiFactorHint: mfaResolver.hints[0],
-        session: mfaResolver.session,
+      // If we don't have a verification ID yet, we need to send the code first
+      if (!confirmationResult) {
+        await sendMfaCode()
+        // Wait a moment for the code to be sent, then throw to prompt user
+        throw new Error('Kode sendt til telefonen din. Skriv inn koden.')
       }
 
-      const phoneAuthProvider = new PhoneAuthProvider(auth)
-
-      // If we have a pending verification ID, use it
-      if (confirmationResult) {
-        const verificationId = (confirmationResult as unknown as { verificationId: string }).verificationId
-        const cred = PhoneAuthProvider.credential(verificationId, code)
-        const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred)
-        await mfaResolver.resolveSignIn(multiFactorAssertion)
-      } else {
-        // Request new verification code
-        const verifier = recaptchaVerifier || new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' })
-        const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, verifier)
-        const cred = PhoneAuthProvider.credential(verificationId, code)
-        const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred)
-        await mfaResolver.resolveSignIn(multiFactorAssertion)
-      }
+      const verificationId = (confirmationResult as unknown as { verificationId: string }).verificationId
+      const cred = PhoneAuthProvider.credential(verificationId, code)
+      const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred)
+      await mfaResolver.resolveSignIn(multiFactorAssertion)
 
       setMfaResolver(null)
       setConfirmationResult(null)
@@ -600,7 +628,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }, [mfaResolver, confirmationResult, recaptchaVerifier])
+  }, [mfaResolver, confirmationResult, sendMfaCode])
 
   // Handle MFA error during sign-in
   const handleMfaError = useCallback((error: MultiFactorError) => {
@@ -665,6 +693,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setupTwoFactor,
         verifyTwoFactorSetup,
         disableTwoFactor,
+        sendMfaCode,
         verifyMfaCode,
       }}
     >
