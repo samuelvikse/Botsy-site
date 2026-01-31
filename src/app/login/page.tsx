@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, Loader2, Phone, Apple, Building2 } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, Loader2, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -22,14 +22,10 @@ export default function LoginPage() {
   const [showMfaVerification, setShowMfaVerification] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [isAppleLoading, setIsAppleLoading] = useState(false)
-  const [isMicrosoftLoading, setIsMicrosoftLoading] = useState(false)
 
   const {
     signIn,
     signInWithGoogle,
-    signInWithApple,
-    signInWithMicrosoft,
     sendPhoneVerification,
     verifyPhoneCode,
     sendMfaCode,
@@ -127,34 +123,6 @@ export default function LoginPage() {
       // Error is handled by the auth context
     } finally {
       setIsGoogleLoading(false)
-    }
-  }
-
-  const handleAppleSignIn = async () => {
-    clearError()
-    setIsAppleLoading(true)
-
-    try {
-      await signInWithApple()
-      router.push('/admin')
-    } catch {
-      // Error is handled by the auth context
-    } finally {
-      setIsAppleLoading(false)
-    }
-  }
-
-  const handleMicrosoftSignIn = async () => {
-    clearError()
-    setIsMicrosoftLoading(true)
-
-    try {
-      await signInWithMicrosoft()
-      router.push('/admin')
-    } catch {
-      // Error is handled by the auth context
-    } finally {
-      setIsMicrosoftLoading(false)
     }
   }
 
@@ -440,53 +408,22 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading}
-            >
-              {isGoogleLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full flex items-center justify-center gap-3"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
+          >
+            {isGoogleLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
                 <Chrome className="h-5 w-5" />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full"
-              onClick={handleAppleSignIn}
-              disabled={isAppleLoading}
-            >
-              {isAppleLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Apple className="h-5 w-5" />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full"
-              onClick={handleMicrosoftSignIn}
-              disabled={isMicrosoftLoading}
-            >
-              {isMicrosoftLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Building2 className="h-5 w-5" />
-              )}
-            </Button>
-          </div>
-
-          <div className="flex justify-center gap-6 mt-4 text-xs text-[#6B7A94]">
-            <span>Google</span>
-            <span>Apple</span>
-            <span>Microsoft</span>
-          </div>
+                Fortsett med Google
+              </>
+            )}
+          </Button>
 
           <p className="text-center text-[#6B7A94] mt-8">
             Har du ikke en konto?{' '}
