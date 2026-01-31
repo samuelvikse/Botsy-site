@@ -163,6 +163,45 @@ export async function findCompanyByPageId(pageId: string): Promise<string | null
 }
 
 /**
+ * Convert JavaScript value to Firestore field format
+ */
+function toFirestoreValue(value: unknown): Record<string, unknown> {
+  if (value === null || value === undefined) {
+    return { nullValue: null }
+  }
+  if (typeof value === 'string') {
+    return { stringValue: value }
+  }
+  if (typeof value === 'number') {
+    if (Number.isInteger(value)) {
+      return { integerValue: String(value) }
+    }
+    return { doubleValue: value }
+  }
+  if (typeof value === 'boolean') {
+    return { booleanValue: value }
+  }
+  if (value instanceof Date) {
+    return { timestampValue: value.toISOString() }
+  }
+  if (Array.isArray(value)) {
+    return {
+      arrayValue: {
+        values: value.map(toFirestoreValue)
+      }
+    }
+  }
+  if (typeof value === 'object') {
+    const fields: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value)) {
+      fields[k] = toFirestoreValue(v)
+    }
+    return { mapValue: { fields } }
+  }
+  return { stringValue: String(value) }
+}
+
+/**
  * Save Messenger message to conversation history
  */
 export async function saveMessengerMessage(
@@ -170,9 +209,75 @@ export async function saveMessengerMessage(
   senderId: string,
   message: Omit<MessengerChatMessage, 'id'>
 ): Promise<void> {
-  // For now, we'll skip saving messages since we don't have write access
-  // Messages are stored in memory for the session context
-  console.log('[Messenger] Message logged:', { companyId, senderId, direction: message.direction })
+  try {
+    // Get existing chat or create new one
+    const chatDocPath = `${FIRESTORE_BASE_URL}/companies/${companyId}/messengerChats/${senderId}`
+    const response = await fetch(chatDocPath)
+
+    const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const messageData = {
+      id: messageId,
+      direction: message.direction,
+      senderId: message.senderId,
+      text: message.text,
+      timestamp: message.timestamp.toISOString(),
+      messageId: message.messageId || '',
+    }
+
+    if (response.ok) {
+      // Chat exists, get existing messages and append
+      const doc = await response.json()
+      const existingData = doc.fields ? parseFirestoreFields(doc.fields) : {}
+      const existingMessages = (existingData.messages as unknown[]) || []
+
+      // Build update
+      const updateData = {
+        fields: {
+          senderId: toFirestoreValue(senderId),
+          messages: toFirestoreValue([...existingMessages.map(m => {
+            const msg = m as Record<string, unknown>
+            return {
+              id: msg.id,
+              direction: msg.direction,
+              senderId: msg.senderId,
+              text: msg.text,
+              timestamp: msg.timestamp,
+              messageId: msg.messageId,
+            }
+          }), messageData]),
+          lastMessageAt: toFirestoreValue(new Date()),
+          updatedAt: toFirestoreValue(new Date()),
+        }
+      }
+
+      await fetch(chatDocPath, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      })
+    } else {
+      // Create new chat document
+      const newChatData = {
+        fields: {
+          senderId: toFirestoreValue(senderId),
+          messages: toFirestoreValue([messageData]),
+          lastMessageAt: toFirestoreValue(new Date()),
+          createdAt: toFirestoreValue(new Date()),
+          updatedAt: toFirestoreValue(new Date()),
+        }
+      }
+
+      await fetch(chatDocPath, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newChatData),
+      })
+    }
+
+    console.log('[Messenger] Message saved:', { companyId, senderId, direction: message.direction })
+  } catch (error) {
+    console.error('[Messenger Firestore] Error saving message:', error)
+  }
 }
 
 /**
@@ -181,11 +286,94 @@ export async function saveMessengerMessage(
 export async function getMessengerHistory(
   companyId: string,
   senderId: string,
-  limit: number = 10
+  limitCount: number = 10
 ): Promise<MessengerChatMessage[]> {
-  // Without Admin SDK, we return empty history for now
-  // The bot will work without history context
-  return []
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/messengerChats/${senderId}`)
+
+    if (!response.ok) return []
+
+    const doc = await response.json()
+    if (!doc.fields) return []
+
+    const data = parseFirestoreFields(doc.fields)
+    const messages = (data.messages as unknown[]) || []
+
+    return messages.slice(-limitCount).map((m) => {
+      const msg = m as Record<string, unknown>
+      return {
+        id: msg.id as string,
+        direction: msg.direction as 'inbound' | 'outbound',
+        senderId: msg.senderId as string,
+        text: msg.text as string,
+        timestamp: new Date(msg.timestamp as string),
+        messageId: msg.messageId as string | undefined,
+      }
+    })
+  } catch (error) {
+    console.error('[Messenger Firestore] Error getting history:', error)
+    return []
+  }
+}
+
+/**
+ * Get all Messenger chats for a company
+ */
+export async function getAllMessengerChats(
+  companyId: string
+): Promise<Array<{
+  senderId: string
+  lastMessage: MessengerChatMessage | null
+  lastMessageAt: Date
+  messageCount: number
+}>> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/messengerChats`)
+
+    if (!response.ok) return []
+
+    const data = await response.json()
+    if (!data.documents) return []
+
+    const chats: Array<{
+      senderId: string
+      lastMessage: MessengerChatMessage | null
+      lastMessageAt: Date
+      messageCount: number
+    }> = []
+
+    for (const doc of data.documents) {
+      if (!doc.fields) continue
+
+      const chatData = parseFirestoreFields(doc.fields)
+      const messages = (chatData.messages as unknown[]) || []
+      const lastMsg = messages.length > 0 ? messages[messages.length - 1] as Record<string, unknown> : null
+
+      chats.push({
+        senderId: chatData.senderId as string || doc.name.split('/').pop() || '',
+        lastMessage: lastMsg ? {
+          id: lastMsg.id as string,
+          direction: lastMsg.direction as 'inbound' | 'outbound',
+          senderId: lastMsg.senderId as string,
+          text: lastMsg.text as string,
+          timestamp: new Date(lastMsg.timestamp as string),
+          messageId: lastMsg.messageId as string | undefined,
+        } : null,
+        lastMessageAt: chatData.lastMessageAt
+          ? new Date(chatData.lastMessageAt as string)
+          : new Date(),
+        messageCount: messages.length,
+      })
+    }
+
+    // Sort by last message time
+    chats.sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime())
+
+    return chats
+  } catch (error) {
+    console.error('[Messenger Firestore] Error getting all chats:', error)
+    return []
+  }
 }
 
 /**

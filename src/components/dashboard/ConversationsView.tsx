@@ -21,7 +21,9 @@ import { Badge } from '@/components/ui/badge'
 import { getAllSMSChats, getSMSHistory, saveSMSMessage } from '@/lib/sms-firestore'
 import { getSMSChannel } from '@/lib/sms-firestore'
 import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
+import { getAllMessengerChats, getMessengerHistory } from '@/lib/messenger-firestore'
 import { getSMSProvider } from '@/lib/sms'
+import { Facebook } from 'lucide-react'
 import type { SMSMessage } from '@/types'
 
 // Polling intervals in milliseconds
@@ -32,13 +34,13 @@ interface ConversationsViewProps {
   companyId: string
 }
 
-type ChannelFilter = 'all' | 'sms' | 'widget'
+type ChannelFilter = 'all' | 'sms' | 'widget' | 'messenger'
 
 interface Conversation {
   id: string
   name: string
   phone?: string
-  channel: 'sms' | 'widget'
+  channel: 'sms' | 'widget' | 'messenger'
   lastMessage: string
   lastMessageAt: Date
   messageCount: number
@@ -119,6 +121,25 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
         // No widget chats or error - continue
       }
 
+      // Fetch Messenger chats
+      try {
+        const messengerChats = await getAllMessengerChats(companyId)
+        messengerChats.forEach((chat) => {
+          convos.push({
+            id: `messenger-${chat.senderId}`,
+            name: `Facebook ${chat.senderId.slice(-6)}`,
+            phone: chat.senderId,
+            channel: 'messenger' as const,
+            lastMessage: chat.lastMessage?.text || 'Ingen meldinger',
+            lastMessageAt: chat.lastMessageAt,
+            messageCount: chat.messageCount,
+            status: 'active' as const,
+          })
+        })
+      } catch {
+        // No Messenger chats or error - continue
+      }
+
       // Sort by last message time
       convos.sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime())
 
@@ -165,6 +186,15 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
           content: msg.body,
           timestamp: msg.timestamp,
           status: msg.status,
+        }))
+      } else if (conversation.channel === 'messenger') {
+        // Fetch Messenger messages
+        const messengerHistory = await getMessengerHistory(companyId, conversation.phone, 100)
+        msgs = messengerHistory.map((msg) => ({
+          id: msg.id,
+          role: msg.direction === 'inbound' ? 'user' : 'assistant',
+          content: msg.text,
+          timestamp: msg.timestamp,
         }))
       } else {
         // Fetch widget chat messages
@@ -334,6 +364,7 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
   const channelConfig = {
     sms: { icon: Phone, color: '#CDFF4D', label: 'SMS' },
     widget: { icon: MessageCircle, color: '#3B82F6', label: 'Widget' },
+    messenger: { icon: Facebook, color: '#1877F2', label: 'Messenger' },
   }
 
   return (
@@ -354,8 +385,8 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
           </div>
 
           {/* Channel Filter */}
-          <div className="flex gap-2">
-            {(['all', 'sms', 'widget'] as const).map((filter) => (
+          <div className="flex gap-2 flex-wrap">
+            {(['all', 'sms', 'widget', 'messenger'] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setChannelFilter(filter)}
@@ -365,7 +396,7 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                     : 'bg-white/[0.03] text-[#6B7A94] hover:text-white'
                 }`}
               >
-                {filter === 'all' ? 'Alle' : filter === 'sms' ? 'SMS' : 'Widget'}
+                {filter === 'all' ? 'Alle' : filter === 'sms' ? 'SMS' : filter === 'widget' ? 'Widget' : 'Messenger'}
               </button>
             ))}
             <div className="ml-auto flex items-center gap-2">
@@ -454,6 +485,11 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                       className="h-5 w-5"
                       style={{ color: channelConfig.sms.color }}
                     />
+                  ) : selectedConversation.channel === 'messenger' ? (
+                    <Facebook
+                      className="h-5 w-5"
+                      style={{ color: channelConfig.messenger.color }}
+                    />
                   ) : (
                     <MessageCircle
                       className="h-5 w-5"
@@ -479,24 +515,26 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  variant={manualMode ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={handleToggleManualMode}
-                  className={manualMode ? 'bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90' : ''}
-                >
-                  {manualMode ? (
-                    <>
-                      <User className="h-4 w-4 mr-1" />
-                      Manuell modus
-                    </>
-                  ) : (
-                    <>
-                      <Bot className="h-4 w-4 mr-1" />
-                      Ta over manuelt
-                    </>
-                  )}
-                </Button>
+                {selectedConversation.channel !== 'messenger' && (
+                  <Button
+                    variant={manualMode ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={handleToggleManualMode}
+                    className={manualMode ? 'bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90' : ''}
+                  >
+                    {manualMode ? (
+                      <>
+                        <User className="h-4 w-4 mr-1" />
+                        Manuell modus
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-4 w-4 mr-1" />
+                        Ta over manuelt
+                      </>
+                    )}
+                  </Button>
+                )}
                 <button className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg">
                   <MoreHorizontal className="h-5 w-5" />
                 </button>
@@ -559,7 +597,16 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
               </div>
             )}
 
-            {!manualMode && (
+            {!manualMode && selectedConversation.channel === 'messenger' && (
+              <div className="p-4 border-t border-white/[0.06] bg-[#1877F2]/5">
+                <p className="text-[#A8B4C8] text-sm text-center">
+                  <Facebook className="h-4 w-4 inline mr-1 text-[#1877F2]" />
+                  Messenger-samtaler håndteres automatisk gjennom Facebook
+                </p>
+              </div>
+            )}
+
+            {!manualMode && selectedConversation.channel !== 'messenger' && (
               <div className="p-4 border-t border-white/[0.06] bg-botsy-lime/5">
                 <p className="text-[#A8B4C8] text-sm text-center">
                   <Bot className="h-4 w-4 inline mr-1" />
