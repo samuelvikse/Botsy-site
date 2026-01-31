@@ -345,19 +345,13 @@ export default function RegisterPage() {
             ))}
           </div>
 
-          <div className="mt-12 p-6 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
-            <p className="text-[#A8B4C8] text-sm mb-3">
-              "Botsy svarte på over 500 henvendelser første uken. Vi sparte minst 20 timer."
+          <div className="mt-12 p-6 bg-botsy-lime/5 border border-botsy-lime/20 rounded-2xl">
+            <p className="text-white text-sm font-medium mb-2">
+              Kom i gang på under 10 minutter
             </p>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-white/[0.1] flex items-center justify-center text-white font-medium text-sm">
-                MH
-              </div>
-              <div>
-                <p className="text-white text-sm font-medium">Maria Hansen</p>
-                <p className="text-[#6B7A94] text-xs">Hansen & Co Elektro</p>
-              </div>
-            </div>
+            <p className="text-[#A8B4C8] text-sm">
+              Legg inn nettsiden din, og Botsy lærer seg bedriften automatisk. Ingen komplisert oppsett eller teknisk kunnskap nødvendig.
+            </p>
           </div>
         </div>
       </div>

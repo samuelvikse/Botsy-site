@@ -364,11 +364,19 @@ export async function generateAnalysisSummary(
 // Customer Chatbot
 // ============================================
 
+interface KnowledgeData {
+  faqs: Array<{ question: string; answer: string }>
+  rules: string[]
+  policies: string[]
+  importantInfo: string[]
+}
+
 interface CustomerChatContext {
   businessProfile: BusinessProfile
   faqs: FAQ[]
   instructions: Instruction[]
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+  knowledgeDocuments?: KnowledgeData[]
 }
 
 function buildIndustryExpertise(industry: string): string {
@@ -477,7 +485,7 @@ function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): string {
 }
 
 function buildCustomerSystemPrompt(context: CustomerChatContext): string {
-  const { businessProfile, faqs, instructions } = context
+  const { businessProfile, faqs, instructions, knowledgeDocuments } = context
 
   const toneGuide = buildToneConfiguration(businessProfile.tone, businessProfile.toneConfig)
   const industryExpertise = buildIndustryExpertise(businessProfile.industry)
@@ -506,6 +514,48 @@ ${toneGuide}
     })
   }
 
+  // Add knowledge from uploaded documents
+  if (knowledgeDocuments && knowledgeDocuments.length > 0) {
+    // Collect all FAQs from documents
+    const docFaqs = knowledgeDocuments.flatMap(doc => doc.faqs)
+    if (docFaqs.length > 0) {
+      prompt += `\nEKSTRA SPØRSMÅL OG SVAR FRA BEDRIFTSDOKUMENTER:\n`
+      docFaqs.forEach((faq, i) => {
+        prompt += `${i + 1}. Spørsmål: ${faq.question}\n   Svar: ${faq.answer}\n\n`
+      })
+    }
+
+    // Collect all rules
+    const allRules = knowledgeDocuments.flatMap(doc => doc.rules)
+    if (allRules.length > 0) {
+      prompt += `\nBEDRIFTSREGLER (følg alltid disse):\n`
+      allRules.forEach((rule, i) => {
+        prompt += `${i + 1}. ${rule}\n`
+      })
+      prompt += '\n'
+    }
+
+    // Collect all policies
+    const allPolicies = knowledgeDocuments.flatMap(doc => doc.policies)
+    if (allPolicies.length > 0) {
+      prompt += `\nRETNINGSLINJER OG POLICIES:\n`
+      allPolicies.forEach((policy, i) => {
+        prompt += `${i + 1}. ${policy}\n`
+      })
+      prompt += '\n'
+    }
+
+    // Collect important info
+    const allInfo = knowledgeDocuments.flatMap(doc => doc.importantInfo)
+    if (allInfo.length > 0) {
+      prompt += `\nVIKTIG INFORMASJON:\n`
+      allInfo.forEach((info, i) => {
+        prompt += `- ${info}\n`
+      })
+      prompt += '\n'
+    }
+  }
+
   // Add active instructions
   const activeInstructions = instructions.filter(i => i.isActive)
   if (activeInstructions.length > 0) {
@@ -532,6 +582,10 @@ REGLER:
    - Telefonnumre
    - URLer og nettsideadresser
    - Produktnavn og merkenavn
+9. VIKTIG - SPØRSMÅL UTENFOR NISJEN: Hvis kunden spør om noe som tydelig IKKE har med ${businessProfile.businessName}, ${businessProfile.industry}-bransjen, eller bedriftens tjenester/produkter å gjøre (f.eks. oppskrifter til en bilforhandler, politiske spørsmål, generelle trivia, personlige råd osv.), skal du vennlig si at det er ikke noe du er her for å svare på, men at du gjerne hjelper med spørsmål om ${businessProfile.businessName} og deres tjenester. Vær høflig og vennlig, ikke avvisende.
+10. E-POST OPPSUMMERING:
+    - Hvis kunden spør om å få samtalen/chatten på e-post, svar NØYAKTIG: "[EMAIL_REQUEST]Selvfølgelig! Skriv inn e-postadressen din, så sender jeg deg en oppsummering av samtalen vår."
+    - Hvis kunden sier "takk", "tusen takk", "takk for hjelpen", "det var alt", "ha det", "bye", eller lignende avsluttende fraser, avslutt svaret ditt med NØYAKTIG denne teksten på en ny linje: "[OFFER_EMAIL]Vil du ha en oppsummering av samtalen vår på e-post?"
 
 Svar nå på kundens melding.`
 
@@ -550,9 +604,11 @@ export async function chatWithCustomer(
 
   // Add conversation history (last 10 messages)
   context.conversationHistory.slice(-10).forEach((msg) => {
+    if (!msg.content?.trim()) return
+
     messages.push({
       role: msg.role,
-      content: msg.content,
+      content: msg.content.trim(),
     })
   })
 
@@ -562,13 +618,17 @@ export async function chatWithCustomer(
     content: message,
   })
 
-  const response = await groq.chat.completions.create({
-    model: MODEL,
-    messages,
-    temperature: 0.7,
-    max_tokens: 400,
-  })
+  try {
+    const response = await groq.chat.completions.create({
+      model: MODEL,
+      messages,
+      temperature: 0.7,
+      max_tokens: 400,
+    })
 
-  return response.choices[0]?.message?.content?.trim() ||
-    'Beklager, jeg kunne ikke behandle meldingen din. Prøv igjen eller kontakt oss direkte.'
+    return response.choices[0]?.message?.content?.trim() ||
+      'Beklager, jeg kunne ikke behandle meldingen din. Prøv igjen eller kontakt oss direkte.'
+  } catch (error) {
+    throw error
+  }
 }

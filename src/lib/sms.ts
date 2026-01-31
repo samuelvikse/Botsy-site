@@ -30,8 +30,7 @@ export interface SMSProviderInterface {
 // ============================================
 
 export class MockSMSProvider implements SMSProviderInterface {
-  async sendSMS(to: string, from: string, body: string): Promise<SendSMSResult> {
-    console.log(`[MOCK SMS] From: ${from}, To: ${to}, Body: ${body}`)
+  async sendSMS(_to: string, _from: string, _body: string): Promise<SendSMSResult> {
     return {
       messageId: 'mock-' + Date.now(),
       status: 'sent',
@@ -120,7 +119,6 @@ export class TwilioProvider implements SMSProviderInterface {
     if (!twilioSignature) {
       // Allow in development if no signature
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Missing Twilio signature header - allowing in development')
         return true
       }
       return false
@@ -159,13 +157,8 @@ export class TwilioProvider implements SMSProviderInterface {
         Buffer.from(expectedSignature)
       )
 
-      if (!isValid) {
-        console.error('Twilio signature validation failed')
-      }
-
       return isValid
-    } catch (error) {
-      console.error('Error validating Twilio webhook:', error)
+    } catch {
       // Allow in development
       return process.env.NODE_ENV === 'development'
     }
@@ -249,15 +242,13 @@ export class MessageBirdProvider implements SMSProviderInterface {
     if (!signature || !timestamp) {
       // Allow in development if no signature
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Missing MessageBird signature headers - allowing in development')
         return true
       }
       return false
     }
 
-    // If no signing key configured, allow but warn
+    // If no signing key configured, allow
     if (!this.signingKey) {
-      console.warn('MessageBird signing key not configured - skipping signature validation')
       return true
     }
 
@@ -278,13 +269,8 @@ export class MessageBirdProvider implements SMSProviderInterface {
         Buffer.from(expectedSignature)
       )
 
-      if (!isValid) {
-        console.error('MessageBird signature validation failed')
-      }
-
       return isValid
-    } catch (error) {
-      console.error('Error validating MessageBird webhook:', error)
+    } catch {
       return process.env.NODE_ENV === 'development'
     }
   }

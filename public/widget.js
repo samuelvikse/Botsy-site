@@ -1,0 +1,116 @@
+(function() {
+  // Find the Botsy script element
+  const scripts = document.getElementsByTagName('script');
+  let script = null;
+  let companyId = null;
+
+  for (let i = 0; i < scripts.length; i++) {
+    if (scripts[i].src && scripts[i].src.includes('widget.js')) {
+      script = scripts[i];
+      companyId = script.getAttribute('data-company-id');
+      break;
+    }
+  }
+
+  if (!companyId) {
+    console.error('Botsy: Missing data-company-id attribute');
+    return;
+  }
+
+  // Get the base URL from the script src
+  const scriptSrc = script.src;
+  const baseUrl = scriptSrc.substring(0, scriptSrc.lastIndexOf('/'));
+
+  // Prevent duplicate widgets
+  if (document.getElementById('botsy-widget-iframe')) {
+    return;
+  }
+
+  // Create iframe
+  const iframe = document.createElement('iframe');
+  iframe.id = 'botsy-widget-iframe';
+  iframe.src = baseUrl + '/widget/' + companyId + '?t=' + Date.now();
+  iframe.setAttribute('allowtransparency', 'true');
+  iframe.setAttribute('allow', 'clipboard-write');
+
+  let position = 'right';
+  let chatIsOpen = false;
+
+  // Small size for just the button (56px button + 16px padding + extra for shadow)
+  const setClosedStyle = () => {
+    iframe.style.cssText = `
+      position: fixed;
+      bottom: 0;
+      ${position === 'bottom-left' ? 'left: 0;' : 'right: 0;'}
+      width: 90px;
+      height: 90px;
+      border: none;
+      background: transparent;
+      z-index: 999999;
+    `;
+  };
+
+  // Expanded for open chat
+  const setOpenStyle = () => {
+    const isMobile = window.innerWidth < 640;
+    if (isMobile) {
+      iframe.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: transparent;
+        z-index: 999999;
+      `;
+    } else {
+      iframe.style.cssText = `
+        position: fixed;
+        bottom: 0;
+        ${position === 'bottom-left' ? 'left: 0;' : 'right: 0;'}
+        width: 450px;
+        height: 650px;
+        border: none;
+        background: transparent;
+        z-index: 999999;
+      `;
+    }
+  };
+
+  // Start closed
+  setClosedStyle();
+  document.body.appendChild(iframe);
+
+  // Listen for messages from iframe
+  window.addEventListener('message', function(event) {
+    if (!event.data) return;
+
+    if (event.data.type === 'botsy-state') {
+      chatIsOpen = event.data.isOpen;
+      if (chatIsOpen) {
+        setOpenStyle();
+      } else {
+        setClosedStyle();
+      }
+    }
+
+    if (event.data.type === 'botsy-position') {
+      position = event.data.position || 'right';
+      if (!chatIsOpen) {
+        setClosedStyle();
+      } else {
+        setOpenStyle();
+      }
+    }
+  });
+
+  // Handle resize
+  window.addEventListener('resize', function() {
+    if (chatIsOpen) {
+      setOpenStyle();
+    }
+  });
+})();

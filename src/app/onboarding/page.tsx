@@ -196,8 +196,8 @@ export default function OnboardingPage() {
       }, { merge: true })
 
       router.push('/admin')
-    } catch (error) {
-      console.error('Error saving onboarding data:', error)
+    } catch {
+      // Silent fail - user will see no redirect
     } finally {
       setIsSaving(false)
     }

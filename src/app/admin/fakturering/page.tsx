@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function BillingPage() {
   return (
@@ -26,6 +27,12 @@ export default function BillingPage() {
 
 function BillingContent() {
   const [paymentMethod, setPaymentMethod] = useState('card')
+  const { user } = useAuth()
+
+  // Get user initials
+  const userInitials = user?.displayName
+    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
+    : user?.email?.substring(0, 2).toUpperCase() || 'U'
 
   const invoices = [
     { id: 'INV-2026-001', date: '2026-01-01', amount: 599, status: 'paid' },
@@ -38,7 +45,7 @@ function BillingContent() {
     <div className="min-h-screen bg-botsy-dark">
       {/* Header */}
       <div className="border-b border-white/[0.06] bg-botsy-dark-deep/50">
-        <div className="container mx-auto h-16 flex items-center">
+        <div className="container mx-auto h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/admin" className="text-[#6B7A94] hover:text-white transition-colors">
               <ArrowLeft className="h-5 w-5" />
@@ -50,6 +57,15 @@ function BillingContent() {
               height={32}
               className="h-8 w-auto"
             />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-full bg-botsy-lime/20 flex items-center justify-center text-botsy-lime font-medium text-sm">
+              {userInitials}
+            </div>
+            <div className="hidden sm:block">
+              <p className="text-white text-sm font-medium">{user?.displayName || 'Bruker'}</p>
+              <p className="text-[#6B7A94] text-xs">{user?.email}</p>
+            </div>
           </div>
         </div>
       </div>

@@ -1,20 +1,17 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
   Send,
-  Paperclip,
   MoreHorizontal,
   Phone,
   MessageCircle,
   Bot,
   User,
   Loader2,
-  Filter,
   RefreshCw,
-  Clock,
   CheckCheck,
   AlertCircle,
 } from 'lucide-react'
@@ -26,6 +23,10 @@ import { getSMSChannel } from '@/lib/sms-firestore'
 import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
 import { getSMSProvider } from '@/lib/sms'
 import type { SMSMessage } from '@/types'
+
+// Polling intervals in milliseconds
+const CONVERSATIONS_POLL_INTERVAL = 5000
+const MESSAGES_POLL_INTERVAL = 3000
 
 interface ConversationsViewProps {
   companyId: string
@@ -42,6 +43,7 @@ interface Conversation {
   lastMessageAt: Date
   messageCount: number
   status: 'active' | 'resolved' | 'pending'
+  isManualMode?: boolean
 }
 
 interface ChatMessage {
@@ -50,6 +52,7 @@ interface ChatMessage {
   content: string
   timestamp: Date
   status?: 'pending' | 'sent' | 'delivered' | 'failed'
+  isManual?: boolean
 }
 
 export function ConversationsView({ companyId }: ConversationsViewProps) {
@@ -63,10 +66,16 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
   const [newMessage, setNewMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [manualMode, setManualMode] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Fetch conversations
-  const fetchConversations = useCallback(async () => {
-    setIsLoading(true)
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  // Fetch conversations (with optional silent mode for polling)
+  const fetchConversations = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true)
     try {
       const convos: Conversation[] = []
 
@@ -85,8 +94,8 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
             status: 'active' as const,
           })
         })
-      } catch (e) {
-        console.log('No SMS chats or error fetching:', e)
+      } catch {
+        // No SMS chats or error - continue
       }
 
       // Fetch Widget chats
@@ -103,32 +112,47 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
             lastMessageAt: chat.lastMessageAt,
             messageCount: chat.messageCount,
             status: 'active' as const,
+            isManualMode: chat.isManualMode || false,
           })
         })
-      } catch (e) {
-        console.log('No widget chats or error fetching:', e)
+      } catch {
+        // No widget chats or error - continue
       }
 
       // Sort by last message time
       convos.sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime())
 
       setConversations(convos)
-    } catch (error) {
-      console.error('Error fetching conversations:', error)
+    } catch {
+      // Error fetching conversations - silently fail
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
   }, [companyId])
 
+  // Initial fetch
   useEffect(() => {
     fetchConversations()
   }, [fetchConversations])
 
-  // Fetch messages for selected conversation
-  const fetchMessages = useCallback(async (conversation: Conversation) => {
+  // Auto-refresh conversations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchConversations(true) // Silent refresh
+    }, CONVERSATIONS_POLL_INTERVAL)
+
+    return () => clearInterval(interval)
+  }, [fetchConversations])
+
+  // Fetch messages for selected conversation (with optional silent mode)
+  const fetchMessages = useCallback(async (conversation: Conversation, silent = false) => {
     if (!conversation.phone) return
 
-    setIsLoadingMessages(true)
+    if (!silent) {
+      setIsLoadingMessages(true)
+      setManualMode(conversation.isManualMode || false)
+    }
+
     try {
       let msgs: ChatMessage[] = []
 
@@ -150,22 +174,69 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
           role: msg.role,
           content: msg.content,
           timestamp: msg.timestamp,
+          isManual: msg.isManual,
         }))
       }
 
       setMessages(msgs)
-    } catch (error) {
-      console.error('Error fetching messages:', error)
+    } catch {
+      // Error fetching messages - silently fail
     } finally {
-      setIsLoadingMessages(false)
+      if (!silent) setIsLoadingMessages(false)
     }
   }, [companyId])
 
+  // Initial fetch when conversation selected
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation)
     }
   }, [selectedConversation, fetchMessages])
+
+  // Auto-refresh messages when a conversation is selected
+  useEffect(() => {
+    if (!selectedConversation) return
+
+    const interval = setInterval(() => {
+      fetchMessages(selectedConversation, true) // Silent refresh
+    }, MESSAGES_POLL_INTERVAL)
+
+    return () => clearInterval(interval)
+  }, [selectedConversation, fetchMessages])
+
+  // Toggle manual mode via API
+  const handleToggleManualMode = async () => {
+    if (!selectedConversation?.phone) return
+
+    const newMode = !manualMode
+    try {
+      const response = await fetch('/api/chat/manual', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          sessionId: selectedConversation.phone,
+          isManual: newMode,
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setManualMode(newMode)
+        // Update conversation in list
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === selectedConversation.id ? { ...c, isManualMode: newMode } : c
+          )
+        )
+        setSelectedConversation((prev) =>
+          prev ? { ...prev, isManualMode: newMode } : null
+        )
+      }
+    } catch {
+      // Error toggling manual mode - silently fail
+    }
+  }
 
   // Send manual message
   const handleSendMessage = async () => {
@@ -173,50 +244,74 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
 
     setIsSending(true)
     try {
-      // Get SMS channel config
-      const channel = await getSMSChannel(companyId)
-      if (!channel) {
-        throw new Error('SMS not configured')
-      }
+      if (selectedConversation.channel === 'sms') {
+        // SMS sending logic
+        const channel = await getSMSChannel(companyId)
+        if (!channel) {
+          throw new Error('SMS not configured')
+        }
 
-      // Get provider
-      const provider = getSMSProvider(channel.provider, channel.credentials)
+        const provider = getSMSProvider(channel.provider, channel.credentials)
+        const result = await provider.sendSMS(
+          selectedConversation.phone,
+          channel.phoneNumber,
+          newMessage
+        )
 
-      // Send SMS
-      const result = await provider.sendSMS(
-        selectedConversation.phone,
-        channel.phoneNumber,
-        newMessage
-      )
-
-      // Save message to Firestore
-      const outboundMessage: Omit<SMSMessage, 'id'> = {
-        direction: 'outbound',
-        from: channel.phoneNumber,
-        to: selectedConversation.phone,
-        body: newMessage,
-        status: result.status === 'sent' ? 'sent' : 'failed',
-        providerMessageId: result.messageId,
-        timestamp: new Date(),
-      }
-
-      await saveSMSMessage(companyId, selectedConversation.phone, outboundMessage)
-
-      // Add to local messages
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}`,
-          role: 'assistant',
-          content: newMessage,
+        const outboundMessage: Omit<SMSMessage, 'id'> = {
+          direction: 'outbound',
+          from: channel.phoneNumber,
+          to: selectedConversation.phone,
+          body: newMessage,
+          status: result.status === 'sent' ? 'sent' : 'failed',
+          providerMessageId: result.messageId,
           timestamp: new Date(),
-          status: result.status,
-        },
-      ])
+        }
+
+        await saveSMSMessage(companyId, selectedConversation.phone, outboundMessage)
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: newMessage,
+            timestamp: new Date(),
+            status: result.status,
+          },
+        ])
+      } else {
+        // Widget chat - send via API
+        const response = await fetch('/api/chat/manual', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companyId,
+            sessionId: selectedConversation.phone,
+            message: newMessage,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}`,
+              role: 'assistant',
+              content: newMessage,
+              timestamp: new Date(),
+              isManual: true,
+            },
+          ])
+        } else {
+          throw new Error(data.error)
+        }
+      }
 
       setNewMessage('')
-    } catch (error) {
-      console.error('Error sending message:', error)
+    } catch {
+      // Error sending message - silently fail
     } finally {
       setIsSending(false)
     }
@@ -273,13 +368,19 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                 {filter === 'all' ? 'Alle' : filter === 'sms' ? 'SMS' : 'Widget'}
               </button>
             ))}
-            <button
-              onClick={fetchConversations}
-              className="ml-auto p-1.5 text-[#6B7A94] hover:text-white transition-colors"
-              title="Oppdater"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="flex items-center gap-1 text-[10px] text-[#6B7A94]">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                Live
+              </span>
+              <button
+                onClick={() => fetchConversations()}
+                className="p-1.5 text-[#6B7A94] hover:text-white transition-colors"
+                title="Oppdater nå"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -381,9 +482,20 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                 <Button
                   variant={manualMode ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setManualMode(!manualMode)}
+                  onClick={handleToggleManualMode}
+                  className={manualMode ? 'bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90' : ''}
                 >
-                  {manualMode ? 'Automatisk modus' : 'Ta over manuelt'}
+                  {manualMode ? (
+                    <>
+                      <User className="h-4 w-4 mr-1" />
+                      Manuell modus
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="h-4 w-4 mr-1" />
+                      Ta over manuelt
+                    </>
+                  )}
                 </Button>
                 <button className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg">
                   <MoreHorizontal className="h-5 w-5" />
@@ -406,11 +518,12 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                   <MessageBubble key={msg.id} message={msg} />
                 ))
               )}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Input - Only show in manual mode for SMS */}
-            {manualMode && selectedConversation.channel === 'sms' && (
-              <div className="p-4 border-t border-white/[0.06]">
+            {/* Input - Show in manual mode */}
+            {manualMode && (
+              <div className="p-4 border-t border-white/[0.06] bg-amber-500/5">
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -422,11 +535,16 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                         handleSendMessage()
                       }
                     }}
-                    placeholder="Skriv en melding..."
-                    className="flex-1 h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50"
+                    placeholder="Skriv et svar..."
+                    className="flex-1 h-10 px-4 bg-white/[0.03] border border-amber-500/30 rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-amber-500/50"
                     disabled={isSending}
                   />
-                  <Button size="sm" onClick={handleSendMessage} disabled={isSending || !newMessage.trim()}>
+                  <Button
+                    size="sm"
+                    onClick={handleSendMessage}
+                    disabled={isSending || !newMessage.trim()}
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                  >
                     {isSending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -434,8 +552,9 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                     )}
                   </Button>
                 </div>
-                <p className="text-[#6B7A94] text-xs mt-2">
-                  Du er i manuell modus. Botsy vil ikke svare automatisk på denne samtalen.
+                <p className="text-amber-500/70 text-xs mt-2 flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  Du svarer manuelt. Klikk &quot;Manuell modus&quot; for å la Botsy ta over igjen.
                 </p>
               </div>
             )}
@@ -464,6 +583,7 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
 // Message Bubble Component
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
+  const isManual = message.isManual
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -472,6 +592,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           className={`p-3 rounded-2xl ${
             isUser
               ? 'bg-botsy-lime text-botsy-dark rounded-br-md'
+              : isManual
+              ? 'bg-amber-500/20 text-white rounded-bl-md border border-amber-500/30'
               : 'bg-white/[0.05] text-white rounded-bl-md'
           }`}
         >
@@ -482,7 +604,13 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             isUser ? 'justify-end' : 'justify-start'
           }`}
         >
-          {!isUser && <Bot className="h-3 w-3" />}
+          {!isUser && (
+            isManual ? (
+              <User className="h-3 w-3 text-amber-500" />
+            ) : (
+              <Bot className="h-3 w-3" />
+            )
+          )}
           <span>{formatTime(message.timestamp)}</span>
           {!isUser && message.status && (
             <span className="ml-1">

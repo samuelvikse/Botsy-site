@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2 } from 'lucide-react'
+import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2, Maximize2 } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,9 +17,16 @@ interface WidgetSettingsViewProps {
     greeting: string
     isEnabled: boolean
     logoUrl?: string | null
+    widgetSize?: 'small' | 'medium' | 'large'
   }
   businessName?: string
 }
+
+const SIZE_OPTIONS = [
+  { value: 'small', label: 'Liten', width: '340px', height: '460px' },
+  { value: 'medium', label: 'Medium', width: '380px', height: '520px' },
+  { value: 'large', label: 'Stor', width: '420px', height: '600px' },
+]
 
 const PRESET_COLORS = [
   { name: 'Lime', value: '#CCFF00' },
@@ -43,12 +50,14 @@ export function WidgetSettingsView({
     greeting: initialSettings?.greeting || 'Hei! 👋 Hvordan kan jeg hjelpe deg?',
     isEnabled: initialSettings?.isEnabled ?? true,
     logoUrl: initialSettings?.logoUrl || null,
+    widgetSize: initialSettings?.widgetSize || 'medium' as 'small' | 'medium' | 'large',
   })
   const [isSaving, setIsSaving] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const [logoError, setLogoError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
@@ -59,17 +68,37 @@ export function WidgetSettingsView({
     setIsSaving(true)
     try {
       await updateWidgetSettings(companyId, settings)
-    } catch (error) {
-      console.error('Error saving widget settings:', error)
+    } catch {
+      // Silent fail
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(embedCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const handleCopy = async () => {
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(embedCode)
+      } else {
+        // Fallback for older browsers or non-HTTPS contexts
+        const textArea = document.createElement('textarea')
+        textArea.value = embedCode
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        textArea.style.top = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+      }
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Show error feedback
+      alert('Kunne ikke kopiere. Prøv å markere teksten og kopier manuelt.')
+    }
   }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,22 +107,41 @@ export function WidgetSettingsView({
 
     setIsUploadingLogo(true)
     setLogoError(null)
+    setUploadProgress('Forbereder opplasting...')
+
+    // Create a timeout to show a message if upload takes too long
+    const timeoutId = setTimeout(() => {
+      setUploadProgress('Laster fortsatt opp... Dette kan ta litt tid for store bilder.')
+    }, 5000)
 
     try {
       // Delete old logo if exists
       if (settings.logoUrl) {
+        setUploadProgress('Fjerner gammel logo...')
         await deleteCompanyLogo(settings.logoUrl)
       }
 
-      // Upload new logo
-      const logoUrl = await uploadCompanyLogo(companyId, file)
+      setUploadProgress('Laster opp logo...')
+
+      // Upload new logo with timeout
+      const uploadPromise = uploadCompanyLogo(companyId, file)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Opplastingen tok for lang tid. Sjekk internettforbindelsen og prøv igjen.')), 120000)
+      })
+
+      const logoUrl = await Promise.race([uploadPromise, timeoutPromise])
+
+      setUploadProgress('Lagrer innstillinger...')
       setSettings(s => ({ ...s, logoUrl }))
 
       // Save to Firestore
       await updateWidgetSettings(companyId, { logoUrl })
+      setUploadProgress(null)
     } catch (error) {
-      setLogoError(error instanceof Error ? error.message : 'Kunne ikke laste opp logo')
+      setLogoError(error instanceof Error ? error.message : 'Kunne ikke laste opp logo. Sjekk internettforbindelsen og prøv igjen.')
+      setUploadProgress(null)
     } finally {
+      clearTimeout(timeoutId)
       setIsUploadingLogo(false)
       // Reset file input
       if (fileInputRef.current) {
@@ -164,6 +212,13 @@ export function WidgetSettingsView({
             {logoError && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
                 <p className="text-red-400 text-sm">{logoError}</p>
+              </div>
+            )}
+
+            {uploadProgress && (
+              <div className="mb-4 p-3 bg-botsy-lime/10 border border-botsy-lime/20 rounded-xl flex items-center gap-3">
+                <Loader2 className="h-4 w-4 text-botsy-lime animate-spin flex-shrink-0" />
+                <p className="text-botsy-lime text-sm">{uploadProgress}</p>
               </div>
             )}
 
@@ -285,8 +340,8 @@ export function WidgetSettingsView({
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { value: 'bottom-right', label: 'Nederst høyre' },
                 { value: 'bottom-left', label: 'Nederst venstre' },
+                { value: 'bottom-right', label: 'Nederst høyre' },
               ].map((pos) => (
                 <button
                   key={pos.value}
@@ -298,6 +353,32 @@ export function WidgetSettingsView({
                   }`}
                 >
                   {pos.label}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Widget Size */}
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Maximize2 className="h-5 w-5 text-botsy-lime" />
+              <h3 className="text-white font-medium">Widgetstørrelse</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size.value}
+                  onClick={() => setSettings(s => ({ ...s, widgetSize: size.value as 'small' | 'medium' | 'large' }))}
+                  className={`p-4 rounded-xl border text-sm font-medium transition-all ${
+                    settings.widgetSize === size.value
+                      ? 'border-botsy-lime bg-botsy-lime/10 text-botsy-lime'
+                      : 'border-white/[0.06] text-[#A8B4C8] hover:border-white/[0.12] hover:text-white'
+                  }`}
+                >
+                  <div className="text-center">
+                    <span className="block">{size.label}</span>
+                    <span className="text-xs opacity-60 mt-1 block">{size.width}</span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -370,13 +451,14 @@ export function WidgetSettingsView({
                   onClick={() => setShowPreview(!showPreview)}
                 >
                   {settings.logoUrl ? (
-                    <Image
-                      src={settings.logoUrl}
-                      alt="Logo"
-                      width={24}
-                      height={24}
-                      className="object-contain"
-                    />
+                    <div className="absolute inset-0 rounded-full overflow-hidden">
+                      <Image
+                        src={settings.logoUrl}
+                        alt="Logo"
+                        fill
+                        className="object-cover rounded-full"
+                      />
+                    </div>
                   ) : (
                     <MessageCircle className="h-5 w-5 text-gray-900" />
                   )}
@@ -393,14 +475,13 @@ export function WidgetSettingsView({
                       className="px-3 py-2 flex items-center gap-2"
                       style={{ backgroundColor: settings.primaryColor }}
                     >
-                      <div className="h-6 w-6 rounded-full bg-gray-900/20 flex items-center justify-center overflow-hidden">
+                      <div className="h-6 w-6 rounded-full bg-gray-900/20 flex items-center justify-center overflow-hidden relative">
                         {settings.logoUrl ? (
                           <Image
                             src={settings.logoUrl}
                             alt="Logo"
-                            width={16}
-                            height={16}
-                            className="object-contain"
+                            fill
+                            className="object-cover rounded-full"
                           />
                         ) : (
                           <MessageCircle className="h-3 w-3 text-gray-900" />
@@ -462,9 +543,10 @@ export function WidgetSettingsView({
               <ul className="text-[#A8B4C8] text-sm space-y-1">
                 <li>• Koden fungerer på alle nettsider (WordPress, Wix, Squarespace, etc.)</li>
                 <li>• Widgeten lastes asynkront og påvirker ikke sideytelsen</li>
-                <li>• Endringer i innstillingene vises umiddelbart</li>
+                <li>• Husk å lagre endringene før du tester på andre nettsider</li>
               </ul>
             </div>
+
           </Card>
         </div>
       </div>

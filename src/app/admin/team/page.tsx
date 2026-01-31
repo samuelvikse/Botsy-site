@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { useAuth } from '@/contexts/AuthContext'
 
 type TeamMember = {
   id: number
@@ -47,6 +48,12 @@ function TeamContent() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('employee')
   const [copiedLink, setCopiedLink] = useState(false)
+  const { user } = useAuth()
+
+  // Get user initials
+  const userInitials = user?.displayName
+    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
+    : user?.email?.substring(0, 2).toUpperCase() || 'U'
 
   const teamMembers: TeamMember[] = [
     {
@@ -120,10 +127,21 @@ function TeamContent() {
               className="h-8 w-auto"
             />
           </div>
-          <Button onClick={() => setShowInviteModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Inviter medlem
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button onClick={() => setShowInviteModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Inviter medlem
+            </Button>
+            <div className="flex items-center gap-3 pl-4 border-l border-white/[0.06]">
+              <div className="h-9 w-9 rounded-full bg-botsy-lime/20 flex items-center justify-center text-botsy-lime font-medium text-sm">
+                {userInitials}
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-white text-sm font-medium">{user?.displayName || 'Bruker'}</p>
+                <p className="text-[#6B7A94] text-xs">{user?.email}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

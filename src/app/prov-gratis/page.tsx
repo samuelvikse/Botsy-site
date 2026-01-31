@@ -428,7 +428,7 @@ export default function TryFreePage() {
         </div>
       </section>
 
-      {/* ===== SOCIAL PROOF ===== */}
+      {/* ===== CAPABILITIES ===== */}
       <section className="py-12 border-y border-white/[0.04]">
         <div className="container">
           <motion.div
@@ -438,74 +438,24 @@ export default function TryFreePage() {
             className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 text-center"
           >
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">500+</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Norske bedrifter</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">24/7</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Alltid tilgjengelig</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">2M+</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Meldinger håndtert</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">&lt;3s</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Responstid</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">4.9/5</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Kundetilfredshet</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">100%</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Norsk språk</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-botsy-lime font-display">&lt;30s</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Gjennomsnittlig responstid</p>
+              <p className="text-3xl lg:text-4xl font-bold text-botsy-lime font-display">14 dager</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Gratis prøveperiode</p>
             </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ===== TESTIMONIALS ===== */}
-      <section className="py-24 lg:py-32">
-        <div className="container">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-            className="text-center max-w-3xl mx-auto mb-16"
-          >
-            <motion.div variants={fadeInUp}>
-              <Badge variant="secondary" className="mb-4">Tilbakemeldinger</Badge>
-            </motion.div>
-            <motion.h2
-              variants={fadeInUp}
-              className="text-3xl lg:text-5xl font-bold text-white mb-6 font-display"
-            >
-              Hva kundene sier
-            </motion.h2>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            <TestimonialCard
-              quote="Botsy svarte på over 500 henvendelser første uken. Vi sparte minst 20 timer."
-              author="Maria Hansen"
-              role="Daglig leder"
-              company="Hansen & Co Elektro"
-            />
-            <TestimonialCard
-              quote="Endelig en AI som faktisk forstår norsk! Kundene våre merker ikke forskjellen."
-              author="Thomas Berg"
-              role="Kundesjef"
-              company="Berg Interiør AS"
-            />
-            <TestimonialCard
-              quote="Setup tok 8 minutter. Nå sover jeg godt om natten mens Botsy tar nattevaktene."
-              author="Ingrid Olsen"
-              role="Gründer"
-              company="Olsen Digital"
-            />
           </motion.div>
         </div>
       </section>
@@ -545,7 +495,7 @@ export default function TryFreePage() {
                   </Link>
 
                   <p className="text-center lg:text-left text-sm text-[#6B7A94] mt-4">
-                    Deretter kun 599 kr/mnd
+                    Deretter kun 699 kr/mnd
                   </p>
                 </div>
 
@@ -594,7 +544,7 @@ export default function TryFreePage() {
                 Klar til å møte din nye digitale kollega?
               </h2>
               <p className="text-lg text-[#A8B4C8] mb-10 max-w-xl mx-auto">
-                Bli med over 500 norske bedrifter som allerede bruker Botsy.
+                Ingen kredittkort nødvendig. Ingen forpliktelser.
                 Start gratis i dag.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">

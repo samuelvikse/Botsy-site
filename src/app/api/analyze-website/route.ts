@@ -150,7 +150,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<AnalyzeWe
     } as AnalyzeWebsiteResponse & { summary: string; websiteContent: string })
 
   } catch (error) {
-    console.error('Website analysis error:', error)
     const message = error instanceof Error ? error.message : 'En ukjent feil oppstod'
     return NextResponse.json(
       { success: false, error: message },

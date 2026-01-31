@@ -152,6 +152,10 @@ export async function saveToneConfig(
     avoidPhrases?: string[]
     preferredPhrases?: string[]
     exampleResponses?: string[]
+    tone?: 'formal' | 'friendly' | 'casual'
+    greeting?: string
+    useEmojis?: boolean
+    humorLevel?: 'none' | 'subtle' | 'moderate' | 'playful'
   }
 ): Promise<void> {
   if (!db) throw new Error('Firestore not initialized')
@@ -162,6 +166,145 @@ export async function saveToneConfig(
     'businessProfile.toneConfig': toneConfig,
     updatedAt: serverTimestamp(),
   })
+}
+
+// ============================================
+// Knowledge Document Functions
+// ============================================
+
+import type { KnowledgeDocument, KnowledgeDocumentDoc } from '@/types'
+
+export async function saveKnowledgeDocument(
+  companyId: string,
+  document: Omit<KnowledgeDocument, 'id'>
+): Promise<string> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
+
+  const docData: KnowledgeDocumentDoc = {
+    fileName: document.fileName,
+    fileUrl: document.fileUrl,
+    fileType: document.fileType,
+    fileSize: document.fileSize,
+    extractedContent: document.extractedContent,
+    analyzedData: document.analyzedData,
+    status: document.status,
+    errorMessage: document.errorMessage || undefined,
+    uploadedAt: Timestamp.fromDate(
+      document.uploadedAt instanceof Date
+        ? document.uploadedAt
+        : new Date(document.uploadedAt)
+    ),
+    processedAt: document.processedAt
+      ? Timestamp.fromDate(
+          document.processedAt instanceof Date
+            ? document.processedAt
+            : new Date(document.processedAt)
+        )
+      : null,
+    uploadedBy: document.uploadedBy,
+  }
+
+  const docRef = await addDoc(docsRef, docData)
+  return docRef.id
+}
+
+export async function updateKnowledgeDocument(
+  companyId: string,
+  documentId: string,
+  updates: Partial<KnowledgeDocument>
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docRef = doc(db, 'companies', companyId, 'knowledgeDocs', documentId)
+
+  const updateData: Record<string, unknown> = {}
+
+  if (updates.extractedContent !== undefined) updateData.extractedContent = updates.extractedContent
+  if (updates.analyzedData !== undefined) updateData.analyzedData = updates.analyzedData
+  if (updates.status !== undefined) updateData.status = updates.status
+  if (updates.errorMessage !== undefined) updateData.errorMessage = updates.errorMessage || null
+  if (updates.processedAt !== undefined) {
+    updateData.processedAt = updates.processedAt
+      ? Timestamp.fromDate(new Date(updates.processedAt))
+      : null
+  }
+
+  await updateDoc(docRef, updateData)
+}
+
+export async function getKnowledgeDocuments(companyId: string): Promise<KnowledgeDocument[]> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
+  const q = query(docsRef, orderBy('uploadedAt', 'desc'))
+  const snapshot = await getDocs(q)
+
+  const documents: KnowledgeDocument[] = []
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data() as KnowledgeDocumentDoc
+    documents.push({
+      id: docSnap.id,
+      fileName: data.fileName,
+      fileUrl: data.fileUrl,
+      fileType: data.fileType,
+      fileSize: data.fileSize,
+      extractedContent: data.extractedContent,
+      analyzedData: data.analyzedData,
+      status: data.status,
+      errorMessage: data.errorMessage,
+      uploadedAt: (data.uploadedAt as Timestamp).toDate(),
+      processedAt: data.processedAt
+        ? (data.processedAt as Timestamp).toDate()
+        : undefined,
+      uploadedBy: data.uploadedBy,
+    })
+  })
+
+  return documents
+}
+
+export async function deleteKnowledgeDocument(
+  companyId: string,
+  documentId: string
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docRef = doc(db, 'companies', companyId, 'knowledgeDocs', documentId)
+  await deleteDoc(docRef)
+}
+
+export async function getReadyKnowledgeDocuments(companyId: string): Promise<KnowledgeDocument[]> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
+  const q = query(docsRef, where('status', '==', 'ready'))
+  const snapshot = await getDocs(q)
+
+  const documents: KnowledgeDocument[] = []
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data() as KnowledgeDocumentDoc
+    documents.push({
+      id: docSnap.id,
+      fileName: data.fileName,
+      fileUrl: data.fileUrl,
+      fileType: data.fileType,
+      fileSize: data.fileSize,
+      extractedContent: data.extractedContent,
+      analyzedData: data.analyzedData,
+      status: data.status,
+      uploadedAt: (data.uploadedAt as Timestamp).toDate(),
+      processedAt: data.processedAt
+        ? (data.processedAt as Timestamp).toDate()
+        : undefined,
+      uploadedBy: data.uploadedBy,
+    })
+  })
+
+  return documents
 }
 
 // ============================================
@@ -370,6 +513,7 @@ export async function createCompany(
       position: 'bottom-right',
       greeting: 'Hei! Hvordan kan jeg hjelpe deg?',
       isEnabled: true,
+      widgetSize: 'medium',
     },
   })
 }
@@ -384,6 +528,7 @@ export async function getCompany(companyId: string): Promise<{
     greeting: string
     isEnabled: boolean
     logoUrl?: string | null
+    widgetSize?: 'small' | 'medium' | 'large'
   }
 } | null> {
   if (!db) throw new Error('Firestore not initialized')
@@ -417,6 +562,7 @@ export async function getCompany(companyId: string): Promise<{
       greeting: data.widgetSettings?.greeting || 'Hei! Hvordan kan jeg hjelpe deg?',
       isEnabled: data.widgetSettings?.isEnabled ?? true,
       logoUrl: data.widgetSettings?.logoUrl || null,
+      widgetSize: data.widgetSettings?.widgetSize || 'medium',
     },
   }
 }
@@ -429,6 +575,7 @@ export async function updateWidgetSettings(
     greeting: string
     isEnabled: boolean
     logoUrl: string | null
+    widgetSize: 'small' | 'medium' | 'large'
   }>
 ): Promise<void> {
   if (!db) throw new Error('Firestore not initialized')
@@ -530,10 +677,12 @@ interface WidgetChatSummary {
     role: 'user' | 'assistant'
     content: string
     timestamp: Date
+    isManual?: boolean
   }>
   lastMessageAt: Date
   messageCount: number
   createdAt: Date
+  isManualMode?: boolean
 }
 
 export async function getAllWidgetChats(companyId: string): Promise<WidgetChatSummary[]> {
@@ -547,10 +696,11 @@ export async function getAllWidgetChats(companyId: string): Promise<WidgetChatSu
 
   snapshot.forEach((docSnap) => {
     const data = docSnap.data()
-    const messages = (data.messages || []).map((msg: { role: 'user' | 'assistant'; content: string; timestamp?: { toDate?: () => Date } }) => ({
+    const messages = (data.messages || []).map((msg: { role: 'user' | 'assistant'; content: string; timestamp?: { toDate?: () => Date }; isManual?: boolean }) => ({
       role: msg.role,
       content: msg.content,
       timestamp: msg.timestamp?.toDate?.() || new Date(),
+      isManual: msg.isManual || false,
     }))
 
     if (messages.length > 0) {
@@ -560,6 +710,7 @@ export async function getAllWidgetChats(companyId: string): Promise<WidgetChatSu
         lastMessageAt: data.updatedAt?.toDate?.() || new Date(),
         messageCount: messages.length,
         createdAt: data.createdAt?.toDate?.() || new Date(),
+        isManualMode: data.isManualMode || false,
       })
     }
   })
@@ -570,7 +721,7 @@ export async function getAllWidgetChats(companyId: string): Promise<WidgetChatSu
 export async function getWidgetChatHistory(
   companyId: string,
   sessionId: string
-): Promise<Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date }>> {
+): Promise<Array<{ role: 'user' | 'assistant'; content: string; timestamp: Date; isManual?: boolean }>> {
   if (!db) throw new Error('Firestore not initialized')
 
   const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
@@ -580,10 +731,134 @@ export async function getWidgetChatHistory(
 
   const data = sessionSnap.data()
   return (data.messages || []).map(
-    (msg: { role: 'user' | 'assistant'; content: string; timestamp?: { toDate?: () => Date } }) => ({
+    (msg: { role: 'user' | 'assistant'; content: string; timestamp?: { toDate?: () => Date }; isManual?: boolean }) => ({
       role: msg.role,
       content: msg.content,
       timestamp: msg.timestamp?.toDate?.() || new Date(),
+      isManual: msg.isManual || false,
     })
   )
+}
+
+// ============================================
+// Manual Takeover Functions
+// ============================================
+
+export async function setChatManualMode(
+  companyId: string,
+  sessionId: string,
+  isManual: boolean
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+  await updateDoc(sessionRef, {
+    isManualMode: isManual,
+    manualModeUpdatedAt: serverTimestamp(),
+  })
+}
+
+export async function getChatManualMode(
+  companyId: string,
+  sessionId: string
+): Promise<boolean> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+  const sessionSnap = await getDoc(sessionRef)
+
+  if (!sessionSnap.exists()) return false
+
+  return sessionSnap.data()?.isManualMode || false
+}
+
+export async function addManualMessage(
+  companyId: string,
+  sessionId: string,
+  content: string
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+  const sessionSnap = await getDoc(sessionRef)
+
+  if (!sessionSnap.exists()) {
+    throw new Error('Chat session not found')
+  }
+
+  const existingData = sessionSnap.data()
+  await updateDoc(sessionRef, {
+    messages: [
+      ...(existingData?.messages || []),
+      {
+        role: 'assistant',
+        content,
+        timestamp: new Date(),
+        isManual: true,
+      },
+    ],
+    updatedAt: serverTimestamp(),
+  })
+}
+
+// ============================================
+// General Settings Functions
+// ============================================
+
+export interface GeneralSettings {
+  botName: string
+  tone: string
+  greeting: string
+  useEmojis: boolean
+  emailNotifications: boolean
+  dailySummary: boolean
+}
+
+export async function saveGeneralSettings(
+  companyId: string,
+  settings: Partial<GeneralSettings>
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docRef = doc(db, 'companies', companyId)
+
+  const updateData: Record<string, unknown> = {}
+  Object.entries(settings).forEach(([key, value]) => {
+    updateData[`generalSettings.${key}`] = value
+  })
+  updateData['updatedAt'] = serverTimestamp()
+
+  await updateDoc(docRef, updateData)
+}
+
+export async function getGeneralSettings(
+  companyId: string
+): Promise<GeneralSettings> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docRef = doc(db, 'companies', companyId)
+  const docSnap = await getDoc(docRef)
+
+  const defaults: GeneralSettings = {
+    botName: 'Botsy',
+    tone: 'Vennlig og uformell',
+    greeting: 'Hei! Jeg er Botsy, din digitale assistent. Hvordan kan jeg hjelpe deg i dag?',
+    useEmojis: true,
+    emailNotifications: true,
+    dailySummary: false,
+  }
+
+  if (!docSnap.exists()) return defaults
+
+  const data = docSnap.data()
+  const stored = data.generalSettings || {}
+
+  return {
+    botName: stored.botName ?? defaults.botName,
+    tone: stored.tone ?? defaults.tone,
+    greeting: stored.greeting ?? defaults.greeting,
+    useEmojis: stored.useEmojis ?? defaults.useEmojis,
+    emailNotifications: stored.emailNotifications ?? defaults.emailNotifications,
+    dailySummary: stored.dailySummary ?? defaults.dailySummary,
+  }
 }

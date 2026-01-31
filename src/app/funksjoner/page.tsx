@@ -67,14 +67,14 @@ export default function FeaturesPage() {
     {
       id: 'ai',
       icon: Brain,
-      title: 'AI som forstår',
-      subtitle: 'Ikke bare ordene - hele konteksten',
-      description: 'Botsy bruker avansert språkforståelse for å tolke hva kundene virkelig mener. Selv med skrivefeil, dialekt eller uklare spørsmål.',
+      title: 'AI som lærer din bransje',
+      subtitle: 'Skriv inn nettside – Botsy gjør resten',
+      description: 'Botsy setter seg inn i din virksomhets nisje og henter all nødvendig informasjon fra nettsiden din. Alt du trenger å gjøre er å skrive inn firmanavn og nettadresse – så analyserer Botsy innholdet og blir ekspert på akkurat din bedrift.',
       features: [
-        'Forstår norske dialekter og uttrykk',
-        'Husker tidligere samtaler',
-        'Lærer fra hver interaksjon',
-        'Tilpasser seg bedriftens terminologi'
+        'Skanner nettsiden din automatisk',
+        'Lærer bransje-spesifikk terminologi',
+        'Forstår produkter og tjenester',
+        'Oppdateres når du endrer innhold'
       ]
     },
     {
@@ -106,14 +106,14 @@ export default function FeaturesPage() {
     {
       id: 'customize',
       icon: Palette,
-      title: 'Din stil, din stemme',
-      subtitle: 'Botsy tilpasser seg merkevaren din',
-      description: 'Fra formell juridisk rådgivning til uformell butikkprat. Botsy snakker som du vil.',
+      title: 'Fullt tilpassbar',
+      subtitle: 'Fra navn og logo til tone og personlighet',
+      description: 'Gjør Botsy helt til din egen. Endre navn, last opp egen logo, velg farger som matcher merkevaren din, og juster tonen fra formell til uformell. Alt er customizable.',
       features: [
-        'Tilpassbar tone og personlighet',
-        'Egendefinerte svar-maler',
+        'Eget navn og egen logo',
         'Merkevare-farger i widget',
-        'Flerspråklig støtte'
+        'Tilpassbar tone og personlighet',
+        'Velkomstmelding og emoji-preferanser'
       ]
     }
   ]
@@ -158,6 +158,9 @@ export default function FeaturesPage() {
               <Link href="/#pricing" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
                 Priser
               </Link>
+              <Link href="/#how-it-works" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
+                Slik fungerer det
+              </Link>
               <Link href="/kontakt" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
                 Kontakt
               </Link>
@@ -196,6 +199,7 @@ export default function FeaturesPage() {
             <div className="container py-6 flex flex-col gap-2">
               <Link href="/funksjoner" className="text-white py-3 px-4 rounded-xl bg-white/[0.05]" onClick={() => setMobileMenuOpen(false)}>Funksjoner</Link>
               <Link href="/#pricing" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Priser</Link>
+              <Link href="/#how-it-works" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Slik fungerer det</Link>
               <Link href="/kontakt" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Kontakt</Link>
               <div className="h-px bg-white/[0.06] my-2" />
               <Link href="/login"><Button variant="outline" className="w-full">Logg inn</Button></Link>
@@ -234,8 +238,8 @@ export default function FeaturesPage() {
               variants={fadeInUp}
               className="text-lg lg:text-xl text-[#A8B4C8] mb-12 leading-relaxed max-w-2xl mx-auto"
             >
-              Ikke bare buzzwords. Konkrete verktøy som sparer tid,
-              imponerer kunder, og lar deg fokusere på det som betyr noe.
+              Skriv inn firmanavn og nettside – Botsy lærer bransjen din og blir
+              ekspert på akkurat din bedrift. Fullt tilpassbar fra navn til logo og tone.
             </motion.p>
 
             {/* Quick stats */}
@@ -245,7 +249,7 @@ export default function FeaturesPage() {
             >
               {[
                 { value: '< 3s', label: 'Responstid' },
-                { value: '89%', label: 'Løst automatisk' },
+                { value: '100%', label: 'Norsk språk' },
                 { value: '24/7', label: 'Tilgjengelighet' },
               ].map((stat, i) => (
                 <div key={i} className="text-center">
@@ -254,6 +258,77 @@ export default function FeaturesPage() {
                 </div>
               ))}
             </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ===== SIMPLE SETUP SECTION ===== */}
+      <section className="py-16 lg:py-24 relative">
+        <div className="container">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={staggerContainer}
+            className="text-center max-w-3xl mx-auto mb-12"
+          >
+            <motion.div variants={fadeInUp}>
+              <Badge variant="secondary" className="mb-4">
+                <Zap className="h-3 w-3 mr-1.5" />
+                Kom i gang på minutter
+              </Badge>
+            </motion.div>
+            <motion.h2
+              variants={fadeInUp}
+              className="text-3xl lg:text-4xl font-bold text-white mb-4 font-display"
+            >
+              Bare to ting trengs
+            </motion.h2>
+            <motion.p variants={fadeInUp} className="text-lg text-[#A8B4C8]">
+              Firmanavn og nettside. Det er alt. Botsy analyserer nettsiden din,
+              lærer om bransjen din, og blir klar til å svare kunder – automatisk.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+            className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto"
+          >
+            {[
+              {
+                step: '1',
+                title: 'Skriv inn nettside',
+                desc: 'Oppgi firmanavn og URL. Botsy scanner alle sider automatisk.'
+              },
+              {
+                step: '2',
+                title: 'Botsy lærer bransjen',
+                desc: 'AI-en analyserer innhold, produkter, tjenester og terminologi.'
+              },
+              {
+                step: '3',
+                title: 'Klar til bruk',
+                desc: 'Legg til widget på siden din. Botsy svarer kunder 24/7.'
+              }
+            ].map((item, i) => (
+              <motion.div key={i} variants={fadeInUp}>
+                <Card className="p-6 text-center h-full relative overflow-hidden group">
+                  <div className="absolute -top-6 -right-6 text-[120px] font-bold text-white/[0.02] group-hover:text-botsy-lime/[0.05] transition-colors">
+                    {item.step}
+                  </div>
+                  <div className="relative">
+                    <div className="h-12 w-12 rounded-full bg-botsy-lime/10 border border-botsy-lime/20 flex items-center justify-center text-botsy-lime font-bold text-lg mx-auto mb-4">
+                      {item.step}
+                    </div>
+                    <h3 className="text-white font-semibold mb-2">{item.title}</h3>
+                    <p className="text-[#6B7A94] text-sm">{item.desc}</p>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
           </motion.div>
         </div>
       </section>

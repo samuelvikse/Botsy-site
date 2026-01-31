@@ -19,6 +19,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/ui/modal'
+import { useToast } from '@/components/ui/toast'
 import type { SMSProvider } from '@/types'
 
 interface SMSSettingsViewProps {
@@ -64,6 +66,8 @@ export function SMSSettingsView({ companyId }: SMSSettingsViewProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
+  const toast = useToast()
 
   // Configuration state
   const [isConfigured, setIsConfigured] = useState(false)
@@ -173,11 +177,12 @@ export function SMSSettingsView({ companyId }: SMSSettingsViewProps) {
     }
   }
 
-  const handleDeactivate = async () => {
-    if (!confirm('Er du sikker på at du vil deaktivere SMS-integrasjonen?')) {
-      return
-    }
+  const handleDeactivate = () => {
+    setDeactivateModalOpen(true)
+  }
 
+  const confirmDeactivate = async () => {
+    setDeactivateModalOpen(false)
     setError(null)
     setIsSaving(true)
 
@@ -189,13 +194,14 @@ export function SMSSettingsView({ companyId }: SMSSettingsViewProps) {
       const data = await response.json()
 
       if (data.success) {
-        setSuccess('SMS-integrasjon deaktivert')
+        toast.success('SMS deaktivert', 'SMS-integrasjonen ble deaktivert')
         await fetchConfig()
       } else {
         setError(data.error)
       }
     } catch (err) {
       setError('Kunne ikke deaktivere SMS')
+      toast.error('Feil', 'Kunne ikke deaktivere SMS-integrasjonen')
     } finally {
       setIsSaving(false)
     }
@@ -545,6 +551,17 @@ export function SMSSettingsView({ companyId }: SMSSettingsViewProps) {
           </Card>
         </>
       )}
+
+      {/* Deactivate Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deactivateModalOpen}
+        onClose={() => setDeactivateModalOpen(false)}
+        onConfirm={confirmDeactivate}
+        title="Deaktiver SMS-integrasjon?"
+        description="Er du sikker på at du vil deaktivere SMS-integrasjonen? Botsy vil ikke lenger kunne svare på SMS."
+        confirmText="Deaktiver"
+        variant="warning"
+      />
     </div>
   )
 }

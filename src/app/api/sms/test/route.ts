@@ -89,7 +89,6 @@ export async function POST(request: NextRequest) {
       )
     }
   } catch (error) {
-    console.error('Error sending test SMS:', error)
     const errorMessage =
       error instanceof Error ? error.message : 'Ukjent feil'
     return NextResponse.json(

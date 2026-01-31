@@ -1,45 +1,135 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/toast'
+import { OrganizationJsonLd, WebsiteJsonLd, SoftwareApplicationJsonLd } from '@/components/seo/JsonLd'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#0A0F1C',
+}
 
 export const metadata: Metadata = {
-  title: 'Botsy – Din digitale kollega som aldri tar ferie',
-  description: 'AI-drevet kundeservice for norske bedrifter. Svar kunder 24/7 via WhatsApp, SMS, Messenger og e-post. Introduksjonstilbud: 699 kr/mnd. Prøv gratis i 14 dager.',
-  keywords: ['kundeservice', 'AI', 'chatbot', 'WhatsApp', 'norsk', 'bedrift', 'automatisering'],
-  authors: [{ name: 'Botsy' }],
+  metadataBase: new URL('https://botsy.no'),
+  title: {
+    default: 'Botsy – AI Kundeservice for Norske Bedrifter | Chatbot som Svarer 24/7',
+    template: '%s | Botsy',
+  },
+  description: 'Botsy er en norsk AI-chatbot som svarer kundene dine 24/7. Automatiser kundeservice via WhatsApp, SMS, Messenger og e-post. Prøv gratis i 14 dager. Fra 699 kr/mnd.',
+  keywords: [
+    // Hovedkeywords
+    'AI kundeservice',
+    'chatbot norge',
+    'kundeservice chatbot',
+    'AI chatbot norsk',
+    'automatisert kundeservice',
+    // Produkt-relatert
+    'WhatsApp chatbot',
+    'SMS chatbot',
+    'Messenger chatbot',
+    'e-post automatisering',
+    'kundeservice automatisering',
+    // Bransje-relatert
+    'chatbot for bedrifter',
+    'kundeservice løsning',
+    'digital kundeservice',
+    'virtuell assistent bedrift',
+    // Norsk-spesifikk
+    'norsk chatbot',
+    'chatbot på norsk',
+    'AI på norsk',
+    'kundeservice norge',
+    'chatbot løsning norge',
+    // Long-tail
+    'beste chatbot for små bedrifter',
+    'rimelig kundeservice løsning',
+    'chatbot uten koding',
+    'enkel chatbot oppsett',
+    '24/7 kundesupport',
+    'automatisk kundesvar',
+    // Konkurrent-relatert
+    'alternativ til kundeservice',
+    'erstatt kundesenter',
+    'reduser kundeservice kostnader',
+  ],
+  authors: [{ name: 'Botsy', url: 'https://botsy.no' }],
   creator: 'Botsy',
   publisher: 'Botsy',
-  icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
   },
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    shortcut: '/favicon.svg',
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
+  manifest: '/manifest.json',
   openGraph: {
     type: 'website',
     locale: 'nb_NO',
+    alternateLocale: 'en_US',
     url: 'https://botsy.no',
     siteName: 'Botsy',
-    title: 'Botsy – Din digitale kollega som aldri tar ferie',
-    description: 'AI-drevet kundeservice for norske bedrifter. Svar kunder 24/7 via WhatsApp, SMS, Messenger og e-post.',
+    title: 'Botsy – AI Kundeservice som Svarer Kundene Dine 24/7',
+    description: 'Norsk AI-chatbot for bedrifter. Automatiser kundeservice via WhatsApp, SMS, Messenger og e-post. Prøv gratis i 14 dager.',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Botsy - AI Kundeservice',
+        alt: 'Botsy - AI Kundeservice for Norske Bedrifter',
+        type: 'image/png',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Botsy – Din digitale kollega som aldri tar ferie',
-    description: 'AI-drevet kundeservice for norske bedrifter.',
+    title: 'Botsy – AI Kundeservice for Norske Bedrifter',
+    description: 'Norsk AI-chatbot som svarer kundene dine 24/7. Prøv gratis i 14 dager.',
     images: ['/og-image.png'],
+    creator: '@botsy_no',
   },
   robots: {
     index: true,
     follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  alternates: {
+    canonical: 'https://botsy.no',
+    languages: {
+      'nb-NO': 'https://botsy.no',
+      'en-US': 'https://botsy.no/en',
+    },
+  },
+  category: 'technology',
+  classification: 'Business Software',
+  verification: {
+    // Legg til disse når du har verifisert
+    // google: 'google-site-verification-code',
+    // yandex: 'yandex-verification-code',
+  },
+  other: {
+    'msapplication-TileColor': '#0A0F1C',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    'apple-mobile-web-app-title': 'Botsy',
   },
 }
 
@@ -50,6 +140,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="nb" className="scroll-smooth">
+      <head>
+        <OrganizationJsonLd />
+        <WebsiteJsonLd />
+        <SoftwareApplicationJsonLd />
+      </head>
       <body className="min-h-screen bg-botsy-dark antialiased">
         <AuthProvider>
           <ToastProvider>

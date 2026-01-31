@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
     const companyId = await findCompanyByPhone(toPhone)
 
     if (!companyId) {
-      console.error(`No company found for phone number: ${toPhone}`)
       return NextResponse.json(
         { error: 'Phone number not registered' },
         { status: 404 }
@@ -40,7 +39,6 @@ export async function POST(request: NextRequest) {
     // Get SMS channel configuration with credentials
     const smsChannel = await getSMSChannel(companyId)
     if (!smsChannel || !smsChannel.isActive) {
-      console.error(`SMS channel not active for company: ${companyId}`)
       return NextResponse.json(
         { error: 'SMS not configured for this company' },
         { status: 404 }
@@ -51,7 +49,6 @@ export async function POST(request: NextRequest) {
     const smsProviderWithCreds = getSMSProvider(smsChannel.provider, smsChannel.credentials)
     const isValid = await smsProviderWithCreds.validateWebhook(requestForValidation)
     if (!isValid) {
-      console.error('SMS webhook validation failed')
       return NextResponse.json(
         { error: 'Invalid webhook signature' },
         { status: 401 }
@@ -62,12 +59,9 @@ export async function POST(request: NextRequest) {
     const inboundMessage = tempMessage
     const fromPhone = formatPhoneNumber(inboundMessage.from)
 
-    console.log(`[SMS Webhook] Received SMS from ${fromPhone} to ${toPhone}: ${inboundMessage.body}`)
-
     // Get company data
     const company = await getCompany(companyId)
     if (!company || !company.businessProfile) {
-      console.error(`Company or business profile not found: ${companyId}`)
       return NextResponse.json(
         { error: 'Company not configured' },
         { status: 404 }
@@ -130,8 +124,6 @@ export async function POST(request: NextRequest) {
 
     await saveSMSMessage(companyId, fromPhone, outboundSMSMessage)
 
-    console.log(`[SMS Webhook] Sent reply to ${fromPhone}: ${reply.substring(0, 50)}...`)
-
     // Return appropriate response for the provider
     if (smsChannel.provider === 'twilio') {
       // Twilio expects TwiML response for auto-reply (optional)
@@ -147,7 +139,6 @@ export async function POST(request: NextRequest) {
       messageId: sendResult.messageId,
     })
   } catch (error) {
-    console.error('SMS webhook error:', error)
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error'
 

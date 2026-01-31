@@ -8,12 +8,18 @@ export interface FAQ {
 }
 
 // Tone configuration for precise control over Botsy's communication style
+export type HumorLevel = 'none' | 'subtle' | 'moderate' | 'playful'
+
 export interface ToneConfig {
   customInstructions?: string // User's detailed description of how Botsy should communicate
   personality?: string // Specific personality traits (e.g., "entusiastisk", "rolig og tillitsfull")
   avoidPhrases?: string[] // Phrases Botsy should NOT use
   preferredPhrases?: string[] // Phrases Botsy SHOULD use
   exampleResponses?: string[] // Example responses showing ideal tone
+  tone?: 'formal' | 'friendly' | 'casual' // Base tone setting
+  greeting?: string // Welcome message for chat widget
+  useEmojis?: boolean // Whether Botsy should use emojis
+  humorLevel?: HumorLevel // How much humor Botsy should use
 }
 
 // Business Profile - generated from website analysis
@@ -116,9 +122,12 @@ export interface OwnerChatDoc {
 }
 
 // ============================================
-// SMS Types
+// Channel Types (All messaging channels)
 // ============================================
 
+export type ChannelType = 'sms' | 'whatsapp' | 'messenger' | 'email'
+
+// SMS Types
 export type SMSProvider = 'twilio' | 'messagebird' | 'none'
 
 export interface SMSCredentials {
@@ -138,6 +147,101 @@ export interface SMSChannel {
   updatedAt: Date
 }
 
+// WhatsApp Types
+export type WhatsAppProvider = 'meta' | 'twilio' | 'none'
+
+export interface WhatsAppCredentials {
+  accessToken?: string     // Meta Graph API
+  phoneNumberId?: string   // Meta
+  businessAccountId?: string // Meta
+  accountSid?: string      // Twilio
+  authToken?: string       // Twilio
+}
+
+export interface WhatsAppChannel {
+  id: string
+  provider: WhatsAppProvider
+  phoneNumber: string      // E.164 format
+  isActive: boolean
+  isVerified: boolean
+  credentials: WhatsAppCredentials
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Messenger Types
+export interface MessengerCredentials {
+  pageAccessToken?: string
+  pageId?: string
+  appSecret?: string
+}
+
+export interface MessengerChannel {
+  id: string
+  pageName: string
+  pageId: string
+  isActive: boolean
+  isVerified: boolean
+  credentials: MessengerCredentials
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Email Types
+export type EmailProvider = 'sendgrid' | 'mailgun' | 'smtp' | 'none'
+
+export interface EmailCredentials {
+  apiKey?: string          // SendGrid/Mailgun
+  domain?: string          // Mailgun
+  smtpHost?: string        // SMTP
+  smtpPort?: number        // SMTP
+  smtpUser?: string        // SMTP
+  smtpPass?: string        // SMTP
+}
+
+export interface EmailChannel {
+  id: string
+  provider: EmailProvider
+  emailAddress: string
+  isActive: boolean
+  isVerified: boolean
+  credentials: EmailCredentials
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Unified Channel Config (for Firestore)
+export interface ChannelConfig {
+  sms?: {
+    provider: SMSProvider
+    phoneNumber: string
+    isActive: boolean
+    isVerified: boolean
+    credentials: SMSCredentials
+  }
+  whatsapp?: {
+    provider: WhatsAppProvider
+    phoneNumber: string
+    isActive: boolean
+    isVerified: boolean
+    credentials: WhatsAppCredentials
+  }
+  messenger?: {
+    pageName: string
+    pageId: string
+    isActive: boolean
+    isVerified: boolean
+    credentials: MessengerCredentials
+  }
+  email?: {
+    provider: EmailProvider
+    emailAddress: string
+    isActive: boolean
+    isVerified: boolean
+    credentials: EmailCredentials
+  }
+}
+
 export interface SMSMessage {
   id: string
   direction: 'inbound' | 'outbound'
@@ -154,6 +258,51 @@ export interface SMSChat {
   messages: SMSMessage[]
   lastMessageAt: Date
   createdAt: Date
+}
+
+// ============================================
+// Knowledge Document Types
+// ============================================
+
+export interface KnowledgeDocument {
+  id: string
+  fileName: string
+  fileUrl: string
+  fileType: 'pdf' | 'txt' | 'docx' | 'md'
+  fileSize: number
+  extractedContent: string
+  analyzedData: {
+    faqs: Array<{ question: string; answer: string }>
+    rules: string[]
+    policies: string[]
+    importantInfo: string[]
+    summary: string
+  }
+  status: 'processing' | 'ready' | 'error'
+  errorMessage?: string
+  uploadedAt: Date
+  processedAt?: Date
+  uploadedBy: string
+}
+
+export interface KnowledgeDocumentDoc {
+  fileName: string
+  fileUrl: string
+  fileType: 'pdf' | 'txt' | 'docx' | 'md'
+  fileSize: number
+  extractedContent: string
+  analyzedData: {
+    faqs: Array<{ question: string; answer: string }>
+    rules: string[]
+    policies: string[]
+    importantInfo: string[]
+    summary: string
+  }
+  status: 'processing' | 'ready' | 'error'
+  errorMessage?: string
+  uploadedAt: unknown // Firestore Timestamp
+  processedAt?: unknown // Firestore Timestamp
+  uploadedBy: string
 }
 
 // Firestore document types for SMS

@@ -59,7 +59,6 @@ export async function GET(request: NextRequest) {
       channel: safeChannel,
     })
   } catch (error) {
-    console.error('Error getting SMS config:', error)
     const errorMessage =
       error instanceof Error ? error.message : 'Ukjent feil'
     return NextResponse.json(
@@ -149,7 +148,6 @@ export async function POST(request: NextRequest) {
       phoneNumber: formattedPhone,
     })
   } catch (error) {
-    console.error('Error saving SMS config:', error)
     const errorMessage =
       error instanceof Error ? error.message : 'Ukjent feil'
     return NextResponse.json(
@@ -193,7 +191,6 @@ export async function PATCH(request: NextRequest) {
       message: 'SMS-konfigurasjon oppdatert',
     })
   } catch (error) {
-    console.error('Error updating SMS config:', error)
     const errorMessage =
       error instanceof Error ? error.message : 'Ukjent feil'
     return NextResponse.json(
@@ -222,7 +219,6 @@ export async function DELETE(request: NextRequest) {
       message: 'SMS-integrasjon deaktivert',
     })
   } catch (error) {
-    console.error('Error deleting SMS config:', error)
     const errorMessage =
       error instanceof Error ? error.message : 'Ukjent feil'
     return NextResponse.json(

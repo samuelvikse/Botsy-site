@@ -15,23 +15,23 @@
   --botsy-lime-light: #c8e048;
   --botsy-lime-dark: #a5c02d;
   --botsy-lime-muted: #8fa828;
-  
+
   /* Lime Opacity Variants */
   --botsy-lime-glow: rgba(186, 213, 50, 0.35);
   --botsy-lime-10: rgba(186, 213, 50, 0.1);
   --botsy-lime-20: rgba(186, 213, 50, 0.2);
   --botsy-lime-5: rgba(186, 213, 50, 0.05);
-  
+
   /* Text Colors */
   --botsy-text-primary: #FFFFFF;
   --botsy-text-secondary: #A8B4C8;
   --botsy-text-muted: #6B7A94;
-  
+
   /* Borders */
   --botsy-border: rgba(255, 255, 255, 0.08);
   --botsy-border-light: rgba(255, 255, 255, 0.04);
   --botsy-border-hover: rgba(186, 213, 50, 0.3);
-  
+
   /* Semantic */
   --success: #00B894;
   --warning: #FDCB6E;

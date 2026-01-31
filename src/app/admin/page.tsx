@@ -43,7 +43,10 @@ import {
   X,
   ListChecks,
   Code2,
-  Sparkles
+  Sparkles,
+  FileUp,
+  Layers,
+  Shield
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -54,9 +57,11 @@ import { BotsyChatPanel } from '@/components/dashboard/BotsyChatPanel'
 import { InstructionsView } from '@/components/dashboard/InstructionsView'
 import { WidgetSettingsView } from '@/components/dashboard/WidgetSettingsView'
 import { AnalyticsView } from '@/components/dashboard/AnalyticsView'
-import { SMSSettingsView } from '@/components/dashboard/SMSSettingsView'
 import { ConversationsView } from '@/components/dashboard/ConversationsView'
 import { ToneConfigView } from '@/components/dashboard/ToneConfigView'
+import { KnowledgeDocsView } from '@/components/dashboard/KnowledgeDocsView'
+import { ChannelsView } from '@/components/dashboard/ChannelsView'
+import SecuritySettingsView from '@/components/dashboard/SecuritySettingsView'
 import { SimpleNotificationBell } from '@/components/ui/notification-panel'
 import { ConfirmDialog, InputDialog, Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
@@ -64,7 +69,7 @@ import { doc, getDoc, collection, getDocs, query, where, orderBy } from 'firebas
 import { db } from '@/lib/firebase'
 import type { BusinessProfile, Instruction } from '@/types'
 
-type Tab = 'dashboard' | 'conversations' | 'knowledge' | 'instructions' | 'analytics' | 'widget' | 'sms' | 'tone' | 'settings'
+type Tab = 'dashboard' | 'conversations' | 'knowledge' | 'documents' | 'instructions' | 'analytics' | 'widget' | 'channels' | 'tone' | 'security' | 'settings'
 
 export default function AdminPanel() {
   return (
@@ -85,6 +90,7 @@ function AdminContent() {
     greeting: 'Hei! 👋 Hvordan kan jeg hjelpe deg?',
     isEnabled: true,
     logoUrl: null as string | null,
+    widgetSize: 'medium' as 'small' | 'medium' | 'large',
   })
   const { user, userData, signOut } = useAuth()
   const router = useRouter()
@@ -110,6 +116,7 @@ function AdminContent() {
             greeting: data.widgetSettings.greeting || 'Hei! 👋 Hvordan kan jeg hjelpe deg?',
             isEnabled: data.widgetSettings.isEnabled ?? true,
             logoUrl: data.widgetSettings.logoUrl || null,
+            widgetSize: data.widgetSettings.widgetSize || 'medium',
           })
         }
       }
@@ -130,8 +137,8 @@ function AdminContent() {
         expiresAt: doc.data().expiresAt?.toDate() || null,
       })) as Instruction[]
       setInstructions(instructionsData)
-    } catch (error) {
-      console.error('Error fetching data:', error)
+    } catch {
+      // Silent fail - will show empty state
     }
   }, [companyId])
 
@@ -169,8 +176,8 @@ function AdminContent() {
       </AnimatePresence>
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-botsy-dark-deep border-r border-white/[0.06] flex flex-col transform transition-transform lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="p-6 border-b border-white/[0.06]">
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 h-screen bg-botsy-dark-deep border-r border-white/[0.06] flex flex-col transform transition-transform lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <div className="p-6 border-b border-white/[0.06] flex-shrink-0">
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/brand/botsy-full-logo.svg"
@@ -182,7 +189,7 @@ function AdminContent() {
           </Link>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <NavItem
             icon={<LayoutDashboard className="h-5 w-5" />}
             label="Dashboard"
@@ -194,13 +201,18 @@ function AdminContent() {
             label="Samtaler"
             active={activeTab === 'conversations'}
             onClick={() => { setActiveTab('conversations'); setSidebarOpen(false); }}
-            badge={3}
           />
           <NavItem
             icon={<BookOpen className="h-5 w-5" />}
             label="Kunnskapsbase"
             active={activeTab === 'knowledge'}
             onClick={() => { setActiveTab('knowledge'); setSidebarOpen(false); }}
+          />
+          <NavItem
+            icon={<FileUp className="h-5 w-5" />}
+            label="Dokumenter"
+            active={activeTab === 'documents'}
+            onClick={() => { setActiveTab('documents'); setSidebarOpen(false); }}
           />
           <NavItem
             icon={<ListChecks className="h-5 w-5" />}
@@ -222,16 +234,22 @@ function AdminContent() {
             onClick={() => { setActiveTab('tone'); setSidebarOpen(false); }}
           />
           <NavItem
-            icon={<Phone className="h-5 w-5" />}
-            label="SMS"
-            active={activeTab === 'sms'}
-            onClick={() => { setActiveTab('sms'); setSidebarOpen(false); }}
+            icon={<Layers className="h-5 w-5" />}
+            label="Kanaler"
+            active={activeTab === 'channels'}
+            onClick={() => { setActiveTab('channels'); setSidebarOpen(false); }}
           />
           <NavItem
             icon={<BarChart3 className="h-5 w-5" />}
             label="Analyser"
             active={activeTab === 'analytics'}
             onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}
+          />
+          <NavItem
+            icon={<Shield className="h-5 w-5" />}
+            label="Sikkerhet"
+            active={activeTab === 'security'}
+            onClick={() => { setActiveTab('security'); setSidebarOpen(false); }}
           />
           <NavItem
             icon={<Settings className="h-5 w-5" />}
@@ -242,7 +260,7 @@ function AdminContent() {
         </nav>
 
         {/* User Menu */}
-        <div className="p-4 border-t border-white/[0.06]">
+        <div className="p-4 border-t border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] cursor-pointer transition-colors group">
             <div className="h-9 w-9 rounded-full bg-botsy-lime/20 flex items-center justify-center text-botsy-lime font-medium text-sm">
               {userInitials}
@@ -296,7 +314,10 @@ function AdminContent() {
         <main className="flex-1 overflow-auto p-4 lg:p-6">
           {activeTab === 'dashboard' && companyId && <DashboardView companyId={companyId} onViewAllConversations={() => setActiveTab('conversations')} />}
           {activeTab === 'conversations' && companyId && <ConversationsView companyId={companyId} />}
-          {activeTab === 'knowledge' && <KnowledgeBaseView />}
+          {activeTab === 'knowledge' && companyId && <KnowledgeBaseView companyId={companyId} />}
+          {activeTab === 'documents' && companyId && (
+            <KnowledgeDocsView companyId={companyId} userId={user?.uid} />
+          )}
           {activeTab === 'instructions' && companyId && (
             <InstructionsView
               companyId={companyId}
@@ -314,13 +335,14 @@ function AdminContent() {
           {activeTab === 'analytics' && companyId && (
             <AnalyticsView companyId={companyId} />
           )}
-          {activeTab === 'sms' && companyId && (
-            <SMSSettingsView companyId={companyId} />
+          {activeTab === 'channels' && companyId && (
+            <ChannelsView companyId={companyId} />
           )}
           {activeTab === 'tone' && companyId && (
             <ToneConfigView companyId={companyId} initialProfile={businessProfile} />
           )}
-          {activeTab === 'settings' && <SettingsView />}
+          {activeTab === 'security' && <SecuritySettingsView />}
+          {activeTab === 'settings' && companyId && <SettingsView companyId={companyId} onNavigateToChannels={() => setActiveTab('channels')} />}
         </main>
       </div>
 
@@ -388,8 +410,8 @@ function DashboardView({ companyId, onViewAllConversations }: { companyId: strin
         const { getDashboardStats } = await import('@/lib/sms-firestore')
         const dashboardStats = await getDashboardStats(companyId)
         setStats(dashboardStats)
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error)
+      } catch {
+        // Silent fail - will show empty state
       } finally {
         setIsLoading(false)
       }
@@ -527,83 +549,131 @@ function formatTimeAgo(date: Date): string {
 }
 
 // Knowledge Base View
-function KnowledgeBaseView() {
-  const [activeCategory, setActiveCategory] = useState('Alle')
+function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [faqs, setFaqs] = useState([
-    { id: 1, question: 'Hva er åpningstidene?', answer: 'Vi har åpent mandag-fredag 09-17, lørdag 10-16.', category: 'Generelt', usageCount: 234 },
-    { id: 2, question: 'Hvordan returnerer jeg et produkt?', answer: 'Du kan returnere produkter innen 30 dager...', category: 'Retur', usageCount: 189 },
-    { id: 3, question: 'Hva er leveringstiden?', answer: 'Normal leveringstid er 2-4 virkedager...', category: 'Levering', usageCount: 156 },
-    { id: 4, question: 'Tilbyr dere montering?', answer: 'Ja, vi tilbyr monteringstjenester for de fleste produkter...', category: 'Tjenester', usageCount: 98 },
-  ])
+  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string; source: string; confirmed: boolean }>>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<{ id: number; question: string; answer: string; category: string } | null>(null)
-  const [newFaq, setNewFaq] = useState({ question: '', answer: '', category: 'Generelt' })
+  const [editTarget, setEditTarget] = useState<{ id: string; question: string; answer: string } | null>(null)
+  const [newFaq, setNewFaq] = useState({ question: '', answer: '' })
   const toast = useToast()
 
-  const categories = ['Alle', 'Generelt', 'Retur', 'Levering', 'Tjenester', 'Priser']
+  // Load FAQs on mount
+  useEffect(() => {
+    const loadFaqs = async () => {
+      try {
+        const { getFAQs } = await import('@/lib/firestore')
+        const loadedFaqs = await getFAQs(companyId)
+        setFaqs(loadedFaqs)
+      } catch {
+        toast.error('Kunne ikke laste FAQs', 'Prøv å laste siden på nytt')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadFaqs()
+  }, [companyId, toast])
 
   const filteredFaqs = faqs.filter(faq => {
-    const matchesCategory = activeCategory === 'Alle' || faq.category === activeCategory
     const matchesSearch = searchQuery === '' ||
       faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
       faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesCategory && matchesSearch
+    return matchesSearch
   })
 
-  const handleDeleteFaq = (id: number) => {
+  const handleDeleteFaq = (id: string) => {
     setDeleteTarget(id)
     setDeleteModalOpen(true)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteTarget) {
-      setFaqs(faqs.filter(faq => faq.id !== deleteTarget))
-      toast.success('FAQ slettet', 'FAQ-en ble fjernet fra kunnskapsbasen')
+      setIsSaving(true)
+      try {
+        const { deleteFAQ } = await import('@/lib/firestore')
+        await deleteFAQ(companyId, deleteTarget)
+        setFaqs(faqs.filter(faq => faq.id !== deleteTarget))
+        toast.success('FAQ slettet', 'FAQ-en ble fjernet fra kunnskapsbasen')
+      } catch {
+        toast.error('Kunne ikke slette', 'Prøv igjen senere')
+      } finally {
+        setIsSaving(false)
+      }
     }
     setDeleteModalOpen(false)
     setDeleteTarget(null)
   }
 
-  const handleEditFaq = (id: number) => {
+  const handleEditFaq = (id: string) => {
     const faq = faqs.find(f => f.id === id)
     if (faq) {
-      setEditTarget({ id: faq.id, question: faq.question, answer: faq.answer, category: faq.category })
+      setEditTarget({ id: faq.id, question: faq.question, answer: faq.answer })
       setEditModalOpen(true)
     }
   }
 
-  const confirmEdit = () => {
+  const confirmEdit = async () => {
     if (editTarget) {
-      setFaqs(faqs.map(f => f.id === editTarget.id ? { ...f, question: editTarget.question, answer: editTarget.answer, category: editTarget.category } : f))
-      toast.success('FAQ oppdatert', 'Endringene ble lagret')
+      setIsSaving(true)
+      try {
+        const { updateFAQ } = await import('@/lib/firestore')
+        await updateFAQ(companyId, editTarget.id, {
+          question: editTarget.question,
+          answer: editTarget.answer,
+        })
+        setFaqs(faqs.map(f => f.id === editTarget.id ? { ...f, question: editTarget.question, answer: editTarget.answer } : f))
+        toast.success('FAQ oppdatert', 'Endringene ble lagret')
+      } catch {
+        toast.error('Kunne ikke oppdatere', 'Prøv igjen senere')
+      } finally {
+        setIsSaving(false)
+      }
     }
     setEditModalOpen(false)
     setEditTarget(null)
   }
 
   const handleAddFaq = () => {
-    setNewFaq({ question: '', answer: '', category: 'Generelt' })
+    setNewFaq({ question: '', answer: '' })
     setAddModalOpen(true)
   }
 
-  const confirmAdd = () => {
+  const confirmAdd = async () => {
     if (newFaq.question && newFaq.answer) {
-      setFaqs([...faqs, {
-        id: Date.now(),
-        question: newFaq.question,
-        answer: newFaq.answer,
-        category: newFaq.category,
-        usageCount: 0
-      }])
-      toast.success('FAQ lagt til', 'Den nye FAQ-en ble lagt til i kunnskapsbasen')
-      setAddModalOpen(false)
+      setIsSaving(true)
+      try {
+        const { addFAQ } = await import('@/lib/firestore')
+        const newFaqData = {
+          id: `faq-${Date.now()}`,
+          question: newFaq.question,
+          answer: newFaq.answer,
+          source: 'user' as const,
+          confirmed: true,
+        }
+        await addFAQ(companyId, newFaqData)
+        setFaqs([...faqs, newFaqData])
+        toast.success('FAQ lagt til', 'Den nye FAQ-en ble lagt til i kunnskapsbasen')
+        setAddModalOpen(false)
+      } catch {
+        toast.error('Kunne ikke legge til', 'Prøv igjen senere')
+      } finally {
+        setIsSaving(false)
+      }
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-[#6B7A94]">Laster FAQs...</div>
+      </div>
+    )
   }
 
   return (
@@ -637,23 +707,6 @@ function KnowledgeBaseView() {
         </Button>
       </div>
 
-      {/* Categories */}
-      <div className="flex gap-2 flex-wrap">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              activeCategory === cat
-                ? 'bg-botsy-lime/10 text-botsy-lime'
-                : 'bg-white/[0.03] text-[#A8B4C8] hover:bg-white/[0.06] hover:text-white'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
       {/* FAQ List */}
       <div className="space-y-3">
         {filteredFaqs.length === 0 ? (
@@ -666,8 +719,8 @@ function KnowledgeBaseView() {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="secondary">{faq.category}</Badge>
-                    <span className="text-[#6B7A94] text-xs">Brukt {faq.usageCount} ganger</span>
+                    <Badge variant="secondary">{faq.source === 'user' ? 'Manuell' : faq.source === 'generated' ? 'Generert' : 'Ekstrahert'}</Badge>
+                    {faq.confirmed && <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Bekreftet</Badge>}
                   </div>
                   <h3 className="text-white font-medium mb-2">{faq.question}</h3>
                   <p className="text-[#A8B4C8] text-sm">{faq.answer}</p>
@@ -677,6 +730,7 @@ function KnowledgeBaseView() {
                     onClick={() => handleEditFaq(faq.id)}
                     className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg"
                     title="Rediger"
+                    disabled={isSaving}
                   >
                     <Edit className="h-4 w-4" />
                   </button>
@@ -684,6 +738,7 @@ function KnowledgeBaseView() {
                     onClick={() => handleDeleteFaq(faq.id)}
                     className="p-2 text-[#6B7A94] hover:text-red-400 hover:bg-red-500/10 rounded-lg"
                     title="Slett"
+                    disabled={isSaving}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -728,24 +783,12 @@ function KnowledgeBaseView() {
               className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
             />
           </div>
-          <div>
-            <label className="text-white text-sm font-medium block mb-2">Kategori</label>
-            <select
-              value={newFaq.category}
-              onChange={(e) => setNewFaq({ ...newFaq, category: e.target.value })}
-              className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
-            >
-              {categories.filter(c => c !== 'Alle').map((cat) => (
-                <option key={cat} value={cat} className="bg-[#1a1a2e]">{cat}</option>
-              ))}
-            </select>
-          </div>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => setAddModalOpen(false)} className="flex-1">
               Avbryt
             </Button>
-            <Button onClick={confirmAdd} disabled={!newFaq.question || !newFaq.answer} className="flex-1">
-              Legg til FAQ
+            <Button onClick={confirmAdd} disabled={!newFaq.question || !newFaq.answer || isSaving} className="flex-1">
+              {isSaving ? 'Legger til...' : 'Legg til FAQ'}
             </Button>
           </div>
         </div>
@@ -773,24 +816,12 @@ function KnowledgeBaseView() {
                 className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
               />
             </div>
-            <div>
-              <label className="text-white text-sm font-medium block mb-2">Kategori</label>
-              <select
-                value={editTarget.category}
-                onChange={(e) => setEditTarget({ ...editTarget, category: e.target.value })}
-                className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
-              >
-                {categories.filter(c => c !== 'Alle').map((cat) => (
-                  <option key={cat} value={cat} className="bg-[#1a1a2e]">{cat}</option>
-                ))}
-              </select>
-            </div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => setEditModalOpen(false)} className="flex-1">
                 Avbryt
               </Button>
-              <Button onClick={confirmEdit} disabled={!editTarget.question || !editTarget.answer} className="flex-1">
-                Lagre endringer
+              <Button onClick={confirmEdit} disabled={!editTarget.question || !editTarget.answer || isSaving} className="flex-1">
+                {isSaving ? 'Lagrer...' : 'Lagre endringer'}
               </Button>
             </div>
           </div>
@@ -801,28 +832,55 @@ function KnowledgeBaseView() {
 }
 
 // Settings View
-function SettingsView() {
+function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; onNavigateToChannels: () => void }) {
   const [settings, setSettings] = useState({
     botName: 'Botsy',
-    tone: 'Vennlig og uformell',
-    greeting: 'Hei! Jeg er Botsy, din digitale assistent. Hvordan kan jeg hjelpe deg i dag?',
-    useEmojis: true,
     emailNotifications: true,
     dailySummary: false,
   })
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const toast = useToast()
 
-  const handleToggle = (key: 'useEmojis' | 'emailNotifications' | 'dailySummary') => {
+  // Load settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const { getGeneralSettings } = await import('@/lib/firestore')
+        const savedSettings = await getGeneralSettings(companyId)
+        setSettings(savedSettings)
+      } catch {
+        // Silent fail - will use defaults
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadSettings()
+  }, [companyId])
+
+  const handleToggle = (key: 'emailNotifications' | 'dailySummary') => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   const handleSave = async () => {
     setIsSaving(true)
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 500))
-    setIsSaving(false)
-    toast.success('Innstillinger lagret', 'Endringene dine ble lagret')
+    try {
+      const { saveGeneralSettings } = await import('@/lib/firestore')
+      await saveGeneralSettings(companyId, settings)
+      toast.success('Innstillinger lagret', 'Endringene dine ble lagret')
+    } catch {
+      toast.error('Kunne ikke lagre', 'Prøv igjen senere')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-[#6B7A94]">Laster innstillinger...</div>
+      </div>
+    )
   }
 
   return (
@@ -832,64 +890,33 @@ function SettingsView() {
         <p className="text-[#6B7A94]">Konfigurer Botsy og kontoen din</p>
       </div>
 
-      {/* Personality Settings */}
+      {/* Bot Name */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-white mb-6">Botsys personlighet</h2>
-        <div className="space-y-6">
-          <div>
-            <label className="text-white text-sm font-medium block mb-2">Navn</label>
-            <input
-              type="text"
-              value={settings.botName}
-              onChange={(e) => setSettings(prev => ({ ...prev, botName: e.target.value }))}
-              className="w-full h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
-            />
-          </div>
-          <div>
-            <label className="text-white text-sm font-medium block mb-2">Tone</label>
-            <select
-              value={settings.tone}
-              onChange={(e) => setSettings(prev => ({ ...prev, tone: e.target.value }))}
-              className="w-full h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
-            >
-              <option>Vennlig og uformell</option>
-              <option>Profesjonell og formell</option>
-              <option>Blanding</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-white text-sm font-medium block mb-2">Velkomstmelding</label>
-            <textarea
-              rows={3}
-              value={settings.greeting}
-              onChange={(e) => setSettings(prev => ({ ...prev, greeting: e.target.value }))}
-              className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white text-sm font-medium">Bruk emojis</p>
-              <p className="text-[#6B7A94] text-sm">La Botsy bruke emojis i svar</p>
-            </div>
-            <button
-              onClick={() => handleToggle('useEmojis')}
-              className={`w-12 h-6 rounded-full relative transition-colors ${settings.useEmojis ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
-            >
-              <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${settings.useEmojis ? 'right-1' : 'left-1 bg-white/50'}`} />
-            </button>
-          </div>
+        <h2 className="text-lg font-semibold text-white mb-6">Chatbot</h2>
+        <div>
+          <label className="text-white text-sm font-medium block mb-2">Botsys navn</label>
+          <input
+            type="text"
+            value={settings.botName}
+            onChange={(e) => setSettings(prev => ({ ...prev, botName: e.target.value }))}
+            className="w-full h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
+          />
+          <p className="text-[#6B7A94] text-xs mt-2">Dette navnet brukes internt i dashbordet</p>
         </div>
       </Card>
 
       {/* Channels */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-white mb-6">Tilkoblede kanaler</h2>
-        <div className="space-y-4">
-          <ChannelToggle name="WhatsApp" connected={true} color="#25D366" />
-          <ChannelToggle name="Messenger" connected={true} color="#0084FF" />
-          <ChannelToggle name="SMS" connected={false} color="#CDFF4D" />
-          <ChannelToggle name="E-post" connected={false} color="#EA4335" />
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">Tilkoblede kanaler</h2>
+          <Button size="sm" onClick={onNavigateToChannels}>
+            <Layers className="h-4 w-4 mr-1.5" />
+            Administrer kanaler
+          </Button>
         </div>
+        <p className="text-[#6B7A94] text-sm">
+          Koble til WhatsApp, Messenger, SMS og E-post for å la Botsy svare kunder på alle plattformer.
+        </p>
       </Card>
 
       {/* Notifications */}
@@ -1064,97 +1091,3 @@ function ChatMessage({ sender, message, time }: {
   )
 }
 
-function ChannelToggle({ name, connected, color }: {
-  name: string
-  connected: boolean
-  color: string
-}) {
-  const [isConnected, setIsConnected] = useState(connected)
-  const [showDisconnectModal, setShowDisconnectModal] = useState(false)
-  const [showComingSoonModal, setShowComingSoonModal] = useState(false)
-  const [showSmsModal, setShowSmsModal] = useState(false)
-  const toast = useToast()
-
-  const handleToggle = () => {
-    if (name === 'SMS') {
-      setShowSmsModal(true)
-      return
-    }
-    if (isConnected) {
-      setShowDisconnectModal(true)
-    } else {
-      setShowComingSoonModal(true)
-    }
-  }
-
-  const confirmDisconnect = () => {
-    setIsConnected(false)
-    setShowDisconnectModal(false)
-    toast.success(`${name} frakoblet`, 'Integrasjonen ble deaktivert')
-  }
-
-  return (
-    <>
-      <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl">
-        <div className="flex items-center gap-3">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: `${color}20` }}
-          >
-            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
-          </div>
-          <div>
-            <p className="text-white font-medium">{name}</p>
-            <p className="text-[#6B7A94] text-sm">{isConnected ? 'Tilkoblet' : 'Ikke tilkoblet'}</p>
-          </div>
-        </div>
-        <Button variant={isConnected ? 'outline' : 'default'} size="sm" onClick={handleToggle}>
-          {isConnected ? 'Koble fra' : 'Koble til'}
-        </Button>
-      </div>
-
-      {/* Disconnect Confirmation */}
-      <ConfirmDialog
-        isOpen={showDisconnectModal}
-        onClose={() => setShowDisconnectModal(false)}
-        onConfirm={confirmDisconnect}
-        title={`Koble fra ${name}?`}
-        description={`Er du sikker på at du vil deaktivere ${name}-integrasjonen? Du kan koble til igjen senere.`}
-        confirmText="Koble fra"
-        variant="warning"
-      />
-
-      {/* Coming Soon Modal */}
-      <Modal isOpen={showComingSoonModal} onClose={() => setShowComingSoonModal(false)} size="sm">
-        <div className="text-center">
-          <div className="mx-auto h-14 w-14 rounded-full bg-botsy-lime/10 border border-botsy-lime/20 flex items-center justify-center mb-4">
-            <Zap className="h-6 w-6 text-botsy-lime" />
-          </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Kommer snart!</h3>
-          <p className="text-[#A8B4C8] text-sm mb-6">
-            {name}-integrasjon er under utvikling og kommer snart. Vi gir deg beskjed når den er klar!
-          </p>
-          <Button onClick={() => setShowComingSoonModal(false)} className="w-full">
-            Supert, jeg venter!
-          </Button>
-        </div>
-      </Modal>
-
-      {/* SMS Info Modal */}
-      <Modal isOpen={showSmsModal} onClose={() => setShowSmsModal(false)} size="sm">
-        <div className="text-center">
-          <div className="mx-auto h-14 w-14 rounded-full bg-[#CDFF4D]/10 border border-[#CDFF4D]/20 flex items-center justify-center mb-4">
-            <Phone className="h-6 w-6 text-[#CDFF4D]" />
-          </div>
-          <h3 className="text-lg font-semibold text-white mb-2">SMS-integrasjon</h3>
-          <p className="text-[#A8B4C8] text-sm mb-6">
-            Gå til SMS-fanen i sidemenyen for å konfigurere SMS-integrasjonen med ditt telefonnummer.
-          </p>
-          <Button onClick={() => setShowSmsModal(false)} className="w-full">
-            Forstått
-          </Button>
-        </div>
-      </Modal>
-    </>
-  )
-}

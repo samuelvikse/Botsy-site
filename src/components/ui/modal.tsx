@@ -1,8 +1,8 @@
 'use client'
 
-import { Fragment, useEffect } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, AlertTriangle, Trash2, Info, CheckCircle, HelpCircle } from 'lucide-react'
+import { X, AlertTriangle, Trash2, Info } from 'lucide-react'
 import { Button } from './button'
 
 interface ModalProps {
@@ -50,7 +50,13 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+          <div
+            className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? 'modal-title' : undefined}
+            aria-describedby={description ? 'modal-description' : undefined}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -64,14 +70,15 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
                   <div className="flex items-start justify-between">
                     <div>
                       {title && (
-                        <h3 className="text-lg font-semibold text-white">{title}</h3>
+                        <h3 id="modal-title" className="text-lg font-semibold text-white">{title}</h3>
                       )}
                       {description && (
-                        <p className="text-sm text-[#6B7A94] mt-1">{description}</p>
+                        <p id="modal-description" className="text-sm text-[#6B7A94] mt-1">{description}</p>
                       )}
                     </div>
                     <button
                       onClick={onClose}
+                      aria-label="Lukk"
                       className="p-1.5 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors"
                     >
                       <X className="h-5 w-5" />
@@ -250,6 +257,3 @@ export function InputDialog({
     </Modal>
   )
 }
-
-// Need to import useState for InputDialog
-import { useState } from 'react'

@@ -1,19 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   MessageSquare,
   Bot,
-  Users,
   TrendingUp,
-  TrendingDown,
   Clock,
   Zap,
   Calendar,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { collection, query, getDocs, where, orderBy, Timestamp } from 'firebase/firestore'
+import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 interface AnalyticsViewProps {
@@ -57,17 +55,24 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
         const chatsSnapshot = await getDocs(chatsRef)
 
         let totalMessages = 0
+        let filteredConversations = 0
         const conversationsPerDay: Record<string, number> = {}
         const questionCounts: Record<string, number> = {}
 
         chatsSnapshot.forEach((doc) => {
           const data = doc.data()
           const messages = data.messages || []
+
+          // Filter by time range
+          const createdAt = data.createdAt?.toDate?.() || new Date(data.createdAt)
+          if (createdAt < startDate) return
+
+          filteredConversations++
           totalMessages += messages.length
 
           // Count conversations per day
           if (data.createdAt) {
-            const date = data.createdAt.toDate?.() || new Date(data.createdAt)
+            const date = createdAt
             const dateStr = date.toISOString().split('T')[0]
             conversationsPerDay[dateStr] = (conversationsPerDay[dateStr] || 0) + 1
           }
@@ -94,17 +99,16 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
           .map(([date, count]) => ({ date, count }))
 
         setAnalytics({
-          totalConversations: chatsSnapshot.size,
+          totalConversations: filteredConversations,
           totalMessages,
-          averageMessagesPerConversation: chatsSnapshot.size > 0
-            ? Math.round(totalMessages / chatsSnapshot.size)
+          averageMessagesPerConversation: filteredConversations > 0
+            ? Math.round(totalMessages / filteredConversations)
             : 0,
           topQuestions,
           conversationsPerDay: formattedPerDay,
           isLoading: false,
         })
-      } catch (error) {
-        console.error('Error fetching analytics:', error)
+      } catch {
         setAnalytics(prev => ({ ...prev, isLoading: false }))
       }
     }
@@ -112,7 +116,10 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
     fetchAnalytics()
   }, [companyId, timeRange])
 
-  const maxConversations = Math.max(...analytics.conversationsPerDay.map(d => d.count), 1)
+  const maxConversations = useMemo(
+    () => Math.max(...analytics.conversationsPerDay.map(d => d.count), 1),
+    [analytics.conversationsPerDay]
+  )
 
   return (
     <div className="space-y-6">

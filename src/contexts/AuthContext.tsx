@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import {
   User,
   createUserWithEmailAndPassword,
@@ -9,10 +9,20 @@ import {
   sendPasswordResetEmail,
   onAuthStateChanged,
   GoogleAuthProvider,
+  OAuthProvider,
   signInWithPopup,
   updateProfile,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
+  PhoneAuthProvider,
+  multiFactor,
+  PhoneMultiFactorGenerator,
+  getMultiFactorResolver,
+  MultiFactorResolver,
+  MultiFactorError,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db, isConfigured } from '@/lib/firebase'
 
 interface UserData {
@@ -21,6 +31,8 @@ interface UserData {
   role: 'owner' | 'admin' | 'employee'
   companyId: string
   createdAt: Date
+  phone?: string
+  twoFactorEnabled?: boolean
 }
 
 interface CompanyData {
@@ -44,6 +56,8 @@ interface AuthContextType {
   loading: boolean
   error: string | null
   isConfigured: boolean
+  confirmationResult: ConfirmationResult | null
+  mfaResolver: MultiFactorResolver | null
   signUp: (email: string, password: string, name: string, companyData: {
     name: string
     industry: string
@@ -51,9 +65,18 @@ interface AuthContextType {
   }) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
+  signInWithApple: () => Promise<void>
+  signInWithMicrosoft: () => Promise<void>
+  sendPhoneVerification: (phoneNumber: string, recaptchaContainerId: string) => Promise<void>
+  verifyPhoneCode: (code: string) => Promise<void>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   clearError: () => void
+  // 2FA Functions
+  setupTwoFactor: (phoneNumber: string, recaptchaContainerId: string) => Promise<void>
+  verifyTwoFactorSetup: (code: string) => Promise<void>
+  disableTwoFactor: () => Promise<void>
+  verifyMfaCode: (code: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -63,6 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
+  const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null)
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null)
+  const [pendingMfaPhoneNumber, setPendingMfaPhoneNumber] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isConfigured || !auth) {
@@ -80,8 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (userDoc.exists()) {
             setUserData(userDoc.data() as UserData)
           }
-        } catch (err) {
-          console.error('Error fetching user data:', err)
+        } catch {
+          // Silent fail - user data will be null
         }
       } else {
         setUserData(null)
@@ -159,6 +186,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       await signInWithEmailAndPassword(auth, email, password)
     } catch (err: unknown) {
+      // Check if this is an MFA challenge
+      const firebaseError = err as { code?: string }
+      if (firebaseError.code === 'auth/multi-factor-auth-required') {
+        handleMfaError(err as MultiFactorError)
+        throw new Error('MFA_REQUIRED')
+      }
       const errorMessage = getFirebaseErrorMessage(err)
       setError(errorMessage)
       throw new Error(errorMessage)
@@ -217,6 +250,366 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const signInWithApple = async () => {
+    if (!auth || !db) {
+      throw new Error('Firebase er ikke konfigurert')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+      const provider = new OAuthProvider('apple.com')
+      provider.addScope('email')
+      provider.addScope('name')
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+
+      // Check if user document exists
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+
+      if (!userDoc.exists()) {
+        // Create company and user documents for new Apple users
+        const companyRef = doc(db, 'companies', user.uid)
+        await setDoc(companyRef, {
+          name: '',
+          industry: '',
+          employeeCount: '',
+          ownerId: user.uid,
+          createdAt: serverTimestamp(),
+          settings: {
+            botName: 'Botsy',
+            tone: 'friendly',
+            useEmojis: true,
+            useHumor: false,
+            responseLength: 'medium',
+          },
+        })
+
+        await setDoc(doc(db, 'users', user.uid), {
+          email: user.email || '',
+          displayName: user.displayName || '',
+          role: 'owner',
+          companyId: user.uid,
+          createdAt: serverTimestamp(),
+        })
+      }
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const signInWithMicrosoft = async () => {
+    if (!auth || !db) {
+      throw new Error('Firebase er ikke konfigurert')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+      const provider = new OAuthProvider('microsoft.com')
+      provider.addScope('user.read')
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+
+      // Check if user document exists
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+
+      if (!userDoc.exists()) {
+        // Create company and user documents for new Microsoft users
+        const companyRef = doc(db, 'companies', user.uid)
+        await setDoc(companyRef, {
+          name: '',
+          industry: '',
+          employeeCount: '',
+          ownerId: user.uid,
+          createdAt: serverTimestamp(),
+          settings: {
+            botName: 'Botsy',
+            tone: 'friendly',
+            useEmojis: true,
+            useHumor: false,
+            responseLength: 'medium',
+          },
+        })
+
+        await setDoc(doc(db, 'users', user.uid), {
+          email: user.email || '',
+          displayName: user.displayName || '',
+          role: 'owner',
+          companyId: user.uid,
+          createdAt: serverTimestamp(),
+        })
+      }
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Phone Authentication
+  const sendPhoneVerification = async (phoneNumber: string, recaptchaContainerId: string) => {
+    if (!auth) {
+      throw new Error('Firebase er ikke konfigurert')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+
+      // Clear any existing recaptcha
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear()
+      }
+
+      // Create new recaptcha verifier
+      const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
+        size: 'invisible',
+      })
+      setRecaptchaVerifier(verifier)
+
+      // Send verification code
+      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, verifier)
+      setConfirmationResult(confirmation)
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const verifyPhoneCode = async (code: string) => {
+    if (!confirmationResult || !db) {
+      throw new Error('Ingen verifiseringskode sendt')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+
+      const result = await confirmationResult.confirm(code)
+      const user = result.user
+
+      // Check if user document exists
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+
+      if (!userDoc.exists()) {
+        // Create company and user documents for new phone users
+        const companyRef = doc(db, 'companies', user.uid)
+        await setDoc(companyRef, {
+          name: '',
+          industry: '',
+          employeeCount: '',
+          ownerId: user.uid,
+          createdAt: serverTimestamp(),
+          settings: {
+            botName: 'Botsy',
+            tone: 'friendly',
+            useEmojis: true,
+            useHumor: false,
+            responseLength: 'medium',
+          },
+        })
+
+        await setDoc(doc(db, 'users', user.uid), {
+          email: user.email || '',
+          phone: user.phoneNumber || '',
+          displayName: user.displayName || '',
+          role: 'owner',
+          companyId: user.uid,
+          createdAt: serverTimestamp(),
+        })
+      }
+
+      setConfirmationResult(null)
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Two-Factor Authentication Functions
+  const setupTwoFactor = useCallback(async (phoneNumber: string, recaptchaContainerId: string) => {
+    if (!auth || !auth.currentUser) {
+      throw new Error('Du må være logget inn for å aktivere 2FA')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+
+      // Clear any existing recaptcha
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear()
+      }
+
+      // Create new recaptcha verifier
+      const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
+        size: 'invisible',
+      })
+      setRecaptchaVerifier(verifier)
+
+      // Get multi-factor session
+      const multiFactorSession = await multiFactor(auth.currentUser).getSession()
+
+      // Generate phone info options
+      const phoneInfoOptions = {
+        phoneNumber: phoneNumber,
+        session: multiFactorSession,
+      }
+
+      // Get phone auth provider
+      const phoneAuthProvider = new PhoneAuthProvider(auth)
+      const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, verifier)
+
+      // Store verification ID for later use
+      setPendingMfaPhoneNumber(phoneNumber)
+      setConfirmationResult({ verificationId } as unknown as ConfirmationResult)
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }, [recaptchaVerifier])
+
+  const verifyTwoFactorSetup = useCallback(async (code: string) => {
+    if (!auth || !auth.currentUser || !confirmationResult || !pendingMfaPhoneNumber) {
+      throw new Error('2FA-oppsett ikke startet')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+
+      const verificationId = (confirmationResult as unknown as { verificationId: string }).verificationId
+      const cred = PhoneAuthProvider.credential(verificationId, code)
+      const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred)
+
+      // Enroll the phone number as a second factor
+      await multiFactor(auth.currentUser).enroll(multiFactorAssertion, 'Telefon')
+
+      // Update user document
+      if (db && auth.currentUser) {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          twoFactorEnabled: true,
+          phone: pendingMfaPhoneNumber,
+        })
+
+        // Update local userData
+        setUserData(prev => prev ? { ...prev, twoFactorEnabled: true, phone: pendingMfaPhoneNumber } : null)
+      }
+
+      setConfirmationResult(null)
+      setPendingMfaPhoneNumber(null)
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }, [confirmationResult, pendingMfaPhoneNumber])
+
+  const disableTwoFactor = useCallback(async () => {
+    if (!auth || !auth.currentUser) {
+      throw new Error('Du må være logget inn')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+
+      // Get enrolled factors
+      const enrolledFactors = multiFactor(auth.currentUser).enrolledFactors
+
+      if (enrolledFactors.length > 0) {
+        // Unenroll the first (and usually only) phone factor
+        await multiFactor(auth.currentUser).unenroll(enrolledFactors[0])
+      }
+
+      // Update user document
+      if (db) {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          twoFactorEnabled: false,
+        })
+
+        // Update local userData
+        setUserData(prev => prev ? { ...prev, twoFactorEnabled: false } : null)
+      }
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Verify MFA code during sign-in
+  const verifyMfaCode = useCallback(async (code: string) => {
+    if (!mfaResolver || !auth) {
+      throw new Error('Ingen MFA-utfordring aktiv')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+
+      // Get the phone hint for the enrolled factor
+      const phoneInfoOptions = {
+        multiFactorHint: mfaResolver.hints[0],
+        session: mfaResolver.session,
+      }
+
+      const phoneAuthProvider = new PhoneAuthProvider(auth)
+
+      // If we have a pending verification ID, use it
+      if (confirmationResult) {
+        const verificationId = (confirmationResult as unknown as { verificationId: string }).verificationId
+        const cred = PhoneAuthProvider.credential(verificationId, code)
+        const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred)
+        await mfaResolver.resolveSignIn(multiFactorAssertion)
+      } else {
+        // Request new verification code
+        const verifier = recaptchaVerifier || new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' })
+        const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, verifier)
+        const cred = PhoneAuthProvider.credential(verificationId, code)
+        const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred)
+        await mfaResolver.resolveSignIn(multiFactorAssertion)
+      }
+
+      setMfaResolver(null)
+      setConfirmationResult(null)
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }, [mfaResolver, confirmationResult, recaptchaVerifier])
+
+  // Handle MFA error during sign-in
+  const handleMfaError = useCallback((error: MultiFactorError) => {
+    const resolver = getMultiFactorResolver(auth!, error)
+    setMfaResolver(resolver)
+    setError('Tofaktorautentisering kreves. Skriv inn koden sendt til telefonen din.')
+    return resolver
+  }, [])
+
   const signOut = async () => {
     if (!auth) {
       throw new Error('Firebase er ikke konfigurert')
@@ -257,12 +650,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         isConfigured,
+        confirmationResult,
+        mfaResolver,
         signUp,
         signIn,
         signInWithGoogle,
+        signInWithApple,
+        signInWithMicrosoft,
+        sendPhoneVerification,
+        verifyPhoneCode,
         signOut,
         resetPassword,
         clearError,
+        setupTwoFactor,
+        verifyTwoFactorSetup,
+        disableTwoFactor,
+        verifyMfaCode,
       }}
     >
       {children}
@@ -302,6 +705,30 @@ function getFirebaseErrorMessage(error: unknown): string {
       return 'For mange forsøk. Prøv igjen senere'
     case 'auth/popup-closed-by-user':
       return 'Innlogging ble avbrutt'
+    // Phone auth errors
+    case 'auth/invalid-phone-number':
+      return 'Ugyldig telefonnummer. Bruk format +47XXXXXXXX'
+    case 'auth/missing-phone-number':
+      return 'Telefonnummer mangler'
+    case 'auth/quota-exceeded':
+      return 'SMS-kvote overskredet. Prøv igjen senere'
+    case 'auth/captcha-check-failed':
+      return 'reCAPTCHA-verifisering mislyktes'
+    case 'auth/invalid-verification-code':
+      return 'Ugyldig verifiseringskode'
+    case 'auth/code-expired':
+      return 'Verifiseringskoden har utløpt. Be om en ny kode'
+    case 'auth/credential-already-in-use':
+      return 'Denne legitimasjonen er allerede knyttet til en annen konto'
+    // MFA errors
+    case 'auth/multi-factor-auth-required':
+      return 'Tofaktorautentisering kreves'
+    case 'auth/second-factor-already-in-use':
+      return 'Dette telefonnummeret er allerede registrert for 2FA'
+    case 'auth/maximum-second-factor-count-exceeded':
+      return 'Maksimalt antall 2FA-faktorer nådd'
+    case 'auth/unsupported-first-factor':
+      return 'Denne innloggingsmetoden støtter ikke 2FA'
     default:
       return 'En feil oppstod. Prøv igjen'
   }

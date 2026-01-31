@@ -1,0 +1,272 @@
+import { NextRequest, NextResponse } from 'next/server'
+import {
+  sendMessengerMessage,
+  verifyMessengerSignature,
+  parseMessengerWebhook,
+  getMessengerUserProfile,
+} from '@/lib/messenger'
+import {
+  findCompanyByPageId,
+  getMessengerChannel,
+  saveMessengerMessage,
+  getMessengerHistory,
+  getBusinessProfile,
+  getFAQs,
+  getActiveInstructions,
+} from '@/lib/messenger-firestore'
+
+// Webhook verification token (should match what you set in Facebook App)
+const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN || 'botsy-messenger-verify'
+
+/**
+ * GET - Webhook verification (Facebook sends this to verify your endpoint)
+ */
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+
+  const mode = searchParams.get('hub.mode')
+  const token = searchParams.get('hub.verify_token')
+  const challenge = searchParams.get('hub.challenge')
+
+  // Check if this is a verification request
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('[Messenger Webhook] Verification successful')
+    return new NextResponse(challenge, { status: 200 })
+  }
+
+  console.log('[Messenger Webhook] Verification failed:', { mode, token })
+  return NextResponse.json({ error: 'Verification failed' }, { status: 403 })
+}
+
+/**
+ * POST - Receive incoming messages from Facebook
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Get raw body for signature verification
+    const rawBody = await request.text()
+    const body = JSON.parse(rawBody)
+
+    // Parse incoming messages
+    const messages = parseMessengerWebhook(body)
+
+    if (messages.length === 0) {
+      // No messages to process (could be delivery/read receipts)
+      return NextResponse.json({ status: 'ok' })
+    }
+
+    // Process each message
+    for (const message of messages) {
+      await processMessage(message, rawBody, request.headers.get('x-hub-signature-256'))
+    }
+
+    // Always return 200 quickly to Facebook
+    return NextResponse.json({ status: 'ok' })
+  } catch (error) {
+    console.error('[Messenger Webhook] Error:', error)
+    // Still return 200 to prevent Facebook from retrying
+    return NextResponse.json({ status: 'error' })
+  }
+}
+
+async function processMessage(
+  message: {
+    senderId: string
+    recipientId: string
+    text: string
+    timestamp: number
+    messageId: string
+  },
+  rawBody: string,
+  signature: string | null
+) {
+  try {
+    console.log('[Messenger] Processing message:', {
+      from: message.senderId,
+      to: message.recipientId,
+      text: message.text.substring(0, 50),
+    })
+
+    // Find company by Page ID (recipientId is the Page ID)
+    const companyId = await findCompanyByPageId(message.recipientId)
+
+    if (!companyId) {
+      console.log('[Messenger] No company found for Page ID:', message.recipientId)
+      return
+    }
+
+    // Get Messenger channel configuration
+    const channel = await getMessengerChannel(companyId)
+
+    if (!channel || !channel.isActive) {
+      console.log('[Messenger] Channel not active for company:', companyId)
+      return
+    }
+
+    // Verify signature if we have the app secret
+    if (channel.credentials.appSecret && signature) {
+      const isValid = verifyMessengerSignature(
+        channel.credentials.appSecret,
+        signature,
+        rawBody
+      )
+
+      if (!isValid) {
+        console.error('[Messenger] Invalid signature')
+        return
+      }
+    }
+
+    // Save incoming message
+    await saveMessengerMessage(companyId, message.senderId, {
+      direction: 'inbound',
+      senderId: message.senderId,
+      text: message.text,
+      timestamp: new Date(message.timestamp),
+      messageId: message.messageId,
+    })
+
+    // Get user profile for personalization
+    const userProfile = channel.credentials.pageAccessToken
+      ? await getMessengerUserProfile(message.senderId, channel.credentials.pageAccessToken)
+      : null
+
+    // Get context for AI
+    const [businessProfile, faqs, instructions, history] = await Promise.all([
+      getBusinessProfile(companyId),
+      getFAQs(companyId),
+      getActiveInstructions(companyId),
+      getMessengerHistory(companyId, message.senderId, 10),
+    ])
+
+    // Generate AI response
+    const aiResponse = await generateAIResponse({
+      userMessage: message.text,
+      userName: userProfile?.firstName,
+      businessProfile,
+      faqs,
+      instructions,
+      history,
+    })
+
+    // Send response via Messenger
+    if (channel.credentials.pageAccessToken) {
+      const result = await sendMessengerMessage(
+        { pageAccessToken: channel.credentials.pageAccessToken, appSecret: channel.credentials.appSecret || '' },
+        { recipientId: message.senderId, text: aiResponse }
+      )
+
+      if (result.success) {
+        // Save outgoing message
+        await saveMessengerMessage(companyId, message.senderId, {
+          direction: 'outbound',
+          senderId: message.recipientId,
+          text: aiResponse,
+          timestamp: new Date(),
+          messageId: result.messageId,
+        })
+
+        console.log('[Messenger] Response sent successfully')
+      } else {
+        console.error('[Messenger] Failed to send response:', result.error)
+      }
+    }
+  } catch (error) {
+    console.error('[Messenger] Error processing message:', error)
+  }
+}
+
+async function generateAIResponse(context: {
+  userMessage: string
+  userName?: string
+  businessProfile: Record<string, unknown> | null
+  faqs: Array<Record<string, unknown>>
+  instructions: Array<{ content: string; priority: string }>
+  history: Array<{ direction: string; text: string }>
+}): Promise<string> {
+  const { userMessage, userName, businessProfile, faqs, instructions, history } = context
+
+  // Build system prompt
+  let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på Facebook Messenger.
+
+VIKTIG:
+- Svar alltid på norsk med mindre kunden skriver på et annet språk
+- Hold svarene korte og konsise (maks 2-3 setninger når mulig)
+- Vær vennlig og profesjonell
+- Ikke bruk markdown-formatering (Messenger støtter det ikke godt)
+- Bruk emoji sparsomt og naturlig`
+
+  if (businessProfile) {
+    const bp = businessProfile as { businessName?: string; industry?: string; description?: string; tone?: string }
+    systemPrompt += `\n\nDu representerer: ${bp.businessName || 'Bedriften'}`
+    if (bp.industry) systemPrompt += `\nBransje: ${bp.industry}`
+    if (bp.description) systemPrompt += `\nOm bedriften: ${bp.description}`
+    if (bp.tone) systemPrompt += `\nTonefall: ${bp.tone}`
+  }
+
+  if (instructions.length > 0) {
+    systemPrompt += '\n\nSpesielle instruksjoner:'
+    for (const inst of instructions) {
+      systemPrompt += `\n- ${inst.content}`
+    }
+  }
+
+  if (faqs.length > 0) {
+    systemPrompt += '\n\nVanlige spørsmål og svar:'
+    for (const faq of faqs.slice(0, 10)) {
+      const question = faq.question as string | undefined
+      const answer = faq.answer as string | undefined
+      if (question && answer) {
+        systemPrompt += `\nQ: ${question}\nA: ${answer}`
+      }
+    }
+  }
+
+  // Build conversation history
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    { role: 'system', content: systemPrompt },
+  ]
+
+  // Add conversation history
+  for (const msg of history.slice(-6)) {
+    messages.push({
+      role: msg.direction === 'inbound' ? 'user' : 'assistant',
+      content: msg.text,
+    })
+  }
+
+  // Add current message
+  const userMessageContent = userName
+    ? `[Kunde: ${userName}] ${userMessage}`
+    : userMessage
+  messages.push({ role: 'user', content: userMessageContent })
+
+  // Call Groq API
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages,
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Messenger] Groq API error:', errorText)
+      return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
+    }
+
+    const data = await response.json()
+    return data.choices?.[0]?.message?.content || 'Beklager, jeg forstod ikke helt. Kan du prøve å omformulere?'
+  } catch (error) {
+    console.error('[Messenger] AI generation error:', error)
+    return 'Beklager, det oppstod en feil. Vennligst prøv igjen.'
+  }
+}

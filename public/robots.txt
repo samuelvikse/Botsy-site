@@ -1,0 +1,18 @@
+# Botsy - AI Kundeservice for Norske Bedrifter
+# https://botsy.no
+
+User-agent: *
+Allow: /
+
+# Ikke indekser admin-sider og widget
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /widget
+Disallow: /widget/*
+Disallow: /onboarding
+Disallow: /onboarding/*
+Disallow: /api
+Disallow: /api/*
+
+# Sitemap
+Sitemap: https://botsy.no/sitemap.xml

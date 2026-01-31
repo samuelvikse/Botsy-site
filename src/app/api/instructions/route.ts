@@ -47,8 +47,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ instructions })
 
-  } catch (error) {
-    console.error('Get instructions error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Kunne ikke hente instruksjoner' },
       { status: 500 }
@@ -113,8 +112,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ instruction: createdInstruction })
 
-  } catch (error) {
-    console.error('Create instruction error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Kunne ikke opprette instruks' },
       { status: 500 }
@@ -154,8 +152,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ success: true })
 
-  } catch (error) {
-    console.error('Update instruction error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Kunne ikke oppdatere instruks' },
       { status: 500 }
@@ -185,8 +182,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true })
 
-  } catch (error) {
-    console.error('Delete instruction error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Kunne ikke slette instruks' },
       { status: 500 }

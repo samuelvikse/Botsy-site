@@ -15,11 +15,12 @@ import {
   FileText,
   Loader2,
   Check,
+  Smile,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { saveToneConfig, getBusinessProfile } from '@/lib/firestore'
-import type { ToneConfig, BusinessProfile } from '@/types'
+import type { ToneConfig, BusinessProfile, HumorLevel } from '@/types'
 
 interface ToneConfigViewProps {
   companyId: string
@@ -66,6 +67,9 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [currentTone, setCurrentTone] = useState<'formal' | 'friendly' | 'casual'>('friendly')
+  const [greeting, setGreeting] = useState('Hei! 👋 Hvordan kan jeg hjelpe deg?')
+  const [useEmojis, setUseEmojis] = useState(true)
+  const [humorLevel, setHumorLevel] = useState<HumorLevel>('subtle')
 
   // Load existing config
   useEffect(() => {
@@ -73,12 +77,21 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
       try {
         if (initialProfile?.toneConfig) {
           setConfig(initialProfile.toneConfig)
+          if (initialProfile.toneConfig.useEmojis !== undefined) {
+            setUseEmojis(initialProfile.toneConfig.useEmojis)
+          }
+          if (initialProfile.toneConfig.greeting) {
+            setGreeting(initialProfile.toneConfig.greeting)
+          }
+          if (initialProfile.toneConfig.humorLevel) {
+            setHumorLevel(initialProfile.toneConfig.humorLevel)
+          }
         }
         if (initialProfile?.tone) {
           setCurrentTone(initialProfile.tone)
         }
-      } catch (error) {
-        console.error('Error loading tone config:', error)
+      } catch {
+        // Silent fail - will use defaults
       } finally {
         setIsLoading(false)
       }
@@ -91,6 +104,15 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
       getBusinessProfile(companyId).then((profile) => {
         if (profile?.toneConfig) {
           setConfig(profile.toneConfig)
+          if (profile.toneConfig.useEmojis !== undefined) {
+            setUseEmojis(profile.toneConfig.useEmojis)
+          }
+          if (profile.toneConfig.greeting) {
+            setGreeting(profile.toneConfig.greeting)
+          }
+          if (profile.toneConfig.humorLevel) {
+            setHumorLevel(profile.toneConfig.humorLevel)
+          }
         }
         if (profile?.tone) {
           setCurrentTone(profile.tone)
@@ -104,11 +126,17 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
     setIsSaving(true)
     setSaveSuccess(false)
     try {
-      await saveToneConfig(companyId, config)
+      await saveToneConfig(companyId, {
+        ...config,
+        tone: currentTone,
+        greeting,
+        useEmojis,
+        humorLevel,
+      })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
-    } catch (error) {
-      console.error('Error saving tone config:', error)
+    } catch {
+      // Silent fail
     } finally {
       setIsSaving(false)
     }
@@ -189,16 +217,101 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         </p>
       </div>
 
-      {/* Current Tone Indicator */}
-      <Card className="p-4 bg-gradient-to-r from-botsy-lime/10 to-transparent border-botsy-lime/20">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-botsy-lime/20 flex items-center justify-center">
-            <Volume2 className="h-5 w-5 text-botsy-lime" />
-          </div>
+      {/* Basic Tone Settings */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Volume2 className="h-5 w-5 text-botsy-lime" />
+          <h3 className="text-white font-medium">Grunnleggende tone</h3>
+        </div>
+
+        <div className="space-y-6">
+          {/* Tone Selection */}
           <div>
-            <p className="text-white font-medium">Nåværende grunntone: {toneLabel}</p>
-            <p className="text-[#6B7A94] text-sm">
-              Innstillingene nedenfor finjusterer denne tonen ytterligere
+            <label className="text-white text-sm font-medium block mb-3">Velg grunntone</label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: 'friendly', label: 'Vennlig', desc: 'Varm og imøtekommende' },
+                { value: 'formal', label: 'Formell', desc: 'Profesjonell og saklig' },
+                { value: 'casual', label: 'Uformell', desc: 'Avslappet og lett' },
+              ].map((tone) => (
+                <button
+                  key={tone.value}
+                  onClick={() => setCurrentTone(tone.value as typeof currentTone)}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    currentTone === tone.value
+                      ? 'border-botsy-lime bg-botsy-lime/10'
+                      : 'border-white/[0.06] hover:border-white/[0.12]'
+                  }`}
+                >
+                  <p className={`font-medium ${currentTone === tone.value ? 'text-botsy-lime' : 'text-white'}`}>
+                    {tone.label}
+                  </p>
+                  <p className="text-[#6B7A94] text-xs mt-1">{tone.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Greeting */}
+          <div>
+            <label className="text-white text-sm font-medium block mb-2">Velkomstmelding</label>
+            <textarea
+              value={greeting}
+              onChange={(e) => setGreeting(e.target.value)}
+              rows={3}
+              className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
+              placeholder="Hei! 👋 Hvordan kan jeg hjelpe deg?"
+            />
+            <p className="text-[#6B7A94] text-xs mt-2">
+              Første melding kundene ser når de åpner chatten
+            </p>
+          </div>
+
+          {/* Use Emojis */}
+          <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-xl">
+            <div>
+              <p className="text-white text-sm font-medium">Bruk emojis</p>
+              <p className="text-[#6B7A94] text-sm">La Botsy bruke emojis i svarene</p>
+            </div>
+            <button
+              onClick={() => setUseEmojis(!useEmojis)}
+              className={`w-12 h-6 rounded-full relative transition-colors ${useEmojis ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
+            >
+              <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${useEmojis ? 'right-1' : 'left-1 bg-white/50'}`} />
+            </button>
+          </div>
+
+          {/* Humor Level */}
+          <div>
+            <label className="text-white text-sm font-medium flex items-center gap-2 mb-3">
+              <Smile className="h-4 w-4 text-botsy-lime" />
+              Humor-nivå
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { value: 'none' as const, label: 'Ingen', desc: 'Alltid seriøs' },
+                { value: 'subtle' as const, label: 'Subtil', desc: 'Litt vennlig' },
+                { value: 'moderate' as const, label: 'Moderat', desc: 'Litt humor' },
+                { value: 'playful' as const, label: 'Leken', desc: 'Morsom stil' },
+              ].map((level) => (
+                <button
+                  key={level.value}
+                  onClick={() => setHumorLevel(level.value)}
+                  className={`p-3 rounded-xl border text-center transition-all ${
+                    humorLevel === level.value
+                      ? 'border-botsy-lime bg-botsy-lime/10'
+                      : 'border-white/[0.06] hover:border-white/[0.12]'
+                  }`}
+                >
+                  <p className={`text-sm font-medium ${humorLevel === level.value ? 'text-botsy-lime' : 'text-white'}`}>
+                    {level.label}
+                  </p>
+                  <p className="text-[#6B7A94] text-xs mt-0.5">{level.desc}</p>
+                </button>
+              ))}
+            </div>
+            <p className="text-[#6B7A94] text-xs mt-2">
+              Bestemmer hvor mye humor og lette kommentarer Botsy bruker i svarene
             </p>
           </div>
         </div>

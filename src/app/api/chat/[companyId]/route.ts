@@ -1,13 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatWithCustomer } from '@/lib/groq'
-import { db } from '@/lib/firebase'
-import {
-  getCompany,
-  getInstructions,
-  saveCustomerMessage,
-  getCustomerChatSession,
-} from '@/lib/firestore'
+import { initializeApp, getApps, getApp } from 'firebase/app'
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore'
 import type { BusinessProfile, Instruction } from '@/types'
+
+// Force dynamic rendering - never cache this route
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+}
+
+// Handle OPTIONS for CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders })
+}
+
+// Initialize Firebase Client SDK
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+}
+
+function getFirebaseApp() {
+  if (getApps().length === 0) {
+    return initializeApp(firebaseConfig)
+  }
+  return getApp()
+}
 
 interface ChatRequest {
   message: string
@@ -48,6 +76,7 @@ const DEMO_PROFILE: BusinessProfile = {
 
 const DEMO_CONFIG = {
   businessName: 'Demo Bedrift',
+  botName: 'Botsy',
   greeting: 'Hei! 👋 Jeg er Botsy. Hvordan kan jeg hjelpe deg i dag?',
   primaryColor: '#CCFF00',
   position: 'bottom-right',
@@ -61,21 +90,31 @@ export async function POST(
 ) {
   try {
     const { companyId } = await params
-    const body = (await request.json()) as ChatRequest
+
+    let body: ChatRequest
+    try {
+      body = (await request.json()) as ChatRequest
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Ugyldig request body' },
+        { status: 400, headers: corsHeaders }
+      )
+    }
+
     const { message, sessionId } = body
 
     // Validate input
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Melding er påkrevd' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
     if (!sessionId || typeof sessionId !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Session ID er påkrevd' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -83,7 +122,7 @@ export async function POST(
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
         { success: false, error: 'AI-tjenesten er ikke konfigurert. Legg til GROQ_API_KEY.' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
@@ -97,50 +136,168 @@ export async function POST(
     if (isDemo) {
       businessProfile = DEMO_PROFILE
     } else {
-      // Check if Firestore is configured
-      if (!db) {
-        return NextResponse.json(
-          { success: false, error: 'Database ikke konfigurert. Prøv /widget/demo for testing.' },
-          { status: 500 }
-        )
-      }
+      // Use Firebase Client SDK
+      const app = getFirebaseApp()
+      const db = getFirestore(app)
 
       // Get company data
-      const company = await getCompany(companyId)
+      const companyRef = doc(db, 'companies', companyId)
+      const companyDoc = await getDoc(companyRef)
 
-      if (!company) {
+      if (!companyDoc.exists()) {
         return NextResponse.json(
           { success: false, error: 'Bedrift ikke funnet. Prøv /widget/demo for testing.' },
           { status: 404 }
         )
       }
 
-      if (!company.businessProfile) {
+      const companyData = companyDoc.data()
+
+      if (!companyData?.businessProfile) {
         return NextResponse.json(
           { success: false, error: 'Bedriftsprofil ikke konfigurert. Fullfør onboarding først.' },
-          { status: 400 }
+          { status: 400, headers: corsHeaders }
         )
       }
 
-      if (!company.widgetSettings.isEnabled) {
+      if (!companyData?.widgetSettings?.isEnabled) {
         return NextResponse.json(
           { success: false, error: 'Chat er ikke aktivert for denne bedriften' },
-          { status: 403 }
+          { status: 403, headers: corsHeaders }
         )
       }
 
-      businessProfile = company.businessProfile
-      instructions = await getInstructions(companyId, true)
-      history = await getCustomerChatSession(companyId, sessionId)
+      businessProfile = {
+        ...companyData.businessProfile,
+        lastAnalyzed: companyData.businessProfile.lastAnalyzed?.toDate?.() || new Date(),
+        faqs: companyData.businessProfile.faqs || [],
+      }
+
+      // Get instructions
+      try {
+        const instructionsRef = collection(db, 'companies', companyId, 'instructions')
+        const instructionsQuery = query(
+          instructionsRef,
+          where('isActive', '==', true),
+          orderBy('createdAt', 'desc')
+        )
+        const instructionsSnapshot = await getDocs(instructionsQuery)
+
+        instructions = instructionsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+          startsAt: doc.data().startsAt?.toDate?.() || null,
+          expiresAt: doc.data().expiresAt?.toDate?.() || null,
+        })) as Instruction[]
+      } catch {
+        // Silently continue without instructions
+      }
+
+      // Get chat history and check manual mode
+      let isManualMode = false
+      try {
+        const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+        const sessionDoc = await getDoc(sessionRef)
+
+        if (sessionDoc.exists()) {
+          const sessionData = sessionDoc.data()
+          isManualMode = sessionData?.isManualMode || false
+          history = (sessionData?.messages || []).map((msg: { role: 'user' | 'assistant'; content: string }) => ({
+            role: msg.role,
+            content: msg.content,
+          }))
+        }
+      } catch {
+        // Silently continue without history
+      }
 
       // Save user message
-      await saveCustomerMessage(companyId, sessionId, {
-        role: 'user',
-        content: message,
-      })
+      try {
+        const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+        const sessionDoc = await getDoc(sessionRef)
+
+        const userMessageData = {
+          role: 'user',
+          content: message,
+          timestamp: new Date(),
+        }
+
+        if (sessionDoc.exists()) {
+          const existingData = sessionDoc.data()
+          await updateDoc(sessionRef, {
+            messages: [
+              ...(existingData?.messages || []),
+              userMessageData,
+            ],
+            updatedAt: new Date(),
+          })
+        } else {
+          await setDoc(sessionRef, {
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            messages: [userMessageData],
+          })
+        }
+      } catch {
+        // Silently continue - message saving is not critical
+      }
+
+      // If in manual mode, return waiting message instead of AI response
+      if (isManualMode) {
+        return NextResponse.json({
+          success: true,
+          reply: 'En kundebehandler vil svare deg snart.',
+          isManualMode: true,
+        }, { headers: corsHeaders })
+      }
+
+      // Fetch knowledge documents
+      try {
+        const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
+        const docsQuery = query(docsRef, where('status', '==', 'ready'))
+        const docsSnapshot = await getDocs(docsQuery)
+
+        const knowledgeDocuments = docsSnapshot.docs.map(doc => doc.data().analyzedData)
+
+        // Generate response with knowledge documents
+        const reply = await chatWithCustomer(message, {
+          businessProfile,
+          faqs: businessProfile.faqs,
+          instructions,
+          conversationHistory: history,
+          knowledgeDocuments,
+        })
+
+        // Save assistant response
+        try {
+          const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+          const sessionDoc = await getDoc(sessionRef)
+
+          if (sessionDoc.exists()) {
+            const sessionData = sessionDoc.data()
+            await updateDoc(sessionRef, {
+              messages: [
+                ...(sessionData?.messages || []),
+                { role: 'assistant', content: reply, timestamp: new Date() },
+              ],
+              updatedAt: new Date(),
+            })
+          }
+        } catch {
+          // Silently continue - message saving is not critical
+        }
+
+        return NextResponse.json({
+          success: true,
+          reply,
+        }, { headers: corsHeaders })
+      } catch {
+        // Fall through to default response generation
+      }
     }
 
-    // Generate response
+    // Generate response (for demo mode or fallback)
     const reply = await chatWithCustomer(message, {
       businessProfile,
       faqs: businessProfile.faqs,
@@ -148,25 +305,16 @@ export async function POST(
       conversationHistory: history,
     })
 
-    // Save assistant response (only for non-demo)
-    if (!isDemo && db) {
-      await saveCustomerMessage(companyId, sessionId, {
-        role: 'assistant',
-        content: reply,
-      })
-    }
-
     return NextResponse.json({
       success: true,
       reply,
-    })
+    }, { headers: corsHeaders })
   } catch (error) {
-    console.error('Customer chat error:', error)
     const errorMessage =
       error instanceof Error ? error.message : 'En ukjent feil oppstod'
     return NextResponse.json(
       { success: false, error: errorMessage },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
@@ -184,40 +332,47 @@ export async function GET(
       return NextResponse.json({
         success: true,
         config: DEMO_CONFIG,
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
       })
     }
 
-    // Check if Firestore is configured
-    if (!db) {
-      return NextResponse.json(
-        { success: false, error: 'Database ikke konfigurert. Bruk /widget/demo for testing.' },
-        { status: 500 }
-      )
-    }
+    // Use Firebase Client SDK
+    const app = getFirebaseApp()
+    const db = getFirestore(app)
 
-    const company = await getCompany(companyId)
+    const companyRef = doc(db, 'companies', companyId)
+    const companyDoc = await getDoc(companyRef)
 
-    if (!company) {
+    if (!companyDoc.exists()) {
       return NextResponse.json(
         { success: false, error: 'Bedrift ikke funnet. Bruk /widget/demo for testing.' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       )
     }
+
+    const companyData = companyDoc.data()
 
     // Return public widget config (no sensitive data)
     return NextResponse.json({
       success: true,
       config: {
-        businessName: company.businessProfile?.businessName || company.businessName,
-        greeting: company.widgetSettings.greeting,
-        primaryColor: company.widgetSettings.primaryColor,
-        position: company.widgetSettings.position,
-        isEnabled: company.widgetSettings.isEnabled,
-        logoUrl: company.widgetSettings.logoUrl || null,
+        businessName: companyData?.businessProfile?.businessName || companyData?.businessName || 'Bedrift',
+        botName: companyData?.generalSettings?.botName || 'Botsy',
+        greeting: companyData?.widgetSettings?.greeting || 'Hei! Hvordan kan jeg hjelpe deg?',
+        primaryColor: companyData?.widgetSettings?.primaryColor || '#CCFF00',
+        position: companyData?.widgetSettings?.position || 'bottom-right',
+        isEnabled: companyData?.widgetSettings?.isEnabled ?? true,
+        logoUrl: companyData?.widgetSettings?.logoUrl || null,
+      },
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     })
   } catch (error) {
-    console.error('Widget config error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Ukjent feil'
     return NextResponse.json(
       { success: false, error: `Kunne ikke hente konfigurasjon: ${errorMessage}` },

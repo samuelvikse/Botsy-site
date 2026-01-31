@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('FAQ answer lookup error:', error)
     const message = error instanceof Error ? error.message : 'En ukjent feil oppstod'
     return NextResponse.json(
       { success: false, error: message },
@@ -103,7 +102,6 @@ export async function PATCH(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Answer reformulation error:', error)
     const message = error instanceof Error ? error.message : 'En ukjent feil oppstod'
     return NextResponse.json(
       { success: false, error: message },

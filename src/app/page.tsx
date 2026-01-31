@@ -3,10 +3,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { 
-  MessageSquare, 
-  Clock, 
-  TrendingUp, 
+import {
+  MessageSquare,
+  Clock,
+  TrendingUp,
   Shield,
   ChevronRight,
   Check,
@@ -227,33 +227,33 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===== SOCIAL PROOF ===== */}
+      {/* ===== CAPABILITIES ===== */}
       <section className="py-12 border-y border-white/[0.04]">
         <div className="container">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 text-center"
           >
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">500+</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Norske bedrifter</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">24/7</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Alltid tilgjengelig</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">2M+</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Meldinger håndtert</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">&lt;3s</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Responstid</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">4.9/5</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Kundetilfredshet</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">100%</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Norsk språk</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-botsy-lime font-display">&lt;30s</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Gjennomsnittlig responstid</p>
+              <p className="text-3xl lg:text-4xl font-bold text-botsy-lime font-display">14 dager</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Gratis prøveperiode</p>
             </div>
           </motion.div>
         </div>
@@ -695,10 +695,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===== TESTIMONIALS ===== */}
+      {/* ===== WHY BOTSY ===== */}
       <section className="py-24 lg:py-32">
         <div className="container">
-          <motion.div 
+          <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -706,41 +706,50 @@ export default function LandingPage() {
             className="text-center max-w-3xl mx-auto mb-16"
           >
             <motion.div variants={fadeInUp}>
-              <Badge variant="secondary" className="mb-4">Tilbakemeldinger</Badge>
+              <Badge variant="secondary" className="mb-4">Hvorfor Botsy?</Badge>
             </motion.div>
-            <motion.h2 
+            <motion.h2
               variants={fadeInUp}
               className="text-3xl lg:text-5xl font-bold text-white mb-6 font-display"
             >
-              Elsket av norske bedrifter
+              Bygget for norske bedrifter
             </motion.h2>
+            <motion.p
+              variants={fadeInUp}
+              className="text-lg text-[#A8B4C8]"
+            >
+              Botsy er ikke bare en chatbot – det er en AI-kollega som faktisk forstår norsk kontekst og kultur.
+            </motion.p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            <TestimonialCard
-              quote="Botsy har revolusjonert hvordan vi håndterer kundehenvendelser. Vi svarer nå på 90% av henvendelsene automatisk."
-              author="Maria Hansen"
-              role="Daglig leder"
-              company="Hansen & Co Elektro"
-            />
-            <TestimonialCard
-              quote="Endelig kan vi gi kundene våre 24/7 support uten å ansette nattevakter. Kundene elsker det!"
-              author="Thomas Berg"
-              role="Gründer"
-              company="Berg Dental"
-            />
-            <TestimonialCard
-              quote="Oppsettet tok 10 minutter. Nå håndterer Botsy over 500 henvendelser i uken for oss."
-              author="Ingrid Svendsen"
-              role="Kundeservicesjef"
-              company="Svendsen Sport"
-            />
+            <Card className="p-6 bg-white/[0.02] border-white/[0.06]">
+              <div className="h-12 w-12 rounded-xl bg-botsy-lime/10 flex items-center justify-center mb-4">
+                <Globe className="h-6 w-6 text-botsy-lime" />
+              </div>
+              <h3 className="text-white font-semibold text-lg mb-2">Ekte norsk AI</h3>
+              <p className="text-[#A8B4C8] text-sm">Forstår nyanser, dialekter og kulturelle referanser. Ikke bare oversatt fra engelsk.</p>
+            </Card>
+            <Card className="p-6 bg-white/[0.02] border-white/[0.06]">
+              <div className="h-12 w-12 rounded-xl bg-botsy-lime/10 flex items-center justify-center mb-4">
+                <Zap className="h-6 w-6 text-botsy-lime" />
+              </div>
+              <h3 className="text-white font-semibold text-lg mb-2">Klar på minutter</h3>
+              <p className="text-[#A8B4C8] text-sm">Legg inn nettsiden din, og Botsy lærer seg bedriften automatisk. Ingen komplisert oppsett.</p>
+            </Card>
+            <Card className="p-6 bg-white/[0.02] border-white/[0.06]">
+              <div className="h-12 w-12 rounded-xl bg-botsy-lime/10 flex items-center justify-center mb-4">
+                <Shield className="h-6 w-6 text-botsy-lime" />
+              </div>
+              <h3 className="text-white font-semibold text-lg mb-2">GDPR-sikker</h3>
+              <p className="text-[#A8B4C8] text-sm">Data lagres i EU med full GDPR-compliance. Trygt for deg og kundene dine.</p>
+            </Card>
           </motion.div>
         </div>
       </section>
@@ -860,7 +869,7 @@ export default function LandingPage() {
                 className="h-9 w-auto mb-4"
               />
               <p className="text-[#6B7A94] text-sm max-w-xs mb-6">
-                AI-drevet kundeservice for norske bedrifter. 
+                AI-drevet kundeservice for norske bedrifter.
                 Din digitale kollega som aldri tar ferie.
               </p>
               <div className="flex gap-4">

@@ -9,9 +9,6 @@ function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY
 
   if (!key) {
-    console.warn(
-      'WARNING: ENCRYPTION_KEY not set. Using fallback key. Set ENCRYPTION_KEY in production!'
-    )
     // Fallback key for development only - DO NOT USE IN PRODUCTION
     return crypto.scryptSync('botsy-dev-key-do-not-use-in-prod', 'salt', 32)
   }
@@ -59,8 +56,7 @@ export function decryptCredentials(encryptedData: string): Record<string, string
     decrypted += decipher.final('utf8')
 
     return JSON.parse(decrypted)
-  } catch (error) {
-    console.error('Failed to decrypt credentials:', error)
+  } catch {
     // Return empty object if decryption fails (corrupted data or key change)
     return {}
   }

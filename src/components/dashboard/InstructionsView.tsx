@@ -108,8 +108,7 @@ export function InstructionsView({ companyId, instructions, onInstructionsChange
         onInstructionsChange()
         toast.success('Instruks slettet', 'Instruksen ble fjernet')
       }
-    } catch (error) {
-      console.error('Failed to delete instruction:', error)
+    } catch {
       toast.error('Kunne ikke slette', 'Noe gikk galt. Prøv igjen.')
     }
     setDeleteModalOpen(false)
@@ -130,8 +129,8 @@ export function InstructionsView({ companyId, instructions, onInstructionsChange
       if (response.ok) {
         onInstructionsChange()
       }
-    } catch (error) {
-      console.error('Failed to toggle instruction:', error)
+    } catch {
+      // Silent fail - UI will show stale state
     }
   }
 
@@ -196,7 +195,7 @@ export function InstructionsView({ companyId, instructions, onInstructionsChange
       </div>
 
       {/* Add New Instruction Form Modal */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isAdding && (
           <InstructionForm
             companyId={companyId}
@@ -236,7 +235,7 @@ export function InstructionsView({ companyId, instructions, onInstructionsChange
       )}
 
       {/* Edit Modal */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {editingId && (
           <InstructionForm
             companyId={companyId}
@@ -391,8 +390,8 @@ function InstructionForm({
         onSave()
         onClose()
       }
-    } catch (error) {
-      console.error('Failed to save instruction:', error)
+    } catch {
+      // Error handling - modal stays open so user can try again
     } finally {
       setIsLoading(false)
     }

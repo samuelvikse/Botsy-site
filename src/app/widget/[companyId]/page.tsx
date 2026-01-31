@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, use } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, X } from 'lucide-react'
+import { Send, X, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 
 interface Message {
@@ -13,30 +13,93 @@ interface Message {
 
 interface WidgetConfig {
   businessName: string
+  botName: string
   greeting: string
   primaryColor: string
   position: string
   isEnabled: boolean
   logoUrl: string | null
+  widgetSize: 'small' | 'medium' | 'large'
 }
+
+const SIZE_DIMENSIONS = {
+  small: { width: '340px', height: '460px' },
+  medium: { width: '380px', height: '520px' },
+  large: { width: '420px', height: '600px' },
+}
+
+// Session timeout settings
+const INACTIVITY_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
+const AWAY_TIMEOUT = 15 * 60 * 1000 // 15 minutes in milliseconds
 
 // Generate a unique session ID
 function generateSessionId(): string {
   return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
 }
 
-// Get or create session ID from localStorage
+// Get or create session ID from localStorage, with expiration check
 function getSessionId(companyId: string): string {
-  const key = `botsy_session_${companyId}`
+  const sessionKey = `botsy_session_${companyId}`
+  const activityKey = `botsy_last_activity_${companyId}`
+  const leaveKey = `botsy_leave_time_${companyId}`
+
   if (typeof window !== 'undefined') {
-    let sessionId = localStorage.getItem(key)
+    const existingSessionId = localStorage.getItem(sessionKey)
+    const lastActivity = localStorage.getItem(activityKey)
+    const leaveTime = localStorage.getItem(leaveKey)
+
+    // Check if session should be cleared due to inactivity (1 hour)
+    if (existingSessionId && lastActivity) {
+      const timeSinceActivity = Date.now() - parseInt(lastActivity, 10)
+      if (timeSinceActivity > INACTIVITY_TIMEOUT) {
+        // Clear old session
+        localStorage.removeItem(sessionKey)
+        localStorage.removeItem(activityKey)
+        localStorage.removeItem(leaveKey)
+      }
+    }
+
+    // Check if session should be cleared because user was away (15 min)
+    if (existingSessionId && leaveTime) {
+      const timeAway = Date.now() - parseInt(leaveTime, 10)
+      if (timeAway > AWAY_TIMEOUT) {
+        // Clear old session
+        localStorage.removeItem(sessionKey)
+        localStorage.removeItem(activityKey)
+        localStorage.removeItem(leaveKey)
+      }
+    }
+
+    // Clear leave time since user is back
+    localStorage.removeItem(leaveKey)
+
+    // Get or create session
+    let sessionId = localStorage.getItem(sessionKey)
     if (!sessionId) {
       sessionId = generateSessionId()
-      localStorage.setItem(key, sessionId)
+      localStorage.setItem(sessionKey, sessionId)
     }
+
+    // Update last activity
+    localStorage.setItem(activityKey, Date.now().toString())
+
     return sessionId
   }
   return generateSessionId()
+}
+
+// Update last activity timestamp
+function updateActivity(companyId: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`botsy_last_activity_${companyId}`, Date.now().toString())
+  }
+}
+
+// Record when user leaves the page
+function recordLeaveTime(companyId: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`botsy_leave_time_${companyId}`, Date.now().toString())
+  }
 }
 
 export default function WidgetPage({
@@ -52,19 +115,100 @@ export default function WidgetPage({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string>('')
+  const [showEmailInput, setShowEmailInput] = useState(false)
+  const [emailAddress, setEmailAddress] = useState('')
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Initialize session ID
+  // Initialize session ID and mount state
   useEffect(() => {
     setSessionId(getSessionId(companyId))
+    setIsMounted(true)
   }, [companyId])
+
+  // Track page visibility and record leave time
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        recordLeaveTime(companyId)
+      } else {
+        // User came back - check if session should be cleared
+        const newSessionId = getSessionId(companyId)
+        if (newSessionId !== sessionId) {
+          // Session was cleared, reset state
+          setSessionId(newSessionId)
+          setMessages([])
+          lastServerMessageCount.current = 0
+          // Re-fetch config to get greeting
+          if (config?.greeting) {
+            setMessages([{
+              id: 'greeting',
+              role: 'assistant',
+              content: config.greeting,
+            }])
+          }
+        }
+      }
+    }
+
+    const handleBeforeUnload = () => {
+      recordLeaveTime(companyId)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [companyId, sessionId, config?.greeting])
+
+  // Check for inactivity timeout periodically
+  useEffect(() => {
+    const checkInactivity = setInterval(() => {
+      const activityKey = `botsy_last_activity_${companyId}`
+      const lastActivity = localStorage.getItem(activityKey)
+
+      if (lastActivity) {
+        const timeSinceActivity = Date.now() - parseInt(lastActivity, 10)
+        if (timeSinceActivity > INACTIVITY_TIMEOUT) {
+          // Clear session due to inactivity
+          const sessionKey = `botsy_session_${companyId}`
+          localStorage.removeItem(sessionKey)
+          localStorage.removeItem(activityKey)
+
+          // Reset state
+          const newSessionId = generateSessionId()
+          localStorage.setItem(sessionKey, newSessionId)
+          localStorage.setItem(activityKey, Date.now().toString())
+
+          setSessionId(newSessionId)
+          setMessages([])
+          lastServerMessageCount.current = 0
+
+          if (config?.greeting) {
+            setMessages([{
+              id: 'greeting',
+              role: 'assistant',
+              content: config.greeting,
+            }])
+          }
+        }
+      }
+    }, 60000) // Check every minute
+
+    return () => clearInterval(checkInactivity)
+  }, [companyId, config?.greeting])
 
   // Fetch widget config
   useEffect(() => {
     async function fetchConfig() {
       try {
-        const response = await fetch(`/api/chat/${companyId}`)
+        const response = await fetch(`/api/widget-config/${companyId}?t=${Date.now()}`)
         const data = await response.json()
         if (data.success) {
           setConfig(data.config)
@@ -94,12 +238,62 @@ export default function WidgetPage({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Focus input when chat opens
+  // Track the last known server message count to avoid duplicates
+  const lastServerMessageCount = useRef(0)
+
+  // Poll for new messages (to receive manual responses from admin)
+  useEffect(() => {
+    if (!isOpen || !sessionId || !companyId) return
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/chat/history?companyId=${companyId}&sessionId=${sessionId}`)
+        const data = await response.json()
+
+        if (data.success && data.messages.length > lastServerMessageCount.current) {
+          // Get only new messages from the server
+          const serverMessages = data.messages as Array<{ role: 'user' | 'assistant'; content: string; isManual?: boolean }>
+          const newServerMessages = serverMessages.slice(lastServerMessageCount.current)
+
+          // Only add manual assistant messages (marked with isManual flag)
+          const manualMessages = newServerMessages.filter(msg => msg.role === 'assistant' && msg.isManual === true)
+
+          if (manualMessages.length > 0) {
+            setMessages((prev) => {
+              // Check if any of these messages already exist (by content)
+              const existingContents = new Set(prev.map(m => m.content))
+              const trulyNewMessages = manualMessages.filter(msg => !existingContents.has(msg.content))
+
+              if (trulyNewMessages.length === 0) return prev
+
+              return [
+                ...prev,
+                ...trulyNewMessages.map((msg, index) => ({
+                  id: `polled-${Date.now()}-${index}`,
+                  role: msg.role as 'user' | 'assistant',
+                  content: msg.content,
+                })),
+              ]
+            })
+          }
+
+          lastServerMessageCount.current = data.messages.length
+        }
+      } catch {
+        // Silent fail - polling will retry
+      }
+    }, 3000) // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [isOpen, sessionId, companyId])
+
+  // Focus input when chat opens and update activity
   useEffect(() => {
     if (isOpen) {
+      updateActivity(companyId)
       setTimeout(() => inputRef.current?.focus(), 100)
     }
-  }, [isOpen])
+  }, [isOpen, companyId])
 
   // Listen for parent window messages (open/close)
   useEffect(() => {
@@ -118,9 +312,26 @@ export default function WidgetPage({
     window.parent.postMessage({ type: 'botsy-state', isOpen }, '*')
   }, [isOpen])
 
+  // Notify parent of position
+  useEffect(() => {
+    if (config?.position) {
+      window.parent.postMessage({ type: 'botsy-position', position: config.position }, '*')
+    }
+  }, [config?.position])
+
+  // Ref to prevent double submissions
+  const isSubmitting = useRef(false)
+
   const handleSend = async () => {
     const text = inputValue.trim()
-    if (!text || isLoading || !sessionId) return
+
+    if (!text || isLoading || !sessionId || isSubmitting.current) return
+
+    // Prevent double submission
+    isSubmitting.current = true
+
+    // Update activity timestamp
+    updateActivity(companyId)
 
     // Add user message
     const userMessage: Message = {
@@ -145,14 +356,28 @@ export default function WidgetPage({
       const data = await response.json()
 
       if (data.success) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: data.reply,
-          },
-        ])
+        // Check if chat is in manual mode
+        if (data.isManualMode) {
+          // Don't add the automated "waiting" message - just skip
+          // The customer will see the human's response when they send it
+          // Optionally, we could add polling here to check for new messages
+        } else {
+          const { cleanContent, showEmailPrompt } = processMessage(data.reply)
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: cleanContent,
+            },
+          ])
+
+          // Show email input if Botsy offered email summary
+          if (showEmailPrompt && !emailSent) {
+            setShowEmailInput(true)
+          }
+        }
       } else {
         setMessages((prev) => [
           ...prev,
@@ -174,6 +399,7 @@ export default function WidgetPage({
       ])
     } finally {
       setIsLoading(false)
+      isSubmitting.current = false
     }
   }
 
@@ -181,6 +407,72 @@ export default function WidgetPage({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+    }
+  }
+
+  // Process message content to detect email request markers
+  const processMessage = (content: string): { cleanContent: string; showEmailPrompt: boolean } => {
+    let cleanContent = content
+    let showEmailPrompt = false
+
+    if (content.includes('[EMAIL_REQUEST]')) {
+      cleanContent = content.replace('[EMAIL_REQUEST]', '')
+      showEmailPrompt = true
+    }
+
+    if (content.includes('[OFFER_EMAIL]')) {
+      cleanContent = content.replace('[OFFER_EMAIL]', '')
+      showEmailPrompt = true
+    }
+
+    return { cleanContent: cleanContent.trim(), showEmailPrompt }
+  }
+
+  // Handle sending email summary
+  const handleSendEmail = async () => {
+    if (!emailAddress || isSendingEmail) return
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(emailAddress)) {
+      alert('Vennligst skriv inn en gyldig e-postadresse')
+      return
+    }
+
+    setIsSendingEmail(true)
+
+    try {
+      const response = await fetch('/api/chat/send-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          sessionId,
+          customerEmail: emailAddress,
+          messages: messages.filter(m => m.id !== 'greeting'),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setEmailSent(true)
+        setShowEmailInput(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: `Flott! Jeg har sendt en oppsummering av samtalen vår til ${emailAddress}. Ha en fin dag!`,
+          },
+        ])
+      } else {
+        alert(data.error || 'Kunne ikke sende e-post. Prøv igjen.')
+      }
+    } catch {
+      alert('Kunne ikke sende e-post. Sjekk internettforbindelsen.')
+    } finally {
+      setIsSendingEmail(false)
     }
   }
 
@@ -253,17 +545,18 @@ export default function WidgetPage({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-colors overflow-hidden"
+            className={`fixed bottom-4 ${config.position === 'bottom-left' ? 'left-4' : 'right-4'} h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-colors overflow-hidden`}
             style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
           >
             {config.logoUrl ? (
-              <Image
-                src={config.logoUrl}
-                alt={config.businessName}
-                width={32}
-                height={32}
-                className="object-contain"
-              />
+              <div className="absolute inset-0 rounded-full overflow-hidden">
+                <Image
+                  src={config.logoUrl}
+                  alt={config.businessName}
+                  fill
+                  className="object-cover rounded-full"
+                />
+              </div>
             ) : (
               <Image
                 src="/brand/botsy-icon-dark.svg"
@@ -284,8 +577,14 @@ export default function WidgetPage({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-2 sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[380px] sm:h-[520px] flex flex-col rounded-2xl shadow-2xl overflow-hidden"
-            style={{ backgroundColor: '#1a1a2e' }}
+            className={`fixed inset-2 sm:inset-auto sm:bottom-4 ${config.position === 'bottom-left' ? 'sm:left-4' : 'sm:right-4'} flex flex-col rounded-2xl shadow-2xl overflow-hidden`}
+            style={{
+              backgroundColor: '#1a1a2e',
+              ...(isMounted && window.innerWidth >= 640 ? {
+                width: SIZE_DIMENSIONS[config.widgetSize || 'medium'].width,
+                height: SIZE_DIMENSIONS[config.widgetSize || 'medium'].height,
+              } : {}),
+            }}
           >
             {/* Header */}
             <div
@@ -293,14 +592,13 @@ export default function WidgetPage({
               style={{ backgroundColor: primaryColor }}
             >
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gray-900/20 flex items-center justify-center overflow-hidden">
+                <div className="h-10 w-10 rounded-full bg-gray-900/20 flex items-center justify-center overflow-hidden relative">
                   {config.logoUrl ? (
                     <Image
                       src={config.logoUrl}
                       alt={config.businessName}
-                      width={28}
-                      height={28}
-                      className="object-contain"
+                      fill
+                      className="object-cover rounded-full"
                     />
                   ) : (
                     <Image
@@ -313,10 +611,10 @@ export default function WidgetPage({
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">
-                    {config.businessName}
+                    {config.botName || 'Botsy'}
                   </h3>
                   <p className="text-xs text-gray-900/70">
-                    Drevet av Botsy
+                    {config.businessName}
                   </p>
                 </div>
               </div>
@@ -340,7 +638,7 @@ export default function WidgetPage({
                   }`}
                 >
                   <div
-                    className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${
+                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
                       msg.role === 'user'
                         ? 'rounded-br-md text-gray-900'
                         : 'rounded-bl-md bg-white/10 text-white'
@@ -384,6 +682,49 @@ export default function WidgetPage({
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Email Input */}
+            {showEmailInput && !emailSent && (
+              <div className="p-4 border-t border-white/10 bg-white/5">
+                <p className="text-white/80 text-sm mb-3">
+                  Skriv inn e-postadressen din for å motta oppsummeringen:
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={emailAddress}
+                    onChange={(e) => setEmailAddress(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleSendEmail()
+                      }
+                    }}
+                    placeholder="din@epost.no"
+                    className="flex-1 h-11 px-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/40 text-sm focus:outline-none focus:border-white/40 transition-colors"
+                    disabled={isSendingEmail}
+                  />
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={!emailAddress || isSendingEmail}
+                    className="h-11 px-4 rounded-xl flex items-center justify-center text-gray-900 font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {isSendingEmail ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Send'
+                    )}
+                  </button>
+                </div>
+                <button
+                  onClick={() => setShowEmailInput(false)}
+                  className="text-white/50 text-xs mt-2 hover:text-white/70 transition-colors"
+                >
+                  Nei takk, jeg trenger ikke oppsummering
+                </button>
+              </div>
+            )}
+
             {/* Input */}
             <div className="p-4 border-t border-white/10">
               <div className="flex items-center gap-2">
@@ -403,7 +744,11 @@ export default function WidgetPage({
                   className="h-11 w-11 rounded-xl flex items-center justify-center text-gray-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
                   style={{ backgroundColor: primaryColor }}
                 >
-                  <Send className="h-4 w-4" />
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               <a
