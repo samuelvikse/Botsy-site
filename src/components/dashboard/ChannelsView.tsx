@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Loader2,
   Settings,
-  Trash2,
   Key,
   X,
   ChevronRight,
@@ -309,6 +308,36 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       setIsSaving(false)
       setDisconnectModalOpen(false)
       setDisconnectChannel(null)
+    }
+  }
+
+  const handleToggleActive = async (channelId: ChannelType, newActiveState: boolean) => {
+    if (!db) return
+
+    try {
+      // Update only the isActive field, keeping all other data
+      await setDoc(
+        doc(db, 'companies', companyId),
+        {
+          channels: {
+            [channelId]: {
+              isActive: newActiveState,
+              updatedAt: serverTimestamp(),
+            },
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      toast.success(
+        newActiveState ? 'Kanal aktivert' : 'Kanal deaktivert',
+        `${CHANNELS.find(c => c.id === channelId)?.name} er nå ${newActiveState ? 'aktiv' : 'inaktiv'}`
+      )
+      await fetchChannels()
+    } catch (err) {
+      console.error('Toggle channel error:', err)
+      toast.error('Feil', 'Kunne ikke endre kanalstatus')
     }
   }
 
@@ -778,16 +807,17 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       {state.isConfigured && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleDisconnect(channel.id)
+                            handleToggleActive(channel.id, !state.isActive)
                           }}
-                          className="p-2 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          className={`w-11 h-6 rounded-full relative transition-colors ${state.isActive ? 'bg-green-500' : 'bg-white/[0.1]'}`}
+                          title={state.isActive ? 'Deaktiver' : 'Aktiver'}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${state.isActive ? 'right-1' : 'left-1 bg-white/50'}`} />
                         </button>
                       )}
                       <div className={`p-2 rounded-lg transition-colors ${isActive ? 'text-botsy-lime' : 'text-white/40'}`}>
@@ -901,16 +931,6 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
 
                   {/* Actions */}
                   <div className="flex gap-3 mt-6">
-                    {channels[activeChannel]?.isConfigured && (
-                      <Button
-                        variant="outline"
-                        onClick={() => handleDisconnect(activeChannel)}
-                        className="text-red-400 hover:text-red-300 hover:border-red-400/50"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Koble fra
-                      </Button>
-                    )}
                     <Button onClick={handleSaveChannel} disabled={isSaving} className="flex-1">
                       {isSaving ? (
                         <>
