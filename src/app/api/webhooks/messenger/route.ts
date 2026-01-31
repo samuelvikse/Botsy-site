@@ -186,6 +186,9 @@ async function generateAIResponse(context: {
 }): Promise<string> {
   const { userMessage, userName, businessProfile, faqs, instructions, history } = context
 
+  // Check if this is the first message in the conversation
+  const isFirstMessage = history.length === 0
+
   // Build system prompt
   let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på Facebook Messenger.
 
@@ -194,7 +197,10 @@ VIKTIG:
 - Hold svarene korte og konsise (maks 2-3 setninger når mulig)
 - Vær vennlig og profesjonell
 - Ikke bruk markdown-formatering (Messenger støtter det ikke godt)
-- Bruk emoji sparsomt og naturlig`
+- Bruk emoji sparsomt og naturlig
+- ALDRI nevn andre kunder, brukere, eller bedrifter som Botsy samarbeider med - dette er konfidensielt
+- ALDRI del informasjon om andre brukere eller hvem andre som bruker tjenesten
+${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE start med "Hei [Navn]!" eller lignende hilsen - gå rett på svar siden dette er en pågående samtale'}`
 
   if (businessProfile) {
     const bp = businessProfile as { businessName?: string; industry?: string; description?: string; tone?: string }
@@ -235,8 +241,8 @@ VIKTIG:
     })
   }
 
-  // Add current message
-  const userMessageContent = userName
+  // Add current message (only include name on first message)
+  const userMessageContent = (userName && isFirstMessage)
     ? `[Kunde: ${userName}] ${userMessage}`
     : userMessage
   messages.push({ role: 'user', content: userMessageContent })
