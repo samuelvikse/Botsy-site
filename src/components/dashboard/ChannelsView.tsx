@@ -22,6 +22,8 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
+import { doc, getDoc, setDoc, deleteField, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import type {
   ChannelType,
   SMSProvider,
@@ -192,65 +194,66 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
 
   const fetchChannels = useCallback(async () => {
+    if (!db) return
+
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/channels/config?companyId=${companyId}`)
-      const data = await response.json()
+      const companyDoc = await getDoc(doc(db, 'companies', companyId))
+      const data = companyDoc.exists() ? companyDoc.data() : {}
+      const channelsData = data?.channels || {}
 
-      if (data.success && data.channels) {
-        const newChannels: Record<ChannelType, ChannelState> = {
-          sms: { isConfigured: false, isActive: false, isVerified: false },
-          whatsapp: { isConfigured: false, isActive: false, isVerified: false },
-          messenger: { isConfigured: false, isActive: false, isVerified: false },
-          email: { isConfigured: false, isActive: false, isVerified: false },
-        }
-
-        if (data.channels.sms) {
-          newChannels.sms = {
-            isConfigured: true,
-            isActive: data.channels.sms.isActive,
-            isVerified: data.channels.sms.isVerified,
-            details: { phoneNumber: data.channels.sms.phoneNumber, provider: data.channels.sms.provider },
-          }
-          setSmsProvider(data.channels.sms.provider)
-          setSmsPhone(data.channels.sms.phoneNumber)
-        }
-
-        if (data.channels.whatsapp) {
-          newChannels.whatsapp = {
-            isConfigured: true,
-            isActive: data.channels.whatsapp.isActive,
-            isVerified: data.channels.whatsapp.isVerified,
-            details: { phoneNumber: data.channels.whatsapp.phoneNumber, provider: data.channels.whatsapp.provider },
-          }
-          setWhatsappProvider(data.channels.whatsapp.provider)
-          setWhatsappPhone(data.channels.whatsapp.phoneNumber)
-        }
-
-        if (data.channels.messenger) {
-          newChannels.messenger = {
-            isConfigured: true,
-            isActive: data.channels.messenger.isActive,
-            isVerified: data.channels.messenger.isVerified,
-            details: { pageName: data.channels.messenger.pageName, pageId: data.channels.messenger.pageId },
-          }
-          setMessengerPageId(data.channels.messenger.pageId)
-          setMessengerPageName(data.channels.messenger.pageName)
-        }
-
-        if (data.channels.email) {
-          newChannels.email = {
-            isConfigured: true,
-            isActive: data.channels.email.isActive,
-            isVerified: data.channels.email.isVerified,
-            details: { emailAddress: data.channels.email.emailAddress, provider: data.channels.email.provider },
-          }
-          setEmailProvider(data.channels.email.provider)
-          setEmailAddress(data.channels.email.emailAddress)
-        }
-
-        setChannels(newChannels)
+      const newChannels: Record<ChannelType, ChannelState> = {
+        sms: { isConfigured: false, isActive: false, isVerified: false },
+        whatsapp: { isConfigured: false, isActive: false, isVerified: false },
+        messenger: { isConfigured: false, isActive: false, isVerified: false },
+        email: { isConfigured: false, isActive: false, isVerified: false },
       }
+
+      if (channelsData.sms) {
+        newChannels.sms = {
+          isConfigured: true,
+          isActive: channelsData.sms.isActive,
+          isVerified: channelsData.sms.isVerified,
+          details: { phoneNumber: channelsData.sms.phoneNumber, provider: channelsData.sms.provider },
+        }
+        setSmsProvider(channelsData.sms.provider)
+        setSmsPhone(channelsData.sms.phoneNumber)
+      }
+
+      if (channelsData.whatsapp) {
+        newChannels.whatsapp = {
+          isConfigured: true,
+          isActive: channelsData.whatsapp.isActive,
+          isVerified: channelsData.whatsapp.isVerified,
+          details: { phoneNumber: channelsData.whatsapp.phoneNumber, provider: channelsData.whatsapp.provider },
+        }
+        setWhatsappProvider(channelsData.whatsapp.provider)
+        setWhatsappPhone(channelsData.whatsapp.phoneNumber)
+      }
+
+      if (channelsData.messenger) {
+        newChannels.messenger = {
+          isConfigured: true,
+          isActive: channelsData.messenger.isActive,
+          isVerified: channelsData.messenger.isVerified,
+          details: { pageName: channelsData.messenger.pageName, pageId: channelsData.messenger.pageId },
+        }
+        setMessengerPageId(channelsData.messenger.pageId)
+        setMessengerPageName(channelsData.messenger.pageName)
+      }
+
+      if (channelsData.email) {
+        newChannels.email = {
+          isConfigured: true,
+          isActive: channelsData.email.isActive,
+          isVerified: channelsData.email.isVerified,
+          details: { emailAddress: channelsData.email.emailAddress, provider: channelsData.email.provider },
+        }
+        setEmailProvider(channelsData.email.provider)
+        setEmailAddress(channelsData.email.emailAddress)
+      }
+
+      setChannels(newChannels)
     } catch {
       // Silent fail - channels will show as not configured
     } finally {
@@ -280,24 +283,27 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
   }
 
   const confirmDisconnect = async () => {
-    if (!disconnectChannel) return
+    if (!disconnectChannel || !db) return
 
     setIsSaving(true)
     try {
-      const response = await fetch(`/api/channels/config?companyId=${companyId}&channel=${disconnectChannel}`, {
-        method: 'DELETE',
-      })
+      // Delete channel by setting it to deleteField()
+      await setDoc(
+        doc(db, 'companies', companyId),
+        {
+          channels: {
+            [disconnectChannel]: deleteField(),
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
 
-      const data = await response.json()
-
-      if (data.success) {
-        toast.success('Kanal frakoblet', `${CHANNELS.find(c => c.id === disconnectChannel)?.name} ble deaktivert`)
-        await fetchChannels()
-        closeConfigPanel()
-      } else {
-        toast.error('Feil', data.error || 'Kunne ikke koble fra kanalen')
-      }
-    } catch {
+      toast.success('Kanal frakoblet', `${CHANNELS.find(c => c.id === disconnectChannel)?.name} ble deaktivert`)
+      await fetchChannels()
+      closeConfigPanel()
+    } catch (err) {
+      console.error('Disconnect channel error:', err)
       toast.error('Feil', 'Kunne ikke koble fra kanalen')
     } finally {
       setIsSaving(false)
@@ -396,23 +402,57 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
     }
 
     try {
-      const response = await fetch('/api/channels/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      if (!db) throw new Error('Database not initialized')
 
-      const data = await response.json()
-
-      if (data.success) {
-        setSuccess('Konfigurasjon lagret!')
-        toast.success('Kanal konfigurert', `${CHANNELS.find(c => c.id === activeChannel)?.name} ble aktivert`)
-        await fetchChannels()
-        setTimeout(() => closeConfigPanel(), 1500)
-      } else {
-        setError(data.error || 'Kunne ikke lagre konfigurasjon')
+      // Build channel data
+      const channelData: Record<string, unknown> = {
+        isActive: true,
+        isVerified: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       }
-    } catch {
+
+      switch (activeChannel) {
+        case 'sms':
+          channelData.provider = smsProvider
+          channelData.phoneNumber = smsPhone.replace(/\s/g, '')
+          channelData.credentials = smsCredentials
+          break
+        case 'whatsapp':
+          channelData.provider = whatsappProvider
+          channelData.phoneNumber = whatsappPhone.replace(/\s/g, '')
+          channelData.credentials = whatsappCredentials
+          break
+        case 'messenger':
+          channelData.pageId = messengerPageId
+          channelData.pageName = messengerPageName
+          channelData.credentials = messengerCredentials
+          break
+        case 'email':
+          channelData.provider = emailProvider
+          channelData.emailAddress = emailAddress.toLowerCase().trim()
+          channelData.credentials = emailCredentials
+          break
+      }
+
+      // Save directly to Firestore
+      await setDoc(
+        doc(db, 'companies', companyId),
+        {
+          channels: {
+            [activeChannel]: channelData,
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      setSuccess('Konfigurasjon lagret!')
+      toast.success('Kanal konfigurert', `${CHANNELS.find(c => c.id === activeChannel)?.name} ble aktivert`)
+      await fetchChannels()
+      setTimeout(() => closeConfigPanel(), 1500)
+    } catch (err) {
+      console.error('Save channel error:', err)
       setError('Kunne ikke lagre konfigurasjon')
     } finally {
       setIsSaving(false)
