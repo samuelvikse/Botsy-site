@@ -1,33 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeApp, getApps, cert } from 'firebase-admin/app'
-import { getStorage } from 'firebase-admin/storage'
 
-// Initialize Firebase Admin
-let adminStorageInstance: ReturnType<typeof getStorage> | null = null
-
-function getAdminStorage() {
-  if (adminStorageInstance) {
-    return adminStorageInstance
-  }
-
-  if (getApps().length === 0) {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-      initializeApp({
-        credential: cert(serviceAccount),
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      })
-    } else {
-      throw new Error('Firebase credentials not configured')
-    }
-  }
-
-  adminStorageInstance = getStorage()
-  return adminStorageInstance
-}
+// This route requires Firebase Admin SDK with service account credentials
+// Since the organization doesn't allow service account key creation,
+// image upload is disabled for now
 
 export async function POST(request: NextRequest) {
+  // Check if we have the required environment variable
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Bildeopplasting er ikke tilgjengelig. Kontakt support.'
+      },
+      { status: 503 }
+    )
+  }
+
   try {
+    // Dynamic import to avoid bundling issues
+    const { initializeApp, getApps, cert } = await import('firebase-admin/app')
+    const { getStorage } = await import('firebase-admin/storage')
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const companyId = formData.get('companyId') as string | null
@@ -58,8 +51,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get storage instance
-    const storage = getAdminStorage()
+    // Initialize Firebase Admin
+    if (getApps().length === 0) {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+      initializeApp({
+        credential: cert(serviceAccount),
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      })
+    }
+
+    const storage = getStorage()
     const bucket = storage.bucket()
 
     // Create filename and path

@@ -1,18 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeApp, getApps, cert } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
 import type { Instruction, InstructionDoc } from '@/types'
 
-// Initialize Firebase Admin (server-side)
-function getAdminDb() {
-  if (getApps().length === 0) {
-    // For development, use default credentials
-    // In production, use service account
-    initializeApp({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    })
+const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
+const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
+
+/**
+ * Parse Firestore document fields to JavaScript object
+ */
+function parseFirestoreFields(fields: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(fields)) {
+    const v = value as Record<string, unknown>
+    if ('stringValue' in v) result[key] = v.stringValue
+    else if ('integerValue' in v) result[key] = parseInt(v.integerValue as string)
+    else if ('doubleValue' in v) result[key] = v.doubleValue
+    else if ('booleanValue' in v) result[key] = v.booleanValue
+    else if ('timestampValue' in v) result[key] = new Date(v.timestampValue as string)
+    else if ('mapValue' in v) {
+      const mapValue = v.mapValue as { fields?: Record<string, unknown> }
+      result[key] = mapValue.fields ? parseFirestoreFields(mapValue.fields) : {}
+    }
+    else if ('arrayValue' in v) {
+      const arrayValue = v.arrayValue as { values?: unknown[] }
+      result[key] = arrayValue.values || []
+    }
+    else if ('nullValue' in v) result[key] = null
   }
-  return getFirestore()
+
+  return result
+}
+
+/**
+ * Convert JavaScript value to Firestore field format
+ */
+function toFirestoreValue(value: unknown): Record<string, unknown> {
+  if (value === null || value === undefined) {
+    return { nullValue: null }
+  }
+  if (typeof value === 'string') {
+    return { stringValue: value }
+  }
+  if (typeof value === 'number') {
+    if (Number.isInteger(value)) {
+      return { integerValue: String(value) }
+    }
+    return { doubleValue: value }
+  }
+  if (typeof value === 'boolean') {
+    return { booleanValue: value }
+  }
+  if (value instanceof Date) {
+    return { timestampValue: value.toISOString() }
+  }
+  if (Array.isArray(value)) {
+    return {
+      arrayValue: {
+        values: value.map(toFirestoreValue)
+      }
+    }
+  }
+  if (typeof value === 'object') {
+    const fields: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value)) {
+      fields[k] = toFirestoreValue(v)
+    }
+    return { mapValue: { fields } }
+  }
+  return { stringValue: String(value) }
 }
 
 // GET - Fetch instructions for a company
@@ -28,22 +83,46 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const db = getAdminDb()
-    const instructionsRef = db.collection('companies').doc(companyId).collection('instructions')
+    // Use REST API to get instructions
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`)
 
-    // Get active instructions, ordered by creation date
-    const snapshot = await instructionsRef
-      .where('isActive', '==', true)
-      .orderBy('createdAt', 'desc')
-      .get()
+    if (!response.ok) {
+      if (response.status === 404) {
+        return NextResponse.json({ instructions: [] })
+      }
+      throw new Error('Failed to fetch instructions')
+    }
 
-    const instructions: Instruction[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      startsAt: doc.data().startsAt?.toDate() || null,
-      expiresAt: doc.data().expiresAt?.toDate() || null,
-    })) as Instruction[]
+    const data = await response.json()
+
+    if (!data.documents) {
+      return NextResponse.json({ instructions: [] })
+    }
+
+    const instructions: Instruction[] = data.documents
+      .map((doc: { name: string; fields?: Record<string, unknown> }) => {
+        if (!doc.fields) return null
+        const parsed = parseFirestoreFields(doc.fields)
+        const docId = doc.name.split('/').pop()
+
+        return {
+          id: docId,
+          content: parsed.content as string,
+          category: parsed.category as string || 'general',
+          priority: parsed.priority as string || 'medium',
+          isActive: parsed.isActive as boolean,
+          startsAt: parsed.startsAt as Date | null,
+          expiresAt: parsed.expiresAt as Date | null,
+          createdAt: parsed.createdAt as Date || new Date(),
+          createdBy: parsed.createdBy as string || '',
+        }
+      })
+      .filter((inst: Instruction | null) => inst !== null && inst.isActive)
+      .sort((a: Instruction, b: Instruction) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return bTime - aTime
+      })
 
     return NextResponse.json({ instructions })
 
@@ -78,9 +157,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const db = getAdminDb()
-    const instructionsRef = db.collection('companies').doc(companyId).collection('instructions')
-
     const now = new Date()
     const startsAt = instruction.startsAt ? new Date(instruction.startsAt as string) : null
     const expiresAt = instruction.expiresAt ? new Date(instruction.expiresAt as string) : null
@@ -96,10 +172,36 @@ export async function POST(request: NextRequest) {
       createdBy: instruction.createdBy || '',
     }
 
-    const docRef = await instructionsRef.add(docData)
+    // Create document with auto-generated ID
+    const createResponse = await fetch(
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            content: toFirestoreValue(docData.content),
+            category: toFirestoreValue(docData.category),
+            priority: toFirestoreValue(docData.priority),
+            isActive: toFirestoreValue(docData.isActive),
+            startsAt: toFirestoreValue(docData.startsAt),
+            expiresAt: toFirestoreValue(docData.expiresAt),
+            createdAt: toFirestoreValue(docData.createdAt),
+            createdBy: toFirestoreValue(docData.createdBy),
+          }
+        }),
+      }
+    )
+
+    if (!createResponse.ok) {
+      throw new Error('Failed to create instruction')
+    }
+
+    const createdDoc = await createResponse.json()
+    const docId = createdDoc.name.split('/').pop()
 
     const createdInstruction: Instruction = {
-      id: docRef.id,
+      id: docId,
       content: docData.content,
       category: docData.category,
       priority: docData.priority,
@@ -137,18 +239,35 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const db = getAdminDb()
-    const docRef = db.collection('companies').doc(companyId).collection('instructions').doc(instructionId)
+    // Build update fields and mask
+    const fields: Record<string, unknown> = {}
+    const fieldPaths: string[] = []
 
-    // Remove undefined values
-    const cleanUpdates: Record<string, unknown> = {}
     Object.entries(updates).forEach(([key, value]) => {
       if (value !== undefined) {
-        cleanUpdates[key] = value
+        fields[key] = toFirestoreValue(value)
+        fieldPaths.push(key)
       }
     })
 
-    await docRef.update(cleanUpdates)
+    if (fieldPaths.length === 0) {
+      return NextResponse.json({ success: true })
+    }
+
+    const updateMask = fieldPaths.map(p => `updateMask.fieldPaths=${p}`).join('&')
+
+    const updateResponse = await fetch(
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/instructions/${instructionId}?${updateMask}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields }),
+      }
+    )
+
+    if (!updateResponse.ok) {
+      throw new Error('Failed to update instruction')
+    }
 
     return NextResponse.json({ success: true })
 
@@ -174,11 +293,23 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const db = getAdminDb()
-    const docRef = db.collection('companies').doc(companyId).collection('instructions').doc(instructionId)
-
     // Soft delete by setting isActive to false
-    await docRef.update({ isActive: false })
+    const updateResponse = await fetch(
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/instructions/${instructionId}?updateMask.fieldPaths=isActive`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            isActive: toFirestoreValue(false),
+          }
+        }),
+      }
+    )
+
+    if (!updateResponse.ok) {
+      throw new Error('Failed to delete instruction')
+    }
 
     return NextResponse.json({ success: true })
 
