@@ -561,12 +561,15 @@ export async function getActiveInstructions(companyId: string): Promise<Array<{ 
 
 /**
  * Get knowledge documents for AI context
+ * Documents are sorted by uploadedAt (newest first) so newer info takes priority
  */
 export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
   faqs: Array<{ question: string; answer: string }>
   rules: string[]
   policies: string[]
   importantInfo: string[]
+  uploadedAt: Date
+  fileName: string
 }>> {
   try {
     // Fetch all documents from knowledgeDocs collection (simpler approach)
@@ -592,6 +595,8 @@ export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
       rules: string[]
       policies: string[]
       importantInfo: string[]
+      uploadedAt: Date
+      fileName: string
     }> = []
 
     for (const doc of data.documents) {
@@ -608,27 +613,40 @@ export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
         continue
       }
 
-      console.log('[Messenger Firestore] Processing doc with keys:', Object.keys(docData))
+      console.log('[Messenger Firestore] Processing doc:', docData.fileName)
 
       const analyzedData = docData.analyzedData as Record<string, unknown> | undefined
 
+      // Parse uploadedAt timestamp
+      let uploadedAt = new Date()
+      if (docData.uploadedAt) {
+        if (typeof docData.uploadedAt === 'string') {
+          uploadedAt = new Date(docData.uploadedAt)
+        } else if (docData.uploadedAt instanceof Date) {
+          uploadedAt = docData.uploadedAt
+        }
+      }
+
       if (analyzedData) {
-        console.log('[Messenger Firestore] AnalyzedData keys:', Object.keys(analyzedData))
         console.log('[Messenger Firestore] FAQs count:', (analyzedData.faqs as unknown[])?.length || 0)
-        console.log('[Messenger Firestore] ImportantInfo:', JSON.stringify(analyzedData.importantInfo).substring(0, 500))
 
         documents.push({
           faqs: (analyzedData.faqs as Array<{ question: string; answer: string }>) || [],
           rules: (analyzedData.rules as string[]) || [],
           policies: (analyzedData.policies as string[]) || [],
           importantInfo: (analyzedData.importantInfo as string[]) || [],
+          uploadedAt,
+          fileName: (docData.fileName as string) || 'Ukjent',
         })
       } else {
         console.log('[Messenger Firestore] No analyzedData in doc')
       }
     }
 
-    console.log('[Messenger Firestore] Found', documents.length, 'ready knowledge documents')
+    // Sort by uploadedAt, newest first - newer documents take priority
+    documents.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())
+
+    console.log('[Messenger Firestore] Found', documents.length, 'ready knowledge documents (sorted by newest first)')
     return documents
   } catch (error) {
     console.error('[Messenger Firestore] Error getting knowledge documents:', error)

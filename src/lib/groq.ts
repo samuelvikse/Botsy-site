@@ -443,6 +443,8 @@ interface KnowledgeData {
   rules: string[]
   policies: string[]
   importantInfo: string[]
+  uploadedAt?: Date
+  fileName?: string
 }
 
 interface CustomerChatContext {
@@ -617,46 +619,52 @@ ${toneGuide}
     })
   }
 
-  // Add knowledge from uploaded documents
+  // Add knowledge from uploaded documents (sorted by newest first for priority)
   if (knowledgeDocuments && knowledgeDocuments.length > 0) {
-    // Collect all FAQs from documents
-    const docFaqs = knowledgeDocuments.flatMap(doc => doc.faqs)
-    if (docFaqs.length > 0) {
-      prompt += `\nEKSTRA SPØRSMÅL OG SVAR FRA BEDRIFTSDOKUMENTER:\n`
-      docFaqs.forEach((faq, i) => {
-        prompt += `${i + 1}. Spørsmål: ${faq.question}\n   Svar: ${faq.answer}\n\n`
-      })
+    // Sort by uploadedAt if available (newest first)
+    const sortedDocs = [...knowledgeDocuments].sort((a, b) => {
+      const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0
+      const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0
+      return dateB - dateA
+    })
+
+    prompt += `\n=== BEDRIFTSDOKUMENTER (nyeste først - PRIORITER nyere info ved konflikt) ===\n`
+
+    for (const doc of sortedDocs) {
+      const dateStr = doc.uploadedAt ? new Date(doc.uploadedAt).toISOString().split('T')[0] : 'ukjent dato'
+      const fileName = doc.fileName || 'Ukjent dokument'
+      prompt += `\n--- Fra dokument: ${fileName} (lastet opp: ${dateStr}) ---\n`
+
+      if (doc.faqs.length > 0) {
+        prompt += 'Spørsmål og svar:\n'
+        doc.faqs.forEach((faq, i) => {
+          prompt += `${i + 1}. Q: ${faq.question}\n   A: ${faq.answer}\n`
+        })
+      }
+
+      if (doc.importantInfo.length > 0) {
+        prompt += 'Viktig info:\n'
+        doc.importantInfo.forEach(info => {
+          prompt += `- ${info}\n`
+        })
+      }
+
+      if (doc.rules.length > 0) {
+        prompt += 'Regler:\n'
+        doc.rules.forEach(rule => {
+          prompt += `- ${rule}\n`
+        })
+      }
+
+      if (doc.policies.length > 0) {
+        prompt += 'Retningslinjer:\n'
+        doc.policies.forEach(policy => {
+          prompt += `- ${policy}\n`
+        })
+      }
     }
 
-    // Collect all rules
-    const allRules = knowledgeDocuments.flatMap(doc => doc.rules)
-    if (allRules.length > 0) {
-      prompt += `\nBEDRIFTSREGLER (følg alltid disse):\n`
-      allRules.forEach((rule, i) => {
-        prompt += `${i + 1}. ${rule}\n`
-      })
-      prompt += '\n'
-    }
-
-    // Collect all policies
-    const allPolicies = knowledgeDocuments.flatMap(doc => doc.policies)
-    if (allPolicies.length > 0) {
-      prompt += `\nRETNINGSLINJER OG POLICIES:\n`
-      allPolicies.forEach((policy, i) => {
-        prompt += `${i + 1}. ${policy}\n`
-      })
-      prompt += '\n'
-    }
-
-    // Collect important info
-    const allInfo = knowledgeDocuments.flatMap(doc => doc.importantInfo)
-    if (allInfo.length > 0) {
-      prompt += `\nVIKTIG INFORMASJON:\n`
-      allInfo.forEach((info, i) => {
-        prompt += `- ${info}\n`
-      })
-      prompt += '\n'
-    }
+    prompt += '\n=== SLUTT PÅ DOKUMENTER ===\n'
   }
 
   // Add active instructions
@@ -710,7 +718,12 @@ REGLER:
    - Bruk KUN informasjon som er eksplisitt gitt til deg i PRISER-seksjonen eller dokumentene
    - Det er MYE bedre å si "jeg vet ikke" enn å gi feil informasjon
    - Feil informasjon ødelegger tilliten til bedriften!
-11. E-POST OPPSUMMERING (tilpass språket til kundens språk):
+11. PRIORITERING AV INFORMASJON:
+   - Hvis det er motstridende informasjon om samme tema, BRUK ALLTID den NYESTE informasjonen
+   - Dokumenter merket med nyere dato overskriver eldre dokumenter
+   - Nyere instruksjoner og regler overskriver eldre
+   - Ved tvil, bruk informasjonen som er oppgitt senest
+12. E-POST OPPSUMMERING (tilpass språket til kundens språk):
     - Hvis kunden spør om å få samtalen/chatten på e-post, svar NØYAKTIG: "[EMAIL_REQUEST]" etterfulgt av en melding på kundens språk som ber om e-postadresse
     - Hvis kunden sier "takk", "tusen takk", "takk for hjelpen", "det var alt", "ha det", "bye", "thanks", "thank you", eller lignende avsluttende fraser, avslutt svaret ditt med "[OFFER_EMAIL]" etterfulgt av et tilbud om e-postoppsummering på kundens språk
 

@@ -215,6 +215,8 @@ async function generateAIResponse(context: {
     rules: string[]
     policies: string[]
     importantInfo: string[]
+    uploadedAt: Date
+    fileName: string
   }>
 }): Promise<string> {
   const { userMessage, userName, businessProfile, faqs, instructions, history, knowledgeDocs } = context
@@ -246,7 +248,13 @@ EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
 - Hvis du IKKE har prisinformasjon tilgjengelig, si: "Jeg har dessverre ikke prisinformasjon tilgjengelig. Ta kontakt med oss direkte for priser."
 - Hvis du IKKE vet svaret, si det ærlig - IKKE GJETT eller finn på noe
 - Bruk KUN informasjon som er eksplisitt gitt til deg i konteksten
-- Det er MYE bedre å si "jeg vet ikke" enn å gi feil informasjon`
+- Det er MYE bedre å si "jeg vet ikke" enn å gi feil informasjon
+
+PRIORITERING AV INFORMASJON:
+- Hvis det er motstridende informasjon om samme tema, BRUK ALLTID den NYESTE informasjonen
+- Dokumenter merket med nyere dato overskriver eldre dokumenter
+- Nyere instruksjoner og regler overskriver eldre
+- Ved tvil, bruk informasjonen som er oppgitt senest`
 
   if (businessProfile) {
     const bp = businessProfile as {
@@ -317,43 +325,49 @@ EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
     }
   }
 
-  // Add knowledge from uploaded documents
+  // Add knowledge from uploaded documents (sorted by newest first)
   if (knowledgeDocs && knowledgeDocs.length > 0) {
-    // Collect all FAQs from documents
-    const docFaqs = knowledgeDocs.flatMap(doc => doc.faqs)
-    if (docFaqs.length > 0) {
-      systemPrompt += '\n\nEkstra spørsmål og svar fra bedriftsdokumenter:'
-      for (const faq of docFaqs.slice(0, 15)) {
-        systemPrompt += `\nQ: ${faq.question}\nA: ${faq.answer}`
+    systemPrompt += '\n\n=== BEDRIFTSDOKUMENTER (nyeste først - prioriter nyere info ved konflikt) ==='
+
+    // Process each document with date info for AI to understand priority
+    for (const doc of knowledgeDocs) {
+      const dateStr = doc.uploadedAt.toISOString().split('T')[0]
+      systemPrompt += `\n\n--- Fra dokument: ${doc.fileName} (lastet opp: ${dateStr}) ---`
+
+      // FAQs from this document
+      if (doc.faqs.length > 0) {
+        systemPrompt += '\nSpørsmål og svar:'
+        for (const faq of doc.faqs.slice(0, 10)) {
+          systemPrompt += `\nQ: ${faq.question}\nA: ${faq.answer}`
+        }
+      }
+
+      // Important info from this document
+      if (doc.importantInfo.length > 0) {
+        systemPrompt += '\nViktig info:'
+        for (const info of doc.importantInfo) {
+          systemPrompt += `\n- ${info}`
+        }
+      }
+
+      // Rules from this document
+      if (doc.rules.length > 0) {
+        systemPrompt += '\nRegler:'
+        for (const rule of doc.rules) {
+          systemPrompt += `\n- ${rule}`
+        }
+      }
+
+      // Policies from this document
+      if (doc.policies.length > 0) {
+        systemPrompt += '\nRetningslinjer:'
+        for (const policy of doc.policies) {
+          systemPrompt += `\n- ${policy}`
+        }
       }
     }
 
-    // Collect all rules
-    const allRules = knowledgeDocs.flatMap(doc => doc.rules)
-    if (allRules.length > 0) {
-      systemPrompt += '\n\nBedriftsregler (følg alltid disse):'
-      for (const rule of allRules) {
-        systemPrompt += `\n- ${rule}`
-      }
-    }
-
-    // Collect all policies
-    const allPolicies = knowledgeDocs.flatMap(doc => doc.policies)
-    if (allPolicies.length > 0) {
-      systemPrompt += '\n\nRetningslinjer og policies:'
-      for (const policy of allPolicies) {
-        systemPrompt += `\n- ${policy}`
-      }
-    }
-
-    // Collect important info
-    const allInfo = knowledgeDocs.flatMap(doc => doc.importantInfo)
-    if (allInfo.length > 0) {
-      systemPrompt += '\n\nViktig informasjon:'
-      for (const info of allInfo) {
-        systemPrompt += `\n- ${info}`
-      }
-    }
+    systemPrompt += '\n\n=== SLUTT PÅ DOKUMENTER ==='
   }
 
   // Build conversation history

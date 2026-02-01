@@ -252,13 +252,20 @@ export async function POST(
         }, { headers: corsHeaders })
       }
 
-      // Fetch knowledge documents
+      // Fetch knowledge documents (include uploadedAt and fileName for prioritization)
       try {
         const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
         const docsQuery = query(docsRef, where('status', '==', 'ready'))
         const docsSnapshot = await getDocs(docsQuery)
 
-        const knowledgeDocuments = docsSnapshot.docs.map(doc => doc.data().analyzedData)
+        const knowledgeDocuments = docsSnapshot.docs.map(doc => {
+          const data = doc.data()
+          return {
+            ...data.analyzedData,
+            uploadedAt: data.uploadedAt?.toDate?.() || new Date(data.uploadedAt),
+            fileName: data.fileName || 'Ukjent dokument',
+          }
+        })
 
         // Generate response with knowledge documents
         const reply = await chatWithCustomer(message, {
