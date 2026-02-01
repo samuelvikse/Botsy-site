@@ -132,7 +132,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       isOpen={isOpen}
       onClose={handleClose}
       title="Rediger profil"
-      size="md"
+      size="lg"
     >
       <div className="space-y-6">
         {/* Avatar */}
