@@ -22,11 +22,29 @@ export interface ToneConfig {
   humorLevel?: HumorLevel // How much humor Botsy should use
 }
 
+// Contact information extracted from website
+export interface ContactInfo {
+  email: string | null
+  phone: string | null
+  address: string | null
+  openingHours: string | null
+}
+
+// Staff member information
+export interface StaffMember {
+  name: string
+  role: string
+  specialty?: string
+}
+
 // Business Profile - generated from website analysis
 export interface BusinessProfile {
   websiteUrl: string
   businessName: string
   industry: string
+  contactInfo?: ContactInfo // Email, phone, address, opening hours
+  pricing?: Array<{ item: string; price: string }> // Pricing information from website
+  staff?: StaffMember[] // Team/employees
   tone: 'formal' | 'friendly' | 'casual'
   toneReason?: string // Why Botsy recommends this tone
   toneConfig?: ToneConfig // Custom tone configuration
@@ -34,7 +52,6 @@ export interface BusinessProfile {
   languageName?: string // Human-readable language name (e.g., 'Norsk', 'English')
   services: string[]
   products: string[]
-  pricing?: Array<{ item: string; price: string }> // Pricing information from website
   terminology: string[]
   description: string
   targetAudience?: string

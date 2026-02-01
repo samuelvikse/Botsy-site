@@ -222,17 +222,44 @@ ${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE
 - KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er`
 
   if (businessProfile) {
-    const bp = businessProfile as { businessName?: string; industry?: string; description?: string; tone?: string; language?: string; languageName?: string; pricing?: Array<{ item: string; price: string }> }
+    const bp = businessProfile as {
+      businessName?: string
+      industry?: string
+      description?: string
+      tone?: string
+      language?: string
+      languageName?: string
+      contactInfo?: { email?: string; phone?: string; address?: string; openingHours?: string }
+      pricing?: Array<{ item: string; price: string }>
+      staff?: Array<{ name: string; role: string; specialty?: string }>
+    }
     systemPrompt += `\n\nDu representerer: ${bp.businessName || 'Bedriften'}`
     if (bp.industry) systemPrompt += `\nBransje: ${bp.industry}`
     if (bp.description) systemPrompt += `\nOm bedriften: ${bp.description}`
     if (bp.tone) systemPrompt += `\nTonefall: ${bp.tone}`
+
+    // Contact information (IMPORTANT)
+    if (bp.contactInfo) {
+      systemPrompt += `\n\nKONTAKTINFORMASJON (bruk NØYAKTIG som oppgitt):`
+      if (bp.contactInfo.email) systemPrompt += `\n- E-post: ${bp.contactInfo.email}`
+      if (bp.contactInfo.phone) systemPrompt += `\n- Telefon: ${bp.contactInfo.phone}`
+      if (bp.contactInfo.address) systemPrompt += `\n- Adresse: ${bp.contactInfo.address}`
+      if (bp.contactInfo.openingHours) systemPrompt += `\n- Åpningstider: ${bp.contactInfo.openingHours}`
+    }
 
     // Pricing information (IMPORTANT)
     if (bp.pricing && bp.pricing.length > 0) {
       systemPrompt += `\n\nPRISER (bruk denne informasjonen når kunder spør om priser):`
       bp.pricing.forEach((p) => {
         systemPrompt += `\n- ${p.item}: ${p.price}`
+      })
+    }
+
+    // Staff information
+    if (bp.staff && bp.staff.length > 0) {
+      systemPrompt += `\n\nANSATTE/TEAM:`
+      bp.staff.forEach((s) => {
+        systemPrompt += `\n- ${s.name}: ${s.role}${s.specialty ? ` (${s.specialty})` : ''}`
       })
     }
 

@@ -8,47 +8,54 @@ const groq = new Groq({
 const MODEL = 'llama-3.3-70b-versatile'
 
 // Deep research prompt for website analysis
-const WEBSITE_ANALYSIS_PROMPT = `Du er en ekspert merkevare-analytiker og research-spesialist. Din oppgave er å gjøre en grundig analyse av en bedrifts nettside for å forstå merkevaren, tonen, målgruppen og kommunikasjonsstilen deres.
+const WEBSITE_ANALYSIS_PROMPT = `Du er en ekspert merkevare-analytiker og research-spesialist. Din oppgave er å gjøre en GRUNDIG analyse av en bedrifts nettside og finne ALL viktig informasjon som kunder trenger.
 
-ANALYSER FØLGENDE ASPEKTER:
+ANALYSER FØLGENDE ASPEKTER (I PRIORITERT REKKEFØLGE):
 
-1. **Merkevareidentitet**
-   - Hva er bedriftens kjerneverdi og unike salgsargument?
-   - Hvilken bransje/sektor opererer de i?
-   - Hva er deres viktigste produkter/tjenester?
+1. **KONTAKTINFORMASJON** (KRITISK VIKTIG!)
+   - E-postadresse(r) - søk grundig etter alle e-poster
+   - Telefonnummer - alle numre (hovednummer, mobil, kundeservice)
+   - Fysisk adresse - gateadresse, postnummer, by
+   - Åpningstider hvis oppgitt
+   - ALDRI gjett eller finn på kontaktinfo - kun det som faktisk står på siden!
 
 2. **PRISER OG PRISLISTE** (SVÆRT VIKTIG!)
-   - Let grundig etter ALL prisinformasjon på nettsiden
+   - Let GRUNDIG etter ALL prisinformasjon på nettsiden
+   - Søk i menyer, undersider, footer, "Priser"-seksjoner
    - Inkluder priser for produkter, tjenester, abonnementer, pakker
    - Inkluder timepris, fastpris, fra-priser, kampanjepriser
    - Inkluder valuta (kr, NOK, EUR, etc.)
    - Strukturer prisene tydelig med navn og pris
    - Dette er KRITISK informasjon som kunder ofte spør om!
 
-3. **Kommunikasjonstone** (VIKTIG - gi en begrunnet anbefaling)
+3. **ANSATTE OG TEAM**
+   - Navn på ansatte/teammedlemmer hvis oppgitt
+   - Roller/stillinger
+   - Spesialområder eller ekspertise
+   - Dette hjelper kunder å vite hvem de kan kontakte
+
+4. **Merkevareidentitet**
+   - Hva er bedriftens kjerneverdi og unike salgsargument?
+   - Hvilken bransje/sektor opererer de i?
+   - Hva er deres viktigste produkter/tjenester?
+
+5. **Kommunikasjonstone**
    Analyser språkbruken på nettsiden og avgjør:
-   - Er språket formelt (akademisk, profesjonelt, distansert)?
-   - Er språket vennlig (personlig men profesjonelt, imøtekommende)?
-   - Er språket uformelt (hverdagslig, avslappet, kanskje med humor)?
+   - Er språket formelt, vennlig, eller uformelt?
+   - Gi en kort begrunnelse
 
-   Gi en BEGRUNNELSE for anbefalingen basert på:
-   - Ordvalg og setningsstruktur
-   - Bruk av "du/dere" vs "vi"
-   - Eventuell bruk av emojis, humor eller uformelle uttrykk
-   - Bransjenormer
-
-4. **Målgruppe**
-   - Hvem ser ut til å være primærmålgruppen?
+6. **Målgruppe**
+   - Hvem er primærmålgruppen?
    - Er det B2B, B2C, eller begge?
 
-5. **Bransjeterminologi**
+7. **Bransjeterminologi**
    - Hvilke faguttrykk og bransjespesifikke ord brukes?
 
-6. **FAQ og vanlige spørsmål**
+8. **FAQ og vanlige spørsmål**
    - Identifiser alle spørsmål og svar du finner
    - Strukturer dem som klare Q&A-par
 
-7. **Språk**
+9. **Språk**
    - Identifiser hovedspråket på nettsiden
    - Bruk ISO 639-1 koder (no, en, sv, da, de, fr, es, etc.)
 
@@ -56,6 +63,19 @@ Returner ALLTID gyldig JSON med denne strukturen:
 {
   "businessName": "Bedriftens navn",
   "industry": "Bransje/sektor",
+  "contactInfo": {
+    "email": "epost@bedrift.no (eller null hvis ikke funnet)",
+    "phone": "+47 12345678 (eller null hvis ikke funnet)",
+    "address": "Gateadresse 1, 0000 By (eller null hvis ikke funnet)",
+    "openingHours": "Man-Fre 09-17 (eller null hvis ikke funnet)"
+  },
+  "pricing": [
+    {"item": "Produkt/tjeneste navn", "price": "Pris med valuta (f.eks. '299 kr', 'fra 599 kr/mnd')"},
+    {"item": "Annet produkt", "price": "Pris"}
+  ],
+  "staff": [
+    {"name": "Ansatt navn", "role": "Stilling/rolle", "specialty": "Spesialområde (valgfritt)"}
+  ],
   "tone": "formal" | "friendly" | "casual",
   "toneReason": "Begrunnelse på 1-2 setninger for hvorfor denne tonen passer",
   "language": "ISO 639-1 språkkode (f.eks. 'no', 'en', 'sv')",
@@ -64,10 +84,6 @@ Returner ALLTID gyldig JSON med denne strukturen:
   "brandPersonality": "2-3 adjektiver som beskriver merkevaren",
   "services": ["tjeneste1", "tjeneste2"],
   "products": ["produkt1", "produkt2"],
-  "pricing": [
-    {"item": "Produkt/tjeneste navn", "price": "Pris med valuta (f.eks. '299 kr', 'fra 599 kr/mnd')"},
-    {"item": "Annet produkt", "price": "Pris"}
-  ],
   "terminology": ["faguttrykk1", "faguttrykk2"],
   "description": "2-3 setninger som oppsummerer bedriften",
   "faqs": [
@@ -78,9 +94,11 @@ Returner ALLTID gyldig JSON med denne strukturen:
 
 VIKTIG:
 - Svar KUN med gyldig JSON, ingen annen tekst
-- Bruk norsk språk i alle verdier
+- Bruk norsk språk i alle verdier (unntatt e-poster/tlf/adresser - behold nøyaktig)
 - Hvis du ikke finner informasjon, bruk tomme arrays [] eller null
-- Inkluder ALLE FAQs du finner på nettsiden`
+- ALDRI gjett eller finn på kontaktinfo, priser, eller ansatte!
+- Inkluder ALLE FAQs du finner på nettsiden
+- Let GRUNDIG etter priser - dette er det kundene spør mest om!`
 
 // System prompt for owner chat
 const OWNER_CHAT_PROMPT = `Du er Botsy, en hjelpsom digital assistent som hjelper bedriftseiere med å sette opp kundeservice.
@@ -114,18 +132,33 @@ Behold all faktisk informasjon, men gjør språket bedre.
 Svar KUN med det omformulerte svaret, ingen annen tekst.
 Svar på norsk.`
 
+export interface ContactInfo {
+  email: string | null
+  phone: string | null
+  address: string | null
+  openingHours: string | null
+}
+
+export interface StaffMember {
+  name: string
+  role: string
+  specialty?: string
+}
+
 export interface AnalysisResult {
   businessName: string
   industry: string
+  contactInfo: ContactInfo
+  pricing: Array<{ item: string; price: string }>
+  staff: StaffMember[]
   tone: 'formal' | 'friendly' | 'casual'
   toneReason: string
-  language: string // ISO 639-1 code (e.g., 'no', 'en', 'sv')
-  languageName: string // Human-readable (e.g., 'Norsk', 'English')
+  language: string
+  languageName: string
   targetAudience: string
   brandPersonality: string
   services: string[]
   products: string[]
-  pricing: Array<{ item: string; price: string }> // Pricing information
   terminology: string[]
   description: string
   faqs: Array<{ question: string; answer: string }>
@@ -170,6 +203,14 @@ Gjør en grundig analyse og returner JSON.`,
     return {
       businessName: parsed.businessName || businessName,
       industry: parsed.industry || 'Ukjent',
+      contactInfo: {
+        email: parsed.contactInfo?.email || null,
+        phone: parsed.contactInfo?.phone || null,
+        address: parsed.contactInfo?.address || null,
+        openingHours: parsed.contactInfo?.openingHours || null,
+      },
+      pricing: parsed.pricing || [],
+      staff: parsed.staff || [],
       tone: parsed.tone || 'friendly',
       toneReason: parsed.toneReason || 'Basert på innholdet virker en vennlig tone passende.',
       language: parsed.language || 'no',
@@ -178,7 +219,6 @@ Gjør en grundig analyse og returner JSON.`,
       brandPersonality: parsed.brandPersonality || '',
       services: parsed.services || [],
       products: parsed.products || [],
-      pricing: parsed.pricing || [],
       terminology: parsed.terminology || [],
       description: parsed.description || '',
       faqs: parsed.faqs || [],
@@ -187,6 +227,14 @@ Gjør en grundig analyse og returner JSON.`,
     return {
       businessName,
       industry: 'Ukjent',
+      contactInfo: {
+        email: null,
+        phone: null,
+        address: null,
+        openingHours: null,
+      },
+      pricing: [],
+      staff: [],
       tone: 'friendly',
       toneReason: 'Standard vennlig tone anbefales.',
       language: 'no',
@@ -195,7 +243,6 @@ Gjør en grundig analyse og returner JSON.`,
       brandPersonality: '',
       services: [],
       products: [],
-      pricing: [],
       terminology: [],
       description: '',
       faqs: [],
@@ -517,12 +564,32 @@ function buildCustomerSystemPrompt(context: CustomerChatContext): string {
   const toneGuide = buildToneConfiguration(businessProfile.tone, businessProfile.toneConfig)
   const industryExpertise = buildIndustryExpertise(businessProfile.industry)
 
+  // Build contact info section
+  let contactSection = ''
+  if (businessProfile.contactInfo) {
+    const ci = businessProfile.contactInfo
+    contactSection = `\nKONTAKTINFORMASJON (bruk NØYAKTIG som oppgitt):\n`
+    if (ci.email) contactSection += `- E-post: ${ci.email}\n`
+    if (ci.phone) contactSection += `- Telefon: ${ci.phone}\n`
+    if (ci.address) contactSection += `- Adresse: ${ci.address}\n`
+    if (ci.openingHours) contactSection += `- Åpningstider: ${ci.openingHours}\n`
+  }
+
   // Build pricing section
   let pricingSection = ''
   if (businessProfile.pricing && businessProfile.pricing.length > 0) {
     pricingSection = `\nPRISER (VIKTIG - bruk denne informasjonen når kunder spør om priser):\n`
     businessProfile.pricing.forEach((p) => {
       pricingSection += `- ${p.item}: ${p.price}\n`
+    })
+  }
+
+  // Build staff section
+  let staffSection = ''
+  if (businessProfile.staff && businessProfile.staff.length > 0) {
+    staffSection = `\nANSATTE/TEAM:\n`
+    businessProfile.staff.forEach((s) => {
+      staffSection += `- ${s.name}: ${s.role}${s.specialty ? ` (${s.specialty})` : ''}\n`
     })
   }
 
@@ -533,7 +600,7 @@ BEDRIFTSINFORMASJON:
 - Beskrivelse: ${businessProfile.description}
 ${businessProfile.services.length > 0 ? `- Tjenester: ${businessProfile.services.join(', ')}` : ''}
 ${businessProfile.products.length > 0 ? `- Produkter: ${businessProfile.products.join(', ')}` : ''}
-${pricingSection}
+${contactSection}${pricingSection}${staffSection}
 BRANSJEKUNNSKAP:
 ${industryExpertise}
 
