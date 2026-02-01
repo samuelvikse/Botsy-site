@@ -383,15 +383,41 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
         )}
       </Card>
 
-      {/* Pending Invitations */}
-      {invitations.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-white mb-6">Ventende invitasjoner</h2>
+      {/* Pending Invitations - Always show */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-white">Ventende invitasjoner</h2>
+            {invitations.length > 0 && (
+              <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20">
+                {invitations.length}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {invitations.length === 0 ? (
+          <div className="text-center py-8">
+            <Mail className="h-12 w-12 text-[#6B7A94] mx-auto mb-3" />
+            <p className="text-[#6B7A94]">Ingen ventende invitasjoner</p>
+            {canManageTeam && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => setInviteModalOpen(true)}
+              >
+                <UserPlus className="h-4 w-4 mr-1.5" />
+                Inviter noen
+              </Button>
+            )}
+          </div>
+        ) : (
           <div className="space-y-3">
             {invitations.map((invitation) => (
               <div
                 key={invitation.id}
-                className="flex items-center justify-between p-4 bg-white/[0.02] rounded-xl"
+                className="flex items-center justify-between p-4 bg-white/[0.02] rounded-xl hover:bg-white/[0.04] transition-colors"
               >
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
@@ -404,6 +430,12 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
                       <span>
                         Utløper {new Date(invitation.expiresAt).toLocaleDateString('nb-NO')}
                       </span>
+                      {invitation.inviterName && (
+                        <>
+                          <span className="text-white/20">•</span>
+                          <span>Invitert av {invitation.inviterName}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -418,6 +450,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
                       onClick={() => setCancelInviteId(invitation.id)}
                       disabled={actionLoading === invitation.id}
                       className="p-2 text-[#6B7A94] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Kanseller invitasjon"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -426,8 +459,8 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
               </div>
             ))}
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
 
       {/* Modals */}
       <InviteModal
