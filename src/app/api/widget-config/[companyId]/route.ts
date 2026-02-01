@@ -33,6 +33,7 @@ const DEMO_CONFIG = {
   isEnabled: true,
   logoUrl: null,
   widgetSize: 'medium' as const,
+  animationStyle: 'scale' as const,
 }
 
 export async function GET(
@@ -84,6 +85,7 @@ export async function GET(
         isEnabled: companyData?.widgetSettings?.isEnabled ?? true,
         logoUrl: companyData?.widgetSettings?.logoUrl || null,
         widgetSize: companyData?.widgetSettings?.widgetSize || 'medium',
+        animationStyle: companyData?.widgetSettings?.animationStyle || 'scale',
       },
     }, {
       headers: {

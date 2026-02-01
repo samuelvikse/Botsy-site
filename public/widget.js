@@ -1,4 +1,9 @@
 (function() {
+  // Don't run inside iframe (prevents infinite loop when widget is on same domain)
+  if (window.self !== window.top) {
+    return;
+  }
+
   // Find the Botsy script element
   const scripts = document.getElementsByTagName('script');
   let script = null;
@@ -85,15 +90,24 @@
   document.body.appendChild(iframe);
 
   // Listen for messages from iframe
+  let closeTimeout = null;
+
   window.addEventListener('message', function(event) {
     if (!event.data) return;
 
     if (event.data.type === 'botsy-state') {
+      // Clear any pending close timeout
+      if (closeTimeout) {
+        clearTimeout(closeTimeout);
+        closeTimeout = null;
+      }
+
       chatIsOpen = event.data.isOpen;
       if (chatIsOpen) {
         setOpenStyle();
       } else {
-        setClosedStyle();
+        // Delay shrinking iframe to allow exit animation to complete
+        closeTimeout = setTimeout(setClosedStyle, 250);
       }
     }
 

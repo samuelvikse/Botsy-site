@@ -151,7 +151,7 @@ export default function RootLayout({
             {children}
           </ToastProvider>
         </AuthProvider>
-        <script src="https://www.botsy.no/widget.js" data-company-id="RjR6IBzbd2YX2TLFoXwuHzY2N3O2"></script>
+<script src="/widget.js" data-company-id="RjR6IBzbd2YX2TLFoXwuHzY2N3O2"></script>
       </body>
     </html>
   )

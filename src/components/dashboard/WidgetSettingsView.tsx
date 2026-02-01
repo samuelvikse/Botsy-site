@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2, Maximize2 } from 'lucide-react'
+import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2, Maximize2, Sparkles } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -18,6 +18,7 @@ interface WidgetSettingsViewProps {
     isEnabled: boolean
     logoUrl?: string | null
     widgetSize?: 'small' | 'medium' | 'large'
+    animationStyle?: 'scale' | 'slide' | 'fade' | 'bounce' | 'flip'
   }
   businessName?: string
 }
@@ -26,6 +27,14 @@ const SIZE_OPTIONS = [
   { value: 'small', label: 'Liten', width: '340px', height: '460px' },
   { value: 'medium', label: 'Medium', width: '380px', height: '520px' },
   { value: 'large', label: 'Stor', width: '420px', height: '600px' },
+]
+
+const ANIMATION_OPTIONS = [
+  { value: 'scale', label: 'Skalering', description: 'Vokser inn og ut' },
+  { value: 'slide', label: 'Glid', description: 'Glir opp fra bunnen' },
+  { value: 'fade', label: 'Fade', description: 'Enkel inn/ut-toning' },
+  { value: 'bounce', label: 'Sprett', description: 'Sprettende animasjon' },
+  { value: 'flip', label: 'Vend', description: '3D-vending' },
 ]
 
 const PRESET_COLORS = [
@@ -51,6 +60,7 @@ export function WidgetSettingsView({
     isEnabled: initialSettings?.isEnabled ?? true,
     logoUrl: initialSettings?.logoUrl || null,
     widgetSize: initialSettings?.widgetSize || 'medium' as 'small' | 'medium' | 'large',
+    animationStyle: initialSettings?.animationStyle || 'scale' as 'scale' | 'slide' | 'fade' | 'bounce' | 'flip',
   })
   const [isSaving, setIsSaving] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -379,6 +389,30 @@ export function WidgetSettingsView({
                     <span className="block">{size.label}</span>
                     <span className="text-xs opacity-60 mt-1 block">{size.width}</span>
                   </div>
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Animation Style */}
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="h-5 w-5 text-botsy-lime" />
+              <h3 className="text-white font-medium">Animasjon</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {ANIMATION_OPTIONS.map((anim) => (
+                <button
+                  key={anim.value}
+                  onClick={() => setSettings(s => ({ ...s, animationStyle: anim.value as 'scale' | 'slide' | 'fade' | 'bounce' | 'flip' }))}
+                  className={`p-4 rounded-xl border text-sm font-medium transition-all text-left ${
+                    settings.animationStyle === anim.value
+                      ? 'border-botsy-lime bg-botsy-lime/10 text-botsy-lime'
+                      : 'border-white/[0.06] text-[#A8B4C8] hover:border-white/[0.12] hover:text-white'
+                  }`}
+                >
+                  <span className="block">{anim.label}</span>
+                  <span className="text-xs opacity-60 mt-1 block">{anim.description}</span>
                 </button>
               ))}
             </div>

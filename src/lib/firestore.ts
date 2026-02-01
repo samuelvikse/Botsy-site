@@ -596,6 +596,7 @@ export async function updateWidgetSettings(
     isEnabled: boolean
     logoUrl: string | null
     widgetSize: 'small' | 'medium' | 'large'
+    animationStyle: 'scale' | 'slide' | 'fade' | 'bounce' | 'flip'
   }>
 ): Promise<void> {
   if (!db) throw new Error('Firestore not initialized')

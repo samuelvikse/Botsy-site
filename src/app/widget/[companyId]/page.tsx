@@ -20,6 +20,41 @@ interface WidgetConfig {
   isEnabled: boolean
   logoUrl: string | null
   widgetSize: 'small' | 'medium' | 'large'
+  animationStyle: 'scale' | 'slide' | 'fade' | 'bounce' | 'flip'
+}
+
+// Animation variants for different styles
+const ANIMATION_VARIANTS = {
+  scale: {
+    initial: { opacity: 0, scale: 0.95, y: 20 },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.95, y: 20 },
+    transition: { type: 'spring', damping: 25, stiffness: 300 },
+  },
+  slide: {
+    initial: { opacity: 0, y: 100 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 100 },
+    transition: { type: 'spring', damping: 30, stiffness: 400 },
+  },
+  fade: {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+    transition: { duration: 0.2, ease: 'easeInOut' },
+  },
+  bounce: {
+    initial: { opacity: 0, scale: 0.3, y: 50 },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.3, y: 50 },
+    transition: { type: 'spring', damping: 12, stiffness: 200 },
+  },
+  flip: {
+    initial: { opacity: 0, rotateX: -90, y: 30 },
+    animate: { opacity: 1, rotateX: 0, y: 0 },
+    exit: { opacity: 0, rotateX: 90, y: 30 },
+    transition: { type: 'spring', damping: 20, stiffness: 300 },
+  },
 }
 
 const SIZE_DIMENSIONS = {
@@ -573,13 +608,14 @@ export default function WidgetPage({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            initial={ANIMATION_VARIANTS[config.animationStyle || 'scale'].initial}
+            animate={ANIMATION_VARIANTS[config.animationStyle || 'scale'].animate}
+            exit={ANIMATION_VARIANTS[config.animationStyle || 'scale'].exit}
+            transition={ANIMATION_VARIANTS[config.animationStyle || 'scale'].transition}
             className={`fixed inset-2 sm:inset-auto sm:bottom-4 ${config.position === 'bottom-left' ? 'sm:left-4' : 'sm:right-4'} flex flex-col rounded-2xl shadow-2xl overflow-hidden`}
             style={{
               backgroundColor: '#1a1a2e',
+              perspective: config.animationStyle === 'flip' ? 1000 : undefined,
               ...(isMounted && window.innerWidth >= 640 ? {
                 width: SIZE_DIMENSIONS[config.widgetSize || 'medium'].width,
                 height: SIZE_DIMENSIONS[config.widgetSize || 'medium'].height,
