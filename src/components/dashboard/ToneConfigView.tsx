@@ -16,7 +16,6 @@ import {
   Loader2,
   Check,
   Smile,
-  Globe,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -53,19 +52,6 @@ const PREFERRED_PHRASE_SUGGESTIONS = [
   'Så hyggelig å høre fra deg',
 ]
 
-const LANGUAGE_OPTIONS = [
-  { code: 'no', name: 'Norsk', flag: '🇳🇴' },
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-  { code: 'sv', name: 'Svenska', flag: '🇸🇪' },
-  { code: 'da', name: 'Dansk', flag: '🇩🇰' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
-  { code: 'pl', name: 'Polski', flag: '🇵🇱' },
-  { code: 'fi', name: 'Suomi', flag: '🇫🇮' },
-]
-
 export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProps) {
   const [config, setConfig] = useState<ToneConfig>({
     customInstructions: '',
@@ -84,8 +70,6 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   const [greeting, setGreeting] = useState('Hei! 👋 Hvordan kan jeg hjelpe deg?')
   const [useEmojis, setUseEmojis] = useState(true)
   const [humorLevel, setHumorLevel] = useState<HumorLevel>('subtle')
-  const [language, setLanguage] = useState('no')
-  const [languageName, setLanguageName] = useState('Norsk')
 
   // Load existing config
   useEffect(() => {
@@ -105,12 +89,6 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         }
         if (initialProfile?.tone) {
           setCurrentTone(initialProfile.tone)
-        }
-        if (initialProfile?.language) {
-          setLanguage(initialProfile.language)
-        }
-        if (initialProfile?.languageName) {
-          setLanguageName(initialProfile.languageName)
         }
       } catch {
         // Silent fail - will use defaults
@@ -139,12 +117,6 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         if (profile?.tone) {
           setCurrentTone(profile.tone)
         }
-        if (profile?.language) {
-          setLanguage(profile.language)
-        }
-        if (profile?.languageName) {
-          setLanguageName(profile.languageName)
-        }
         setIsLoading(false)
       })
     }
@@ -160,8 +132,6 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         greeting,
         useEmojis,
         humorLevel,
-        language,
-        languageName,
       })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -169,14 +139,6 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
       // Silent fail
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  const handleLanguageChange = (code: string) => {
-    const selectedLang = LANGUAGE_OPTIONS.find(l => l.code === code)
-    if (selectedLang) {
-      setLanguage(selectedLang.code)
-      setLanguageName(selectedLang.name)
     }
   }
 
@@ -263,35 +225,6 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         </div>
 
         <div className="space-y-6">
-          {/* Language Selection */}
-          <div>
-            <label className="text-white text-sm font-medium flex items-center gap-2 mb-3">
-              <Globe className="h-4 w-4 text-botsy-lime" />
-              Robotens hovedspråk
-            </label>
-            <div className="grid grid-cols-5 gap-2">
-              {LANGUAGE_OPTIONS.map((lang) => (
-                <button
-                  key={lang.code}
-                  onClick={() => handleLanguageChange(lang.code)}
-                  className={`p-3 rounded-xl border text-center transition-all ${
-                    language === lang.code
-                      ? 'border-botsy-lime bg-botsy-lime/10'
-                      : 'border-white/[0.06] hover:border-white/[0.12]'
-                  }`}
-                >
-                  <span className="text-lg mb-1 block">{lang.flag}</span>
-                  <p className={`text-xs font-medium ${language === lang.code ? 'text-botsy-lime' : 'text-white'}`}>
-                    {lang.name}
-                  </p>
-                </button>
-              ))}
-            </div>
-            <p className="text-[#6B7A94] text-xs mt-2">
-              Robotens standardspråk. Hvis kunden skriver på et annet språk, vil roboten automatisk bytte til kundens språk.
-            </p>
-          </div>
-
           {/* Tone Selection */}
           <div>
             <label className="text-white text-sm font-medium block mb-3">Velg grunntone</label>

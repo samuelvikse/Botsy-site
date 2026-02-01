@@ -46,7 +46,8 @@ import {
   Sparkles,
   FileUp,
   Layers,
-  Shield
+  Shield,
+  Globe
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -832,12 +833,27 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
 }
 
 // Settings View
+const LANGUAGE_OPTIONS = [
+  { code: 'no', name: 'Norsk', flag: '🇳🇴' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'sv', name: 'Svenska', flag: '🇸🇪' },
+  { code: 'da', name: 'Dansk', flag: '🇩🇰' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+  { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+  { code: 'fi', name: 'Suomi', flag: '🇫🇮' },
+]
+
 function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; onNavigateToChannels: () => void }) {
   const [settings, setSettings] = useState({
     botName: 'Botsy',
     emailNotifications: true,
     dailySummary: false,
   })
+  const [language, setLanguage] = useState('no')
+  const [languageName, setLanguageName] = useState('Norsk')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const toast = useToast()
@@ -846,9 +862,18 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const { getGeneralSettings } = await import('@/lib/firestore')
+        const { getGeneralSettings, getBusinessProfile } = await import('@/lib/firestore')
         const savedSettings = await getGeneralSettings(companyId)
         setSettings(savedSettings)
+
+        // Load language from business profile
+        const profile = await getBusinessProfile(companyId)
+        if (profile?.language) {
+          setLanguage(profile.language)
+        }
+        if (profile?.languageName) {
+          setLanguageName(profile.languageName)
+        }
       } catch {
         // Silent fail - will use defaults
       } finally {
@@ -862,11 +887,21 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
     setSettings(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const handleLanguageChange = (code: string) => {
+    const selectedLang = LANGUAGE_OPTIONS.find(l => l.code === code)
+    if (selectedLang) {
+      setLanguage(selectedLang.code)
+      setLanguageName(selectedLang.name)
+    }
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const { saveGeneralSettings } = await import('@/lib/firestore')
+      const { saveGeneralSettings, saveToneConfig } = await import('@/lib/firestore')
       await saveGeneralSettings(companyId, settings)
+      // Save language to businessProfile
+      await saveToneConfig(companyId, { language, languageName })
       toast.success('Innstillinger lagret', 'Endringene dine ble lagret')
     } catch {
       toast.error('Kunne ikke lagre', 'Prøv igjen senere')
@@ -893,15 +928,46 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
       {/* Bot Name */}
       <Card className="p-6">
         <h2 className="text-lg font-semibold text-white mb-6">Chatbot</h2>
-        <div>
-          <label className="text-white text-sm font-medium block mb-2">Botsys navn</label>
-          <input
-            type="text"
-            value={settings.botName}
-            onChange={(e) => setSettings(prev => ({ ...prev, botName: e.target.value }))}
-            className="w-full h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
-          />
-          <p className="text-[#6B7A94] text-xs mt-2">Dette navnet brukes internt i dashbordet</p>
+        <div className="space-y-6">
+          <div>
+            <label className="text-white text-sm font-medium block mb-2">Botsys navn</label>
+            <input
+              type="text"
+              value={settings.botName}
+              onChange={(e) => setSettings(prev => ({ ...prev, botName: e.target.value }))}
+              className="w-full h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
+            />
+            <p className="text-[#6B7A94] text-xs mt-2">Dette navnet brukes internt i dashbordet</p>
+          </div>
+
+          {/* Language Selection */}
+          <div>
+            <label className="text-white text-sm font-medium flex items-center gap-2 mb-3">
+              <Globe className="h-4 w-4 text-botsy-lime" />
+              Robotens hovedspråk
+            </label>
+            <div className="grid grid-cols-5 gap-2">
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => handleLanguageChange(lang.code)}
+                  className={`p-3 rounded-xl border text-center transition-all ${
+                    language === lang.code
+                      ? 'border-botsy-lime bg-botsy-lime/10'
+                      : 'border-white/[0.06] hover:border-white/[0.12]'
+                  }`}
+                >
+                  <span className="text-lg mb-1 block">{lang.flag}</span>
+                  <p className={`text-xs font-medium ${language === lang.code ? 'text-botsy-lime' : 'text-white'}`}>
+                    {lang.name}
+                  </p>
+                </button>
+              ))}
+            </div>
+            <p className="text-[#6B7A94] text-xs mt-2">
+              Robotens standardspråk. Hvis kunden skriver på et annet språk, bytter roboten automatisk til kundens språk.
+            </p>
+          </div>
         </div>
       </Card>
 
