@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, AlertTriangle, Trash2, Info } from 'lucide-react'
 import { Button } from './button'
@@ -15,6 +16,13 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, description, children, size = 'md' }: ModalProps) {
+  const [mounted, setMounted] = useState(false)
+
+  // Mount check for portal
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -36,7 +44,11 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
     lg: 'max-w-lg',
   }
 
-  return (
+  // Don't render on server or before mount
+  if (!mounted) return null
+
+  // Use portal to render modal at document body level
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <Fragment>
@@ -46,12 +58,12 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999]"
           />
 
           {/* Modal */}
           <div
-            className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 flex items-center justify-center z-[9999] p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? 'modal-title' : undefined}
@@ -95,7 +107,8 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
           </div>
         </Fragment>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
 
