@@ -69,7 +69,7 @@ export default function FeaturesPage() {
       icon: Brain,
       title: 'AI som lærer din bransje',
       subtitle: 'Skriv inn nettside – Botsy gjør resten',
-      description: 'Botsy setter seg inn i din virksomhets nisje og henter all nødvendig informasjon fra nettsiden din. Alt du trenger å gjøre er å skrive inn firmanavn og nettadresse – så analyserer Botsy innholdet og blir ekspert på akkurat din bedrift.',
+      description: 'Botsy setter seg inn i din virksomhets fagfelt og henter all nødvendig informasjon fra nettsiden din. Alt du trenger å gjøre er å skrive inn firmanavn og nettadresse – så analyserer Botsy innholdet og blir ekspert på akkurat din bedrift.',
       features: [
         'Skanner nettsiden din automatisk',
         'Lærer bransje-spesifikk terminologi',
