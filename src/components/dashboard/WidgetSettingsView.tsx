@@ -133,18 +133,27 @@ export function WidgetSettingsView({
     }
   }, [companyId, settings, setHasUnsavedChanges])
 
-  // Register save callback with context
+  // Register save callback with context and clear on unmount
   useEffect(() => {
     setSaveCallback(handleSave)
-    return () => setSaveCallback(null)
-  }, [handleSave, setSaveCallback])
+    return () => {
+      setSaveCallback(null)
+      setHasUnsavedChanges(false)
+    }
+  }, [handleSave, setSaveCallback, setHasUnsavedChanges])
 
-  // Track changes after initialization
-  useEffect(() => {
+  // Helper to mark changes - called by user interactions
+  const markChanged = useCallback(() => {
     if (isInitialized) {
       setHasUnsavedChanges(true)
     }
-  }, [settings, isInitialized, setHasUnsavedChanges])
+  }, [isInitialized, setHasUnsavedChanges])
+
+  // Wrapper setter that marks changes
+  const updateSettings = useCallback((updater: (s: typeof settings) => typeof settings) => {
+    setSettings(updater)
+    markChanged()
+  }, [markChanged])
 
   const handleCopy = async () => {
     try {
@@ -266,7 +275,7 @@ export function WidgetSettingsView({
             <p className="text-[#6B7A94] text-sm">Skru av for å midlertidig deaktivere chatten</p>
           </div>
           <button
-            onClick={() => setSettings(s => ({ ...s, isEnabled: !s.isEnabled }))}
+            onClick={() => updateSettings(s => ({ ...s, isEnabled: !s.isEnabled }))}
             className={`w-14 h-7 rounded-full relative transition-colors ${
               settings.isEnabled ? 'bg-botsy-lime' : 'bg-white/10'
             }`}
@@ -427,7 +436,7 @@ export function WidgetSettingsView({
                   <button
                     key={anim.value}
                     onClick={() => {
-                      setSettings(s => ({ ...s, animationStyle: anim.value as 'scale' | 'slide' | 'fade' | 'bounce' | 'flip' }))
+                      updateSettings(s => ({ ...s, animationStyle: anim.value as 'scale' | 'slide' | 'fade' | 'bounce' | 'flip' }))
                       playAnimation(anim.value)
                     }}
                     className={`relative p-4 rounded-xl border text-sm font-medium transition-all text-left overflow-hidden ${
@@ -485,7 +494,7 @@ export function WidgetSettingsView({
               {PRESET_COLORS.map((color) => (
                 <button
                   key={color.value}
-                  onClick={() => setSettings(s => ({ ...s, primaryColor: color.value }))}
+                  onClick={() => updateSettings(s => ({ ...s, primaryColor: color.value }))}
                   className={`aspect-square rounded-lg flex items-center justify-center transition-all ${
                     settings.primaryColor === color.value
                       ? 'ring-2 ring-white ring-offset-2 ring-offset-botsy-dark scale-90'
@@ -504,13 +513,13 @@ export function WidgetSettingsView({
               <input
                 type="color"
                 value={settings.primaryColor}
-                onChange={(e) => setSettings(s => ({ ...s, primaryColor: e.target.value }))}
+                onChange={(e) => updateSettings(s => ({ ...s, primaryColor: e.target.value }))}
                 className="h-10 w-10 rounded-lg cursor-pointer bg-transparent border border-white/10"
               />
               <input
                 type="text"
                 value={settings.primaryColor}
-                onChange={(e) => setSettings(s => ({ ...s, primaryColor: e.target.value }))}
+                onChange={(e) => updateSettings(s => ({ ...s, primaryColor: e.target.value }))}
                 className="flex-1 h-10 px-3 bg-white/[0.03] border border-white/[0.06] rounded-lg text-white text-sm font-mono focus:outline-none focus:border-botsy-lime/50"
               />
             </div>
@@ -531,7 +540,7 @@ export function WidgetSettingsView({
                 ].map((pos) => (
                   <button
                     key={pos.value}
-                    onClick={() => setSettings(s => ({ ...s, position: pos.value }))}
+                    onClick={() => updateSettings(s => ({ ...s, position: pos.value }))}
                     className={`p-3 rounded-xl border text-sm font-medium transition-all ${
                       settings.position === pos.value
                         ? 'border-botsy-lime bg-botsy-lime/10 text-botsy-lime'
@@ -554,7 +563,7 @@ export function WidgetSettingsView({
                 {SIZE_OPTIONS.map((size) => (
                   <button
                     key={size.value}
-                    onClick={() => setSettings(s => ({ ...s, widgetSize: size.value as 'small' | 'medium' | 'large' }))}
+                    onClick={() => updateSettings(s => ({ ...s, widgetSize: size.value as 'small' | 'medium' | 'large' }))}
                     className={`p-3 rounded-xl border text-sm font-medium transition-all ${
                       settings.widgetSize === size.value
                         ? 'border-botsy-lime bg-botsy-lime/10 text-botsy-lime'
@@ -658,7 +667,7 @@ export function WidgetSettingsView({
             </div>
             <textarea
               value={settings.greeting}
-              onChange={(e) => setSettings(s => ({ ...s, greeting: e.target.value }))}
+              onChange={(e) => updateSettings(s => ({ ...s, greeting: e.target.value }))}
               rows={2}
               className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
               placeholder="Skriv velkomstmeldingen..."

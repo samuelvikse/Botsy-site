@@ -157,22 +157,56 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
     }
   }, [companyId, config, currentTone, greeting, useEmojis, humorLevel, responseLength, setHasUnsavedChanges])
 
-  // Register save callback with context
+  // Register save callback with context and clear on unmount
   useEffect(() => {
     setSaveCallback(handleSave)
-    return () => setSaveCallback(null)
-  }, [handleSave, setSaveCallback])
+    return () => {
+      setSaveCallback(null)
+      setHasUnsavedChanges(false)
+    }
+  }, [handleSave, setSaveCallback, setHasUnsavedChanges])
 
-  // Track changes after initialization
-  useEffect(() => {
+  // Helper to mark changes - called by user interactions
+  const markChanged = useCallback(() => {
     if (isInitialized) {
       setHasUnsavedChanges(true)
     }
-  }, [config, currentTone, greeting, useEmojis, humorLevel, responseLength, isInitialized, setHasUnsavedChanges])
+  }, [isInitialized, setHasUnsavedChanges])
+
+  // Wrapper setters that mark changes
+  const updateConfig = useCallback((updater: (c: ToneConfig) => ToneConfig) => {
+    setConfig(updater)
+    markChanged()
+  }, [markChanged])
+
+  const updateTone = useCallback((tone: 'formal' | 'friendly' | 'casual') => {
+    setCurrentTone(tone)
+    markChanged()
+  }, [markChanged])
+
+  const updateGreeting = useCallback((value: string) => {
+    setGreeting(value)
+    markChanged()
+  }, [markChanged])
+
+  const updateUseEmojis = useCallback((value: boolean) => {
+    setUseEmojis(value)
+    markChanged()
+  }, [markChanged])
+
+  const updateHumorLevel = useCallback((value: HumorLevel) => {
+    setHumorLevel(value)
+    markChanged()
+  }, [markChanged])
+
+  const updateResponseLength = useCallback((value: ResponseLength) => {
+    setResponseLength(value)
+    markChanged()
+  }, [markChanged])
 
   const addAvoidPhrase = () => {
     if (newAvoidPhrase.trim() && !config.avoidPhrases?.includes(newAvoidPhrase.trim())) {
-      setConfig((c) => ({
+      updateConfig((c) => ({
         ...c,
         avoidPhrases: [...(c.avoidPhrases || []), newAvoidPhrase.trim()],
       }))
@@ -181,7 +215,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   }
 
   const removeAvoidPhrase = (phrase: string) => {
-    setConfig((c) => ({
+    updateConfig((c) => ({
       ...c,
       avoidPhrases: c.avoidPhrases?.filter((p) => p !== phrase) || [],
     }))
@@ -189,7 +223,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
 
   const addPreferredPhrase = () => {
     if (newPreferredPhrase.trim() && !config.preferredPhrases?.includes(newPreferredPhrase.trim())) {
-      setConfig((c) => ({
+      updateConfig((c) => ({
         ...c,
         preferredPhrases: [...(c.preferredPhrases || []), newPreferredPhrase.trim()],
       }))
@@ -198,7 +232,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   }
 
   const removePreferredPhrase = (phrase: string) => {
-    setConfig((c) => ({
+    updateConfig((c) => ({
       ...c,
       preferredPhrases: c.preferredPhrases?.filter((p) => p !== phrase) || [],
     }))
@@ -206,7 +240,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
 
   const addExampleResponse = () => {
     if (newExampleResponse.trim() && !config.exampleResponses?.includes(newExampleResponse.trim())) {
-      setConfig((c) => ({
+      updateConfig((c) => ({
         ...c,
         exampleResponses: [...(c.exampleResponses || []), newExampleResponse.trim()],
       }))
@@ -215,7 +249,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   }
 
   const removeExampleResponse = (response: string) => {
-    setConfig((c) => ({
+    updateConfig((c) => ({
       ...c,
       exampleResponses: c.exampleResponses?.filter((r) => r !== response) || [],
     }))
@@ -264,7 +298,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
               ].map((tone) => (
                 <button
                   key={tone.value}
-                  onClick={() => setCurrentTone(tone.value as typeof currentTone)}
+                  onClick={() => updateTone(tone.value as typeof currentTone)}
                   className={`p-4 rounded-xl border text-left transition-all ${
                     currentTone === tone.value
                       ? 'border-botsy-lime bg-botsy-lime/10'
@@ -285,7 +319,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
             <label className="text-white text-sm font-medium block mb-2">Velkomstmelding</label>
             <textarea
               value={greeting}
-              onChange={(e) => setGreeting(e.target.value)}
+              onChange={(e) => updateGreeting(e.target.value)}
               rows={3}
               className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
               placeholder="Hei! 👋 Hvordan kan jeg hjelpe deg?"
@@ -302,7 +336,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
               <p className="text-[#6B7A94] text-sm">La Botsy bruke emojis i svarene</p>
             </div>
             <button
-              onClick={() => setUseEmojis(!useEmojis)}
+              onClick={() => updateUseEmojis(!useEmojis)}
               className={`w-12 h-6 rounded-full relative transition-colors ${useEmojis ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
             >
               <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${useEmojis ? 'right-1' : 'left-1 bg-white/50'}`} />
@@ -324,7 +358,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
               ].map((level) => (
                 <button
                   key={level.value}
-                  onClick={() => setHumorLevel(level.value)}
+                  onClick={() => updateHumorLevel(level.value)}
                   className={`p-3 rounded-xl border text-center transition-all ${
                     humorLevel === level.value
                       ? 'border-botsy-lime bg-botsy-lime/10'
@@ -357,7 +391,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
               ].map((length) => (
                 <button
                   key={length.value}
-                  onClick={() => setResponseLength(length.value)}
+                  onClick={() => updateResponseLength(length.value)}
                   className={`p-4 rounded-xl border text-left transition-all ${
                     responseLength === length.value
                       ? 'border-botsy-lime bg-botsy-lime/10'
@@ -392,7 +426,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
             </p>
             <textarea
               value={config.customInstructions || ''}
-              onChange={(e) => setConfig((c) => ({ ...c, customInstructions: e.target.value }))}
+              onChange={(e) => updateConfig((c) => ({ ...c, customInstructions: e.target.value }))}
               rows={5}
               className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
               placeholder="F.eks: Svar alltid positivt og løsningsorientert. Start aldri med 'dessverre'. Bruk kundens navn når det er oppgitt. Hold svarene korte og presise."
@@ -419,7 +453,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
             <input
               type="text"
               value={config.personality || ''}
-              onChange={(e) => setConfig((c) => ({ ...c, personality: e.target.value }))}
+              onChange={(e) => updateConfig((c) => ({ ...c, personality: e.target.value }))}
               className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
               placeholder="F.eks: Varm, hjelpsom og alltid positiv"
             />
@@ -427,7 +461,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
               {PERSONALITY_SUGGESTIONS.map((suggestion) => (
                 <button
                   key={suggestion}
-                  onClick={() => setConfig((c) => ({ ...c, personality: suggestion }))}
+                  onClick={() => updateConfig((c) => ({ ...c, personality: suggestion }))}
                   className="px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[#A8B4C8] text-xs hover:border-botsy-lime/30 hover:text-white transition-colors"
                 >
                   {suggestion}
@@ -482,7 +516,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
                 <button
                   key={suggestion}
                   onClick={() =>
-                    setConfig((c) => ({
+                    updateConfig((c) => ({
                       ...c,
                       avoidPhrases: [...(c.avoidPhrases || []), suggestion],
                     }))
@@ -544,7 +578,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
                 <button
                   key={suggestion}
                   onClick={() =>
-                    setConfig((c) => ({
+                    updateConfig((c) => ({
                       ...c,
                       preferredPhrases: [...(c.preferredPhrases || []), suggestion],
                     }))
