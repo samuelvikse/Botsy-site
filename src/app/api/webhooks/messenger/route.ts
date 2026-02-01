@@ -15,6 +15,8 @@ import {
   getActiveInstructions,
   getKnowledgeDocuments,
 } from '@/lib/messenger-firestore'
+import { buildToneConfiguration } from '@/lib/groq'
+import type { ToneConfig } from '@/types'
 
 // Webhook verification token (should match what you set in Facebook App)
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN || 'botsy-messenger-verify'
@@ -190,17 +192,37 @@ async function generateAIResponse(context: {
   // Check if this is the first message in the conversation
   const isFirstMessage = history.length === 0
 
+  // Extract tone configuration from business profile
+  const bp = businessProfile as {
+    businessName?: string
+    industry?: string
+    description?: string
+    tone?: 'formal' | 'friendly' | 'casual'
+    toneConfig?: ToneConfig
+    language?: string
+    languageName?: string
+    contactInfo?: { email?: string; phone?: string; address?: string; openingHours?: string }
+    pricing?: Array<{ item: string; price: string }>
+    staff?: Array<{ name: string; role: string; specialty?: string }>
+  } | null
+
+  // Build tone guide using shared function
+  const toneGuide = buildToneConfiguration(bp?.tone || 'friendly', bp?.toneConfig)
+
   // Build system prompt
   let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på Facebook Messenger.
 
-VIKTIG:
-- Hold svarene korte og konsise (maks 2-3 setninger når mulig)
-- Vær vennlig og profesjonell
+MESSENGER-SPESIFIKKE REGLER:
 - Ikke bruk markdown-formatering (Messenger støtter det ikke godt)
 - Bruk emoji sparsomt og naturlig
+${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE start med "Hei [Navn]!" eller lignende hilsen - gå rett på svar siden dette er en pågående samtale'}
+
+KOMMUNIKASJONSSTIL:
+${toneGuide}
+
+VIKTIGE REGLER:
 - ALDRI nevn andre kunder, brukere, eller bedrifter som Botsy samarbeider med - dette er konfidensielt
 - ALDRI del informasjon om andre brukere eller hvem andre som bruker tjenesten
-${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE start med "Hei [Navn]!" eller lignende hilsen - gå rett på svar siden dette er en pågående samtale'}
 - KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er
 
 KRITISK - DU KAN BARE SENDE TEKSTMELDINGER:
@@ -222,22 +244,10 @@ PRIORITERING AV INFORMASJON:
 - Nyere instruksjoner og regler overskriver eldre
 - Ved tvil, bruk informasjonen som er oppgitt senest`
 
-  if (businessProfile) {
-    const bp = businessProfile as {
-      businessName?: string
-      industry?: string
-      description?: string
-      tone?: string
-      language?: string
-      languageName?: string
-      contactInfo?: { email?: string; phone?: string; address?: string; openingHours?: string }
-      pricing?: Array<{ item: string; price: string }>
-      staff?: Array<{ name: string; role: string; specialty?: string }>
-    }
+  if (bp) {
     systemPrompt += `\n\nDu representerer: ${bp.businessName || 'Bedriften'}`
     if (bp.industry) systemPrompt += `\nBransje: ${bp.industry}`
     if (bp.description) systemPrompt += `\nOm bedriften: ${bp.description}`
-    if (bp.tone) systemPrompt += `\nTonefall: ${bp.tone}`
 
     // Contact information (IMPORTANT)
     if (bp.contactInfo) {
@@ -271,6 +281,13 @@ PRIORITERING AV INFORMASJON:
 - Nettsidens primærspråk er: ${websiteLanguageName}
 - Som standard skal du svare på ${websiteLanguageName}
 - VIKTIG: Hvis kunden skriver på et ANNET språk, skal du automatisk bytte til kundens språk`
+
+    // Add useEmojis setting
+    if (bp.toneConfig?.useEmojis === false) {
+      systemPrompt += `\n\nEMOJI: Ikke bruk emojis i svarene.`
+    } else if (bp.toneConfig?.useEmojis === true) {
+      systemPrompt += `\n\nEMOJI: Du kan bruke emojis naturlig i svarene.`
+    }
   }
 
   if (instructions.length > 0) {

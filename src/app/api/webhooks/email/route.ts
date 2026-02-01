@@ -16,6 +16,8 @@ import {
   saveEmailMessage,
   getEmailHistory,
 } from '@/lib/email-firestore'
+import { buildToneConfiguration } from '@/lib/groq'
+import type { ToneConfig } from '@/types'
 
 /**
  * POST - Receive incoming emails from SendGrid or Mailgun
@@ -168,25 +170,72 @@ async function generateAIResponse(context: {
 }): Promise<string> {
   const { emailSubject, emailBody, businessProfile, faqs, instructions, conversationHistory } = context
 
+  // Extract tone configuration from business profile
+  const bp = businessProfile as {
+    businessName?: string
+    industry?: string
+    description?: string
+    tone?: 'formal' | 'friendly' | 'casual'
+    toneConfig?: ToneConfig
+    contactInfo?: { email?: string; phone?: string; address?: string; openingHours?: string }
+    pricing?: Array<{ item: string; price: string }>
+  } | null
+
+  // Build tone guide using shared function
+  const toneGuide = buildToneConfiguration(bp?.tone || 'friendly', bp?.toneConfig)
+
   // Build system prompt
   let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på e-post.
 
-VIKTIG:
-- Svar alltid på norsk med mindre kunden skriver på et annet språk
+E-POST-SPESIFIKKE REGLER:
 - Skriv profesjonelle og høflige e-postsvar
-- Hold svarene konsise men fullstendige
 - Ikke bruk overdreven formatering
 - Start IKKE med "Hei [e-postadresse]" - bruk en generell hilsen som "Hei," eller "Hei der,"
 - Avslutt med en høflig avslutning
-- ALDRI nevn andre kunder, brukere, eller bedrifter som bruker tjenesten - dette er konfidensielt
-- ALDRI del informasjon om andre brukere`
 
-  if (businessProfile) {
-    const bp = businessProfile as { businessName?: string; industry?: string; description?: string; tone?: string }
+KOMMUNIKASJONSSTIL:
+${toneGuide}
+
+VIKTIGE REGLER:
+- Svar alltid på norsk med mindre kunden skriver på et annet språk
+- ALDRI nevn andre kunder, brukere, eller bedrifter som bruker tjenesten - dette er konfidensielt
+- ALDRI del informasjon om andre brukere
+- KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er
+
+EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
+- ALDRI dikter opp priser, tall, eller fakta som du ikke har fått oppgitt
+- Hvis du IKKE har prisinformasjon tilgjengelig, si det ærlig
+- Hvis du IKKE vet svaret, si det ærlig - IKKE GJETT eller finn på noe
+- Det er MYE bedre å si "jeg vet ikke" enn å gi feil informasjon`
+
+  if (bp) {
     systemPrompt += `\n\nDu representerer: ${bp.businessName || 'Bedriften'}`
     if (bp.industry) systemPrompt += `\nBransje: ${bp.industry}`
     if (bp.description) systemPrompt += `\nOm bedriften: ${bp.description}`
-    if (bp.tone) systemPrompt += `\nTonefall: ${bp.tone}`
+
+    // Contact information
+    if (bp.contactInfo) {
+      systemPrompt += `\n\nKONTAKTINFORMASJON (bruk NØYAKTIG som oppgitt):`
+      if (bp.contactInfo.email) systemPrompt += `\n- E-post: ${bp.contactInfo.email}`
+      if (bp.contactInfo.phone) systemPrompt += `\n- Telefon: ${bp.contactInfo.phone}`
+      if (bp.contactInfo.address) systemPrompt += `\n- Adresse: ${bp.contactInfo.address}`
+      if (bp.contactInfo.openingHours) systemPrompt += `\n- Åpningstider: ${bp.contactInfo.openingHours}`
+    }
+
+    // Pricing information
+    if (bp.pricing && bp.pricing.length > 0) {
+      systemPrompt += `\n\nPRISER (bruk denne informasjonen når kunder spør om priser):`
+      bp.pricing.forEach((p) => {
+        systemPrompt += `\n- ${p.item}: ${p.price}`
+      })
+    }
+
+    // Add useEmojis setting (usually off for email)
+    if (bp.toneConfig?.useEmojis === true) {
+      systemPrompt += `\n\nEMOJI: Du kan bruke emojis naturlig i svarene.`
+    } else {
+      systemPrompt += `\n\nEMOJI: Unngå emojis i e-postsvar for profesjonalitet.`
+    }
   }
 
   if (instructions.length > 0) {

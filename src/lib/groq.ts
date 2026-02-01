@@ -535,7 +535,7 @@ function buildIndustryExpertise(industry: string | undefined): string {
 - Vanlige bransjespørsmål`
 }
 
-function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): string {
+export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): string {
   // Base tone guide
   let toneGuide = tone === 'formal'
     ? 'Bruk formelt språk, vær profesjonell og respektfull. Unngå slang og uformelle uttrykk.'
