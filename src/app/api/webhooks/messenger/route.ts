@@ -147,15 +147,11 @@ async function processMessage(
     })
 
     // Send response via Messenger
-    console.log('[Messenger] AI response to send:', aiResponse?.substring(0, 50), '... length:', aiResponse?.length)
-
     if (channel.credentials.pageAccessToken) {
-      console.log('[Messenger] Sending to Facebook...')
       const result = await sendMessengerMessage(
         { pageAccessToken: channel.credentials.pageAccessToken, appSecret: channel.credentials.appSecret || '' },
         { recipientId: message.senderId, text: aiResponse }
       )
-      console.log('[Messenger] Facebook send result:', result.success, result.error || '')
 
       if (result.success) {
         // Save outgoing message
@@ -167,11 +163,9 @@ async function processMessage(
           messageId: result.messageId,
         })
       }
-    } else {
-      console.log('[Messenger] No pageAccessToken!')
     }
-  } catch (error) {
-    console.error('[Messenger] Error in processMessage:', error)
+  } catch {
+    // Error processing message - silently fail to avoid blocking webhook
   }
 }
 
@@ -347,8 +341,20 @@ PRIORITERING AV INFORMASJON:
     { role: 'system', content: systemPrompt },
   ]
 
-  // Add conversation history
+  // Add conversation history (filter out error messages to prevent AI from learning bad patterns)
+  const errorPatterns = [
+    'Beklager, jeg kunne ikke behandle meldingen',
+    'Prøv igjen senere',
+    'En feil oppstod',
+  ]
+
   for (const msg of history.slice(-6)) {
+    // Skip error messages from history
+    const isErrorMessage = errorPatterns.some(pattern => msg.text?.includes(pattern))
+    if (isErrorMessage && msg.direction === 'outbound') {
+      continue
+    }
+
     messages.push({
       role: msg.direction === 'inbound' ? 'user' : 'assistant',
       content: msg.text,
@@ -362,17 +368,13 @@ PRIORITERING AV INFORMASJON:
   messages.push({ role: 'user', content: userMessageContent })
 
   // Use shared AI provider (Gemini primary, Groq fallback)
-  console.log('[Messenger] Calling AI provider...')
   const { generateAIResponse } = await import('@/lib/ai-providers')
   const result = await generateAIResponse(systemPrompt, messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, { maxTokens: 500, temperature: 0.7 })
-
-  console.log('[Messenger] AI result:', result.success, result.provider, result.response?.length || 0)
 
   if (result.success) {
     return result.response
   }
 
-  console.log('[Messenger] AI failed, returning error message')
   return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
 }
 

@@ -49,12 +49,11 @@ async function callGemini(
 ): Promise<{ success: boolean; response: string }> {
   try {
     const apiKey = process.env.GEMINI_API_KEY
-    console.log('[Gemini v2] Starting call, API key exists:', !!apiKey)
     if (!apiKey) {
       return { success: false, response: '' }
     }
 
-    // Use gemini-1.5-flash with v1beta API (supports systemInstruction)
+    // Use gemini-2.0-flash with v1beta API (supports systemInstruction)
     const geminiContents = messages
       .filter(m => m.role !== 'system')
       .map(m => ({
@@ -78,18 +77,12 @@ async function callGemini(
       }
     )
 
-    console.log('[Gemini v2] Response status:', response.status)
-
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[Gemini v2] Error:', errorText)
       return { success: false, response: '' }
     }
 
     const data = await response.json()
-    console.log('[Gemini v2] Response data keys:', Object.keys(data))
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-    console.log('[Gemini v2] Extracted text length:', text?.length || 0)
 
     return text ? { success: true, response: text } : { success: false, response: '' }
   } catch {
