@@ -42,18 +42,24 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Messenger Webhook] Received POST request')
+
     // Get raw body for signature verification
     const rawBody = await request.text()
+    console.log('[Messenger Webhook] Raw body length:', rawBody.length)
 
     let body
     try {
       body = JSON.parse(rawBody)
-    } catch {
+      console.log('[Messenger Webhook] Parsed body object:', body.object)
+    } catch (parseError) {
+      console.error('[Messenger Webhook] JSON parse error:', parseError)
       return NextResponse.json({ status: 'ok' })
     }
 
     // Parse incoming messages
     const messages = parseMessengerWebhook(body)
+    console.log('[Messenger Webhook] Parsed messages count:', messages.length)
 
     if (messages.length === 0) {
       // No messages to process (could be delivery/read receipts)
@@ -62,6 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Process each message
     for (const message of messages) {
+      console.log('[Messenger Webhook] Processing message from:', message.senderId)
       await processMessage(message, rawBody, request.headers.get('x-hub-signature-256'))
     }
 
@@ -86,17 +93,23 @@ async function processMessage(
   signature: string | null
 ) {
   try {
+    console.log('[Messenger] Processing - Page ID:', message.recipientId, 'Sender:', message.senderId)
+
     // Find company by Page ID (recipientId is the Page ID)
     const companyId = await findCompanyByPageId(message.recipientId)
+    console.log('[Messenger] Found company ID:', companyId)
 
     if (!companyId) {
+      console.log('[Messenger] No company found for Page ID:', message.recipientId)
       return
     }
 
     // Get Messenger channel configuration
     const channel = await getMessengerChannel(companyId)
+    console.log('[Messenger] Channel found:', !!channel, 'Active:', channel?.isActive)
 
     if (!channel || !channel.isActive) {
+      console.log('[Messenger] Channel not active or not found')
       return
     }
 
@@ -137,6 +150,7 @@ async function processMessage(
     ])
 
     // Generate AI response
+    console.log('[Messenger] Generating AI response for:', message.text.substring(0, 50))
     const aiResponse = await generateAIResponse({
       userMessage: message.text,
       userName: userProfile?.firstName,
@@ -146,13 +160,16 @@ async function processMessage(
       history,
       knowledgeDocs,
     })
+    console.log('[Messenger] AI response generated, length:', aiResponse.length)
 
     // Send response via Messenger
     if (channel.credentials.pageAccessToken) {
+      console.log('[Messenger] Sending response to:', message.senderId)
       const result = await sendMessengerMessage(
         { pageAccessToken: channel.credentials.pageAccessToken, appSecret: channel.credentials.appSecret || '' },
         { recipientId: message.senderId, text: aiResponse }
       )
+      console.log('[Messenger] Send result:', result.success, result.error || '')
 
       if (result.success) {
         // Save outgoing message
@@ -163,7 +180,10 @@ async function processMessage(
           timestamp: new Date(),
           messageId: result.messageId,
         })
+        console.log('[Messenger] Message saved to Firestore')
       }
+    } else {
+      console.log('[Messenger] No pageAccessToken available')
     }
   } catch (error) {
     console.error('[Messenger] Error processing message:', error)
@@ -358,6 +378,7 @@ PRIORITERING AV INFORMASJON:
 
   // Call Groq API
   try {
+    console.log('[Messenger AI] Calling Groq API, GROQ_API_KEY exists:', !!process.env.GROQ_API_KEY)
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -372,13 +393,18 @@ PRIORITERING AV INFORMASJON:
       }),
     })
 
+    console.log('[Messenger AI] Groq response status:', response.status)
+
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Messenger AI] Groq error:', errorText)
       return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
     }
 
     const data = await response.json()
     return data.choices?.[0]?.message?.content || 'Beklager, jeg forstod ikke helt. Kan du prøve å omformulere?'
-  } catch {
+  } catch (error) {
+    console.error('[Messenger AI] Error calling Groq:', error)
     return 'Beklager, det oppstod en feil. Vennligst prøv igjen.'
   }
 }
