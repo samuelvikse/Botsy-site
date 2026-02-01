@@ -313,12 +313,14 @@ export interface DashboardStats {
   conversationsToday: number
   smsCount: number
   widgetCount: number
+  emailCount: number
   totalMessages: number
   recentConversations: Array<{
     id: string
     name: string
     phone?: string
-    channel: 'sms' | 'widget'
+    email?: string
+    channel: 'sms' | 'widget' | 'email'
     lastMessage: string
     lastMessageAt: Date
   }>
@@ -332,6 +334,7 @@ export async function getDashboardStats(companyId: string): Promise<DashboardSta
     conversationsToday: 0,
     smsCount: 0,
     widgetCount: 0,
+    emailCount: 0,
     totalMessages: 0,
     recentConversations: [],
   }
@@ -400,6 +403,39 @@ export async function getDashboardStats(companyId: string): Promise<DashboardSta
       name: `Besøkende ${doc.id.slice(0, 6)}`,
       channel: 'widget',
       lastMessage: lastMsg?.content || 'Ingen meldinger',
+      lastMessageAt,
+    })
+  })
+
+  // Get email chats
+  const emailChatsRef = collection(db, 'companies', companyId, 'emailChats')
+  const emailChatsSnap = await getDocs(emailChatsRef)
+
+  emailChatsSnap.forEach((doc) => {
+    const data = doc.data()
+    const messages = data.messages || []
+    const messageCount = messages.length
+
+    stats.emailCount++
+    stats.totalConversations++
+    stats.totalMessages += messageCount
+
+    const lastMessageAt = data.lastMessageAt
+      ? new Date(data.lastMessageAt)
+      : new Date()
+
+    if (lastMessageAt >= today) {
+      stats.conversationsToday++
+    }
+
+    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null
+
+    stats.recentConversations.push({
+      id: `email-${doc.id}`,
+      name: data.customerEmail || doc.id,
+      email: data.customerEmail || doc.id,
+      channel: 'email',
+      lastMessage: lastMsg?.body?.slice(0, 50) || data.lastSubject || 'Ingen meldinger',
       lastMessageAt,
     })
   })

@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Botsy Kontakt <kontakt@botsy.no>',
+        from: 'Botsy <hei@botsy.no>',
         to: 'hei@botsy.no',
         reply_to: email,
         subject: subject,

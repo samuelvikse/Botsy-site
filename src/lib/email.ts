@@ -108,20 +108,6 @@ async function sendViaMailgun(apiKey: string, domain: string, message: EmailMess
 }
 
 /**
- * Send email via SMTP (using nodemailer-style approach with fetch)
- * Note: For production SMTP, you'd typically use nodemailer package
- */
-async function sendViaSMTP(credentials: EmailCredentials, message: EmailMessage): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  // SMTP requires a server-side library like nodemailer
-  // For now, we'll return an error suggesting to use SendGrid or Mailgun
-  console.error('[Email] SMTP not implemented - use SendGrid or Mailgun')
-  return {
-    success: false,
-    error: 'SMTP er ikke støttet ennå. Bruk SendGrid eller Mailgun.'
-  }
-}
-
-/**
  * Send email using configured provider
  */
 export async function sendEmail(
@@ -142,7 +128,7 @@ export async function sendEmail(
       return sendViaMailgun(credentials.apiKey, credentials.domain, message)
 
     case 'smtp':
-      return sendViaSMTP(credentials, message)
+      return { success: false, error: 'SMTP er ikke støttet ennå. Bruk SendGrid eller Mailgun.' }
 
     default:
       return { success: false, error: `Ukjent e-postleverandør: ${credentials.provider}` }

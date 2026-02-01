@@ -137,8 +137,8 @@ export default function PrivacyPage() {
               <p className="text-[#A8B4C8] leading-relaxed">
                 Har du spørsmål om personvern eller ønsker å utøve rettighetene dine?
                 Kontakt oss på{' '}
-                <a href="mailto:personvern@botsy.no" className="text-botsy-lime hover:underline">
-                  personvern@botsy.no
+                <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">
+                  hei@botsy.no
                 </a>
               </p>
               <div className="mt-4 p-4 bg-white/[0.03] rounded-xl">
@@ -146,7 +146,7 @@ export default function PrivacyPage() {
                   <strong className="text-white">Behandlingsansvarlig:</strong><br />
                   Botsy AS<br />
                   Org.nr: [Organisasjonsnummer]<br />
-                  E-post: personvern@botsy.no
+                  E-post: hei@botsy.no
                 </p>
               </div>
             </section>

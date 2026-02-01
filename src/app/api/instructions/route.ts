@@ -1,74 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { Instruction, InstructionDoc } from '@/types'
+import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
-
-/**
- * Parse Firestore document fields to JavaScript object
- */
-function parseFirestoreFields(fields: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {}
-
-  for (const [key, value] of Object.entries(fields)) {
-    const v = value as Record<string, unknown>
-    if ('stringValue' in v) result[key] = v.stringValue
-    else if ('integerValue' in v) result[key] = parseInt(v.integerValue as string)
-    else if ('doubleValue' in v) result[key] = v.doubleValue
-    else if ('booleanValue' in v) result[key] = v.booleanValue
-    else if ('timestampValue' in v) result[key] = new Date(v.timestampValue as string)
-    else if ('mapValue' in v) {
-      const mapValue = v.mapValue as { fields?: Record<string, unknown> }
-      result[key] = mapValue.fields ? parseFirestoreFields(mapValue.fields) : {}
-    }
-    else if ('arrayValue' in v) {
-      const arrayValue = v.arrayValue as { values?: unknown[] }
-      result[key] = arrayValue.values || []
-    }
-    else if ('nullValue' in v) result[key] = null
-  }
-
-  return result
-}
-
-/**
- * Convert JavaScript value to Firestore field format
- */
-function toFirestoreValue(value: unknown): Record<string, unknown> {
-  if (value === null || value === undefined) {
-    return { nullValue: null }
-  }
-  if (typeof value === 'string') {
-    return { stringValue: value }
-  }
-  if (typeof value === 'number') {
-    if (Number.isInteger(value)) {
-      return { integerValue: String(value) }
-    }
-    return { doubleValue: value }
-  }
-  if (typeof value === 'boolean') {
-    return { booleanValue: value }
-  }
-  if (value instanceof Date) {
-    return { timestampValue: value.toISOString() }
-  }
-  if (Array.isArray(value)) {
-    return {
-      arrayValue: {
-        values: value.map(toFirestoreValue)
-      }
-    }
-  }
-  if (typeof value === 'object') {
-    const fields: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(value)) {
-      fields[k] = toFirestoreValue(v)
-    }
-    return { mapValue: { fields } }
-  }
-  return { stringValue: String(value) }
-}
 
 // GET - Fetch instructions for a company
 export async function GET(request: NextRequest) {

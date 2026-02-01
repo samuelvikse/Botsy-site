@@ -21,8 +21,9 @@ import { Badge } from '@/components/ui/badge'
 import { getAllSMSChats, getSMSHistory, saveSMSMessage } from '@/lib/sms-firestore'
 import { getSMSChannel } from '@/lib/sms-firestore'
 import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
+import { getAllEmailChats, getEmailHistory } from '@/lib/email-firestore'
 import { getSMSProvider } from '@/lib/sms'
-import { Facebook } from 'lucide-react'
+import { Facebook, Mail } from 'lucide-react'
 import type { SMSMessage } from '@/types'
 
 // Polling intervals in milliseconds
@@ -33,13 +34,14 @@ interface ConversationsViewProps {
   companyId: string
 }
 
-type ChannelFilter = 'all' | 'sms' | 'widget' | 'messenger'
+type ChannelFilter = 'all' | 'sms' | 'widget' | 'messenger' | 'email'
 
 interface Conversation {
   id: string
   name: string
   phone?: string
-  channel: 'sms' | 'widget' | 'messenger'
+  email?: string
+  channel: 'sms' | 'widget' | 'messenger' | 'email'
   lastMessage: string
   lastMessageAt: Date
   messageCount: number
@@ -125,7 +127,6 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
         const messengerResponse = await fetch(`/api/messenger/chats?companyId=${companyId}`)
         if (messengerResponse.ok) {
           const messengerData = await messengerResponse.json()
-          console.log('[Conversations] Messenger API response:', messengerData)
           if (messengerData.success && messengerData.chats) {
             messengerData.chats.forEach((chat: {
               senderId: string
@@ -146,8 +147,27 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
             })
           }
         }
-      } catch (err) {
-        console.error('[Conversations] Error fetching Messenger chats:', err)
+      } catch {
+        // Error fetching Messenger chats
+      }
+
+      // Fetch Email chats
+      try {
+        const emailChats = await getAllEmailChats(companyId)
+        emailChats.forEach((chat) => {
+          convos.push({
+            id: `email-${chat.customerEmail.replace(/[.@]/g, '_')}`,
+            name: chat.customerEmail,
+            email: chat.customerEmail,
+            channel: 'email' as const,
+            lastMessage: chat.lastMessage?.body?.slice(0, 100) || chat.lastSubject || 'Ingen meldinger',
+            lastMessageAt: chat.lastMessageAt,
+            messageCount: chat.messageCount,
+            status: 'active' as const,
+          })
+        })
+      } catch {
+        // No email chats or error - continue
       }
 
       // Sort by last message time
@@ -161,9 +181,20 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
     }
   }, [companyId])
 
-  // Initial fetch
+  // Initial fetch with cleanup to prevent state updates after unmount
   useEffect(() => {
-    fetchConversations()
+    let isMounted = true
+
+    const doFetch = async () => {
+      if (isMounted) {
+        await fetchConversations()
+      }
+    }
+    doFetch()
+
+    return () => {
+      isMounted = false
+    }
   }, [fetchConversations])
 
   // Auto-refresh conversations
@@ -197,6 +228,15 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
           timestamp: msg.timestamp,
           status: msg.status,
         }))
+      } else if (conversation.channel === 'email' && conversation.email) {
+        // Fetch Email messages
+        const emailHistory = await getEmailHistory(companyId, conversation.email, 100)
+        msgs = emailHistory.map((msg) => ({
+          id: msg.id,
+          role: msg.direction === 'inbound' ? 'user' : 'assistant',
+          content: `**${msg.subject}**\n\n${msg.body}`,
+          timestamp: msg.timestamp,
+        }))
       } else if (conversation.channel === 'messenger') {
         // Fetch Messenger messages via API
         const messengerResponse = await fetch(
@@ -204,7 +244,6 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
         )
         if (messengerResponse.ok) {
           const messengerData = await messengerResponse.json()
-          console.log('[Conversations] Messenger messages API response:', messengerData)
           if (messengerData.success && messengerData.messages) {
             msgs = messengerData.messages.map((msg: {
               id: string
@@ -239,10 +278,21 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
     }
   }, [companyId])
 
-  // Initial fetch when conversation selected
+  // Initial fetch when conversation selected with cleanup
   useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation)
+    if (!selectedConversation) return
+
+    let isMounted = true
+
+    const doFetch = async () => {
+      if (isMounted) {
+        await fetchMessages(selectedConversation)
+      }
+    }
+    doFetch()
+
+    return () => {
+      isMounted = false
     }
   }, [selectedConversation, fetchMessages])
 
@@ -388,6 +438,7 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
     sms: { icon: Phone, color: '#CDFF4D', label: 'SMS' },
     widget: { icon: MessageCircle, color: '#3B82F6', label: 'Widget' },
     messenger: { icon: Facebook, color: '#1877F2', label: 'Messenger' },
+    email: { icon: Mail, color: '#EA4335', label: 'E-post' },
   }
 
   return (
@@ -409,7 +460,7 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
 
           {/* Channel Filter */}
           <div className="flex gap-2 flex-wrap">
-            {(['all', 'sms', 'widget', 'messenger'] as const).map((filter) => (
+            {(['all', 'sms', 'widget', 'messenger', 'email'] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setChannelFilter(filter)}
@@ -419,7 +470,7 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                     : 'bg-white/[0.03] text-[#6B7A94] hover:text-white'
                 }`}
               >
-                {filter === 'all' ? 'Alle' : filter === 'sms' ? 'SMS' : filter === 'widget' ? 'Widget' : 'Messenger'}
+                {filter === 'all' ? 'Alle' : filter === 'sms' ? 'SMS' : filter === 'widget' ? 'Widget' : filter === 'messenger' ? 'Messenger' : 'E-post'}
               </button>
             ))}
             <div className="ml-auto flex items-center gap-2">
@@ -512,6 +563,11 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
                     <Facebook
                       className="h-5 w-5"
                       style={{ color: channelConfig.messenger.color }}
+                    />
+                  ) : selectedConversation.channel === 'email' ? (
+                    <Mail
+                      className="h-5 w-5"
+                      style={{ color: channelConfig.email.color }}
                     />
                   ) : (
                     <MessageCircle

@@ -13,6 +13,8 @@ import {
   getBusinessProfile,
   getFAQs,
   getActiveInstructions,
+  saveEmailMessage,
+  getEmailHistory,
 } from '@/lib/email-firestore'
 
 /**
@@ -36,8 +38,6 @@ export async function POST(request: NextRequest) {
       body = await request.json().catch(() => ({}))
     }
 
-    console.log('[Email Webhook] Received from:', provider)
-
     // Parse inbound email based on provider
     let inboundEmail
     if (provider === 'mailgun') {
@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!inboundEmail || !inboundEmail.to || !inboundEmail.from) {
-      console.log('[Email Webhook] Could not parse email')
       return NextResponse.json({ status: 'ok', message: 'Could not parse email' })
     }
 
@@ -77,17 +76,10 @@ async function processEmail(
     const toAddress = extractEmailAddress(email.to)
     const fromAddress = extractEmailAddress(email.from)
 
-    console.log('[Email] Processing:', {
-      from: fromAddress,
-      to: toAddress,
-      subject: email.subject,
-    })
-
     // Find company by email address
     const companyId = await findCompanyByEmail(toAddress)
 
     if (!companyId) {
-      console.log('[Email] No company found for email:', toAddress)
       return
     }
 
@@ -95,9 +87,21 @@ async function processEmail(
     const channel = await getEmailChannel(companyId)
 
     if (!channel || !channel.isActive) {
-      console.log('[Email] Channel not active for company:', companyId)
       return
     }
+
+    // Save inbound email to conversation history
+    await saveEmailMessage(companyId, fromAddress, {
+      direction: 'inbound',
+      from: fromAddress,
+      to: toAddress,
+      subject: email.subject,
+      body: email.text,
+      timestamp: email.timestamp,
+    })
+
+    // Get conversation history for context
+    const conversationHistory = await getEmailHistory(companyId, fromAddress, 10)
 
     // Get context for AI
     const [businessProfile, faqs, instructions] = await Promise.all([
@@ -114,6 +118,7 @@ async function processEmail(
       businessProfile,
       faqs,
       instructions,
+      conversationHistory,
     })
 
     // Build credentials for sending
@@ -128,21 +133,27 @@ async function processEmail(
     }
 
     // Send response email
-    const result = await sendEmail(credentials, {
+    const replySubject = formatReplySubject(email.subject)
+    await sendEmail(credentials, {
       to: fromAddress,
       from: channel.emailAddress,
-      subject: formatReplySubject(email.subject),
+      subject: replySubject,
       text: aiResponse,
       replyTo: channel.emailAddress,
     })
 
-    if (result.success) {
-      console.log('[Email] Response sent successfully')
-    } else {
-      console.error('[Email] Failed to send response:', result.error)
-    }
-  } catch (error) {
-    console.error('[Email] Error processing email:', error)
+    // Save outbound email to conversation history
+    await saveEmailMessage(companyId, fromAddress, {
+      direction: 'outbound',
+      from: channel.emailAddress,
+      to: fromAddress,
+      subject: replySubject,
+      body: aiResponse,
+      timestamp: new Date(),
+    })
+
+  } catch {
+    // Error processing email
   }
 }
 
@@ -153,8 +164,9 @@ async function generateAIResponse(context: {
   businessProfile: Record<string, unknown> | null
   faqs: Array<Record<string, unknown>>
   instructions: Array<{ content: string; priority: string }>
+  conversationHistory?: Array<{ direction: string; subject: string; body: string }>
 }): Promise<string> {
-  const { emailSubject, emailBody, senderEmail, businessProfile, faqs, instructions } = context
+  const { emailSubject, emailBody, businessProfile, faqs, instructions, conversationHistory } = context
 
   // Build system prompt
   let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på e-post.
@@ -195,6 +207,17 @@ VIKTIG:
     }
   }
 
+  // Build conversation context if available
+  let conversationContext = ''
+  if (conversationHistory && conversationHistory.length > 1) {
+    conversationContext = '\n\nTidligere i samtalen:\n'
+    // Skip the last message (current inbound) and get previous exchanges
+    for (const msg of conversationHistory.slice(0, -1).slice(-4)) {
+      const sender = msg.direction === 'inbound' ? 'Kunde' : 'Du'
+      conversationContext += `\n${sender}: ${msg.body.slice(0, 300)}${msg.body.length > 300 ? '...' : ''}\n`
+    }
+  }
+
   // Build messages
   const messages = [
     { role: 'system' as const, content: systemPrompt },
@@ -202,7 +225,8 @@ VIKTIG:
       role: 'user' as const,
       content: `E-post fra kunde:
 Emne: ${emailSubject}
-
+${conversationContext}
+Ny melding:
 ${emailBody}
 
 ---
@@ -227,8 +251,6 @@ Skriv et profesjonelt svar på denne e-posten.`
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[Email] Groq API error:', errorText)
       return `Takk for din henvendelse. Vi har mottatt e-posten din og vil svare så snart som mulig.
 
 Med vennlig hilsen,
@@ -240,8 +262,7 @@ Kundeservice`
 
 Med vennlig hilsen,
 Kundeservice`
-  } catch (error) {
-    console.error('[Email] AI generation error:', error)
+  } catch {
     return `Takk for din henvendelse. Vi har mottatt e-posten din og vil svare så snart som mulig.
 
 Med vennlig hilsen,

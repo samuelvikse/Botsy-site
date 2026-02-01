@@ -12,8 +12,16 @@ import type { SMSMessage, SMSProvider } from '@/types'
 
 export async function POST(request: NextRequest) {
   try {
-    // Get provider from query parameter
-    const provider = (request.nextUrl.searchParams.get('provider') || 'mock') as SMSProvider
+    // Get provider from query parameter and validate
+    const providerParam = request.nextUrl.searchParams.get('provider') || 'mock'
+    const validProviders = ['twilio', 'messagebird', 'mock']
+    if (!validProviders.includes(providerParam)) {
+      return NextResponse.json(
+        { error: 'Invalid SMS provider' },
+        { status: 400 }
+      )
+    }
+    const provider = providerParam as SMSProvider
 
     // Clone the request multiple times for different operations
     const requestForParse = request.clone()

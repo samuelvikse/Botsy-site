@@ -59,7 +59,7 @@ function TeamContent() {
     {
       id: 1,
       name: 'Samuel Vikse',
-      email: 'samuel@botsy.no',
+      email: 'samuel@example.com',
       role: 'owner',
       status: 'active',
       avatar: 'SV',

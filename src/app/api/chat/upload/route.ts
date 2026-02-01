@@ -53,7 +53,15 @@ export async function POST(request: NextRequest) {
 
     // Initialize Firebase Admin
     if (getApps().length === 0) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+      let serviceAccount
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+      } catch {
+        return NextResponse.json(
+          { success: false, error: 'Ugyldig service account konfigurasjon' },
+          { status: 500 }
+        )
+      }
       initializeApp({
         credential: cert(serviceAccount),
         storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,

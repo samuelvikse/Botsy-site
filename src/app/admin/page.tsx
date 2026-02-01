@@ -393,12 +393,14 @@ function DashboardView({ companyId, onViewAllConversations }: { companyId: strin
     conversationsToday: number
     smsCount: number
     widgetCount: number
+    emailCount: number
     totalMessages: number
     recentConversations: Array<{
       id: string
       name: string
       phone?: string
-      channel: 'sms' | 'widget'
+      email?: string
+      channel: 'sms' | 'widget' | 'email'
       lastMessage: string
       lastMessageAt: Date
     }>
@@ -420,9 +422,10 @@ function DashboardView({ companyId, onViewAllConversations }: { companyId: strin
     fetchStats()
   }, [companyId])
 
-  const totalChannels = (stats?.smsCount || 0) + (stats?.widgetCount || 0)
+  const totalChannels = (stats?.smsCount || 0) + (stats?.widgetCount || 0) + (stats?.emailCount || 0)
   const smsPercentage = totalChannels > 0 ? Math.round((stats?.smsCount || 0) / totalChannels * 100) : 0
   const widgetPercentage = totalChannels > 0 ? Math.round((stats?.widgetCount || 0) / totalChannels * 100) : 0
+  const emailPercentage = totalChannels > 0 ? Math.round((stats?.emailCount || 0) / totalChannels * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -456,7 +459,7 @@ function DashboardView({ companyId, onViewAllConversations }: { companyId: strin
         />
         <StatCard
           title="Aktive kanaler"
-          value={isLoading ? '...' : String(((stats?.smsCount || 0) > 0 ? 1 : 0) + ((stats?.widgetCount || 0) > 0 ? 1 : 0))}
+          value={isLoading ? '...' : String(((stats?.smsCount || 0) > 0 ? 1 : 0) + ((stats?.widgetCount || 0) > 0 ? 1 : 0) + ((stats?.emailCount || 0) > 0 ? 1 : 0))}
           change=""
           trend="up"
           icon={<TrendingUp className="h-5 w-5" />}
@@ -527,7 +530,7 @@ function DashboardView({ companyId, onViewAllConversations }: { companyId: strin
           <ChannelStat channel="SMS" count={stats?.smsCount || 0} percentage={smsPercentage} color="#CDFF4D" />
           <ChannelStat channel="Widget" count={stats?.widgetCount || 0} percentage={widgetPercentage} color="#3B82F6" />
           <ChannelStat channel="WhatsApp" count={0} percentage={0} color="#25D366" />
-          <ChannelStat channel="E-post" count={0} percentage={0} color="#EA4335" />
+          <ChannelStat channel="E-post" count={stats?.emailCount || 0} percentage={emailPercentage} color="#EA4335" />
         </div>
       </Card>
     </div>

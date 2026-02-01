@@ -31,11 +31,9 @@ export async function GET(request: NextRequest) {
 
   // Check if this is a verification request
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('[Messenger Webhook] Verification successful')
     return new NextResponse(challenge, { status: 200 })
   }
 
-  console.log('[Messenger Webhook] Verification failed:', { mode, token })
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 })
 }
 
@@ -46,31 +44,24 @@ export async function POST(request: NextRequest) {
   try {
     // Get raw body for signature verification
     const rawBody = await request.text()
-    console.log('[Messenger Webhook] Received POST request, body length:', rawBody.length)
 
     let body
     try {
       body = JSON.parse(rawBody)
-    } catch (parseError) {
-      console.error('[Messenger Webhook] Failed to parse JSON:', parseError)
+    } catch {
       return NextResponse.json({ status: 'ok' })
     }
 
-    console.log('[Messenger Webhook] Parsed body object:', body.object)
-
     // Parse incoming messages
     const messages = parseMessengerWebhook(body)
-    console.log('[Messenger Webhook] Parsed messages count:', messages.length)
 
     if (messages.length === 0) {
       // No messages to process (could be delivery/read receipts)
-      console.log('[Messenger Webhook] No messages to process')
       return NextResponse.json({ status: 'ok' })
     }
 
     // Process each message
     for (const message of messages) {
-      console.log('[Messenger Webhook] Processing message from:', message.senderId)
       await processMessage(message, rawBody, request.headers.get('x-hub-signature-256'))
     }
 
@@ -95,28 +86,17 @@ async function processMessage(
   signature: string | null
 ) {
   try {
-    console.log('[Messenger] Processing message:', {
-      from: message.senderId,
-      to: message.recipientId,
-      text: message.text.substring(0, 50),
-    })
-
     // Find company by Page ID (recipientId is the Page ID)
-    console.log('[Messenger] Looking up company for Page ID:', message.recipientId)
     const companyId = await findCompanyByPageId(message.recipientId)
 
     if (!companyId) {
-      console.log('[Messenger] No company found for Page ID:', message.recipientId)
       return
     }
-    console.log('[Messenger] Found company:', companyId)
 
     // Get Messenger channel configuration
     const channel = await getMessengerChannel(companyId)
-    console.log('[Messenger] Channel config:', channel ? { isActive: channel.isActive, isVerified: channel.isVerified, hasToken: !!channel.credentials.pageAccessToken } : null)
 
     if (!channel || !channel.isActive) {
-      console.log('[Messenger] Channel not active for company:', companyId)
       return
     }
 
@@ -129,7 +109,6 @@ async function processMessage(
       )
 
       if (!isValid) {
-        console.error('[Messenger] Invalid signature')
         return
       }
     }
@@ -158,12 +137,6 @@ async function processMessage(
     ])
 
     // Generate AI response
-    console.log('[Messenger] Generating AI response for company:', companyId)
-    console.log('[Messenger] Knowledge docs count:', knowledgeDocs.length)
-    if (knowledgeDocs.length > 0) {
-      console.log('[Messenger] First doc FAQs:', knowledgeDocs[0].faqs.length)
-      console.log('[Messenger] First doc ImportantInfo:', JSON.stringify(knowledgeDocs[0].importantInfo).substring(0, 300))
-    }
     const aiResponse = await generateAIResponse({
       userMessage: message.text,
       userName: userProfile?.firstName,
@@ -173,11 +146,9 @@ async function processMessage(
       history,
       knowledgeDocs,
     })
-    console.log('[Messenger] AI response generated, length:', aiResponse.length)
 
     // Send response via Messenger
     if (channel.credentials.pageAccessToken) {
-      console.log('[Messenger] Sending response to:', message.senderId)
       const result = await sendMessengerMessage(
         { pageAccessToken: channel.credentials.pageAccessToken, appSecret: channel.credentials.appSecret || '' },
         { recipientId: message.senderId, text: aiResponse }
@@ -192,10 +163,6 @@ async function processMessage(
           timestamp: new Date(),
           messageId: result.messageId,
         })
-
-        console.log('[Messenger] Response sent successfully')
-      } else {
-        console.error('[Messenger] Failed to send response:', result.error)
       }
     }
   } catch (error) {
@@ -406,15 +373,12 @@ PRIORITERING AV INFORMASJON:
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[Messenger] Groq API error:', errorText)
       return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
     }
 
     const data = await response.json()
     return data.choices?.[0]?.message?.content || 'Beklager, jeg forstod ikke helt. Kan du prøve å omformulere?'
-  } catch (error) {
-    console.error('[Messenger] AI generation error:', error)
+  } catch {
     return 'Beklager, det oppstod en feil. Vennligst prøv igjen.'
   }
 }

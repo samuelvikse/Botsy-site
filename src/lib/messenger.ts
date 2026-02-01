@@ -88,11 +88,6 @@ export function verifyMessengerSignature(
 
     const signatureHash = signature.substring(7)
 
-    // Use Web Crypto API for HMAC-SHA256
-    const encoder = new TextEncoder()
-    const keyData = encoder.encode(appSecret)
-    const messageData = encoder.encode(payload)
-
     // For server-side, we need to use Node.js crypto
     // This will be executed in Node.js runtime (Next.js API route)
     const crypto = require('crypto')

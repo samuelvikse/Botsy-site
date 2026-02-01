@@ -3,6 +3,8 @@
  * Uses Firebase REST API (no Admin SDK / service account needed)
  */
 
+import { parseFirestoreFields, toFirestoreValue } from './firestore-utils'
+
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
@@ -21,33 +23,6 @@ export interface EmailChannel {
   }
   createdAt?: Date
   updatedAt?: Date
-}
-
-/**
- * Parse Firestore document fields to JavaScript object
- */
-function parseFirestoreFields(fields: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {}
-
-  for (const [key, value] of Object.entries(fields)) {
-    const v = value as Record<string, unknown>
-    if ('stringValue' in v) result[key] = v.stringValue
-    else if ('integerValue' in v) result[key] = parseInt(v.integerValue as string)
-    else if ('doubleValue' in v) result[key] = v.doubleValue
-    else if ('booleanValue' in v) result[key] = v.booleanValue
-    else if ('timestampValue' in v) result[key] = new Date(v.timestampValue as string)
-    else if ('mapValue' in v) {
-      const mapValue = v.mapValue as { fields?: Record<string, unknown> }
-      result[key] = mapValue.fields ? parseFirestoreFields(mapValue.fields) : {}
-    }
-    else if ('arrayValue' in v) {
-      const arrayValue = v.arrayValue as { values?: unknown[] }
-      result[key] = arrayValue.values || []
-    }
-    else if ('nullValue' in v) result[key] = null
-  }
-
-  return result
 }
 
 /**
@@ -244,6 +219,182 @@ export async function getActiveInstructions(companyId: string): Promise<Array<{ 
       }))
   } catch (error) {
     console.error('[Email Firestore] Error getting instructions:', error)
+    return []
+  }
+}
+
+/**
+ * Email message interface
+ */
+export interface EmailMessage {
+  id: string
+  direction: 'inbound' | 'outbound'
+  from: string
+  to: string
+  subject: string
+  body: string
+  timestamp: Date
+}
+
+/**
+ * Save an email message to the conversation
+ */
+export async function saveEmailMessage(
+  companyId: string,
+  customerEmail: string,
+  message: Omit<EmailMessage, 'id'>
+): Promise<string> {
+  try {
+    const normalizedEmail = customerEmail.toLowerCase().trim().replace(/[.#$[\]]/g, '_')
+    const chatPath = `companies/${companyId}/emailChats/${normalizedEmail}`
+    const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+    // First, try to get existing chat
+    const chatResponse = await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`)
+
+    const messageData = {
+      id: messageId,
+      direction: message.direction,
+      from: message.from,
+      to: message.to,
+      subject: message.subject,
+      body: message.body,
+      timestamp: message.timestamp.toISOString(),
+    }
+
+    if (chatResponse.ok) {
+      // Chat exists, update it
+      const existingDoc = await chatResponse.json()
+      const existingData = existingDoc.fields ? parseFirestoreFields(existingDoc.fields) : {}
+      const existingMessages = (existingData.messages as Array<Record<string, unknown>>) || []
+
+      await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            customerEmail: toFirestoreValue(customerEmail.toLowerCase().trim()),
+            messages: toFirestoreValue([...existingMessages, messageData]),
+            lastMessageAt: toFirestoreValue(new Date().toISOString()),
+            lastSubject: toFirestoreValue(message.subject),
+          }
+        })
+      })
+    } else {
+      // Create new chat
+      await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            customerEmail: toFirestoreValue(customerEmail.toLowerCase().trim()),
+            messages: toFirestoreValue([messageData]),
+            lastMessageAt: toFirestoreValue(new Date().toISOString()),
+            lastSubject: toFirestoreValue(message.subject),
+            createdAt: toFirestoreValue(new Date().toISOString()),
+          }
+        })
+      })
+    }
+
+    return messageId
+  } catch (error) {
+    console.error('[Email Firestore] Error saving message:', error)
+    throw error
+  }
+}
+
+/**
+ * Get email conversation history
+ */
+export async function getEmailHistory(
+  companyId: string,
+  customerEmail: string,
+  limitCount = 20
+): Promise<EmailMessage[]> {
+  try {
+    const normalizedEmail = customerEmail.toLowerCase().trim().replace(/[.#$[\]]/g, '_')
+    const chatPath = `companies/${companyId}/emailChats/${normalizedEmail}`
+
+    const response = await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`)
+
+    if (!response.ok) return []
+
+    const doc = await response.json()
+
+    if (!doc.fields) return []
+
+    const data = parseFirestoreFields(doc.fields)
+    const messages = (data.messages as Array<Record<string, unknown>>) || []
+
+    return messages.slice(-limitCount).map((msg) => ({
+      id: msg.id as string,
+      direction: msg.direction as 'inbound' | 'outbound',
+      from: msg.from as string,
+      to: msg.to as string,
+      subject: msg.subject as string,
+      body: msg.body as string,
+      timestamp: new Date(msg.timestamp as string),
+    }))
+  } catch (error) {
+    console.error('[Email Firestore] Error getting history:', error)
+    return []
+  }
+}
+
+/**
+ * Get all email conversations for a company
+ */
+export async function getAllEmailChats(
+  companyId: string
+): Promise<Array<{
+  customerEmail: string
+  lastSubject: string
+  lastMessage: EmailMessage | null
+  lastMessageAt: Date
+  messageCount: number
+}>> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/emailChats`)
+
+    if (!response.ok) return []
+
+    const data = await response.json()
+
+    if (!data.documents) return []
+
+    const chats = data.documents.map((doc: { name: string; fields?: Record<string, unknown> }) => {
+      if (!doc.fields) return null
+
+      const chatData = parseFirestoreFields(doc.fields)
+      const messages = (chatData.messages as Array<Record<string, unknown>>) || []
+      const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null
+
+      return {
+        customerEmail: chatData.customerEmail as string || '',
+        lastSubject: chatData.lastSubject as string || '',
+        lastMessage: lastMsg ? {
+          id: lastMsg.id as string,
+          direction: lastMsg.direction as 'inbound' | 'outbound',
+          from: lastMsg.from as string,
+          to: lastMsg.to as string,
+          subject: lastMsg.subject as string,
+          body: lastMsg.body as string,
+          timestamp: new Date(lastMsg.timestamp as string),
+        } : null,
+        lastMessageAt: chatData.lastMessageAt ? new Date(chatData.lastMessageAt as string) : new Date(),
+        messageCount: messages.length,
+      }
+    }).filter(Boolean)
+
+    // Sort by last message time
+    chats.sort((a: { lastMessageAt: Date }, b: { lastMessageAt: Date }) =>
+      b.lastMessageAt.getTime() - a.lastMessageAt.getTime()
+    )
+
+    return chats
+  } catch (error) {
+    console.error('[Email Firestore] Error getting all chats:', error)
     return []
   }
 }

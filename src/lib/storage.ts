@@ -66,62 +66,6 @@ export async function uploadCompanyLogo(
 }
 
 /**
- * Upload a chat image to Firebase Storage
- * @param companyId - The company's unique ID
- * @param sessionId - The chat session ID
- * @param file - The image file to upload
- * @returns The download URL of the uploaded image
- */
-export async function uploadChatImage(
-  companyId: string,
-  sessionId: string,
-  file: File
-): Promise<string> {
-  if (!storage) {
-    throw new Error('Bildeopplasting er ikke tilgjengelig')
-  }
-
-  // Validate file type
-  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-  if (!validTypes.includes(file.type)) {
-    throw new Error('Ugyldig filtype. Bruk JPG, PNG, GIF eller WebP.')
-  }
-
-  // Validate file size (max 10MB)
-  const maxSize = 10 * 1024 * 1024 // 10MB
-  if (file.size > maxSize) {
-    throw new Error('Filen er for stor. Maks 10MB.')
-  }
-
-  // Create a unique filename
-  const extension = file.name.split('.').pop() || 'jpg'
-  const filename = `chat_${Date.now()}.${extension}`
-  const storagePath = `companies/${companyId}/chat-images/${sessionId}/${filename}`
-
-  const storageRef = ref(storage, storagePath)
-
-  try {
-    const snapshot = await uploadBytes(storageRef, file, {
-      contentType: file.type,
-      customMetadata: {
-        uploadedAt: new Date().toISOString(),
-        originalName: file.name,
-      },
-    })
-
-    const downloadUrl = await getDownloadURL(snapshot.ref)
-    return downloadUrl
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes('unauthorized') || error.message.includes('permission')) {
-        throw new Error('Kunne ikke laste opp bildet. Prøv igjen.')
-      }
-    }
-    throw new Error('Bildeopplasting feilet. Prøv igjen.')
-  }
-}
-
-/**
  * Delete a company logo from Firebase Storage
  * @param logoUrl - The URL of the logo to delete
  */

@@ -687,6 +687,18 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'email':
         return (
           <div className="space-y-5">
+            {/* Setup instructions */}
+            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+              <h4 className="text-white text-sm font-medium mb-2">Slik fungerer e-post med Botsy</h4>
+              <ol className="text-[#A8B4C8] text-xs space-y-1 list-decimal list-inside">
+                <li>Velg en e-postleverandør (SendGrid anbefales)</li>
+                <li>Opprett konto hos leverandøren og hent API-nøkkel</li>
+                <li>Fyll inn e-postadresse og API-nøkkel under</li>
+                <li>Konfigurer <strong>Inbound Parse</strong> hos leverandøren</li>
+                <li>Bruk webhook-URL-en nederst til å motta e-post</li>
+              </ol>
+            </div>
+
             <div>
               <label className="text-white text-sm font-medium block mb-3">Velg leverandør</label>
               <div className="flex flex-wrap gap-2">
@@ -710,6 +722,31 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
               </div>
             </div>
 
+            {/* Provider-specific instructions */}
+            {emailProvider === 'sendgrid' && (
+              <div className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+                <p className="text-[#A8B4C8] text-xs">
+                  <strong className="text-white">SendGrid oppsett:</strong> Gå til Settings → Inbound Parse → Add Host & URL.
+                  Legg inn domenet ditt og webhook-URL fra bunnen av denne siden.
+                </p>
+              </div>
+            )}
+            {emailProvider === 'mailgun' && (
+              <div className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+                <p className="text-[#A8B4C8] text-xs">
+                  <strong className="text-white">Mailgun oppsett:</strong> Gå til Receiving → Create Route.
+                  Velg &quot;Match Recipient&quot; og legg inn e-postadressen. Sett &quot;Forward&quot; til webhook-URL.
+                </p>
+              </div>
+            )}
+            {emailProvider === 'smtp' && (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                <p className="text-yellow-400 text-xs">
+                  <strong>Merk:</strong> SMTP støtter kun utgående e-post. For å motta e-post må du bruke SendGrid eller Mailgun.
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="text-white text-sm font-medium block mb-2">
                 E-postadresse for kundeservice
@@ -721,6 +758,9 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
                 placeholder="support@dinbedrift.no"
                 className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
               />
+              <p className="text-[#6B7A94] text-xs mt-1.5">
+                Kunder som sender e-post til denne adressen får automatisk svar fra Botsy
+              </p>
             </div>
 
             {EMAIL_PROVIDERS.find(p => p.value === emailProvider)?.fields.map((field) => (

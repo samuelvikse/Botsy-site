@@ -122,8 +122,8 @@ export default function TermsPage() {
               <h2 className="text-2xl font-semibold text-white mb-4">9. Kontakt</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Har du spørsmål om disse vilkårene? Ta kontakt med oss på{' '}
-                <a href="mailto:kontakt@botsy.no" className="text-botsy-lime hover:underline">
-                  kontakt@botsy.no
+                <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">
+                  hei@botsy.no
                 </a>
               </p>
             </section>

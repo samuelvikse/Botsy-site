@@ -464,7 +464,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       setError(null)
-      console.log('[Auth] Setting up 2FA for:', phoneNumber)
 
       // Clear any existing recaptcha
       if (recaptchaVerifier) {
@@ -483,16 +482,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Create new recaptcha verifier
-      console.log('[Auth] Creating recaptcha verifier...')
       const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
         size: 'invisible',
       })
       setRecaptchaVerifier(verifier)
 
       // Get multi-factor session
-      console.log('[Auth] Getting MFA session...')
       const multiFactorSession = await multiFactor(auth.currentUser).getSession()
-      console.log('[Auth] MFA session obtained')
 
       // Generate phone info options
       const phoneInfoOptions = {
@@ -501,17 +497,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Get phone auth provider
-      console.log('[Auth] Verifying phone number...')
       const phoneAuthProvider = new PhoneAuthProvider(auth)
       const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, verifier)
-      console.log('[Auth] Phone verification ID obtained')
 
       // Store verification ID for later use
       setPendingMfaPhoneNumber(phoneNumber)
       setConfirmationResult({ verificationId } as unknown as ConfirmationResult)
-      console.log('[Auth] 2FA setup step 1 complete')
     } catch (err: unknown) {
-      console.error('[Auth] 2FA setup error:', err)
       const errorMessage = getFirebaseErrorMessage(err)
       setError(errorMessage)
       throw new Error(errorMessage)
@@ -613,10 +605,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         throw new Error('Kunne ikke re-autentisere. Vennligst logg ut og inn igjen.')
       }
-
-      console.log('[Auth] Re-authentication successful')
     } catch (err: unknown) {
-      console.error('[Auth] Re-authentication error:', err)
       const errorMessage = getFirebaseErrorMessage(err)
       setError(errorMessage)
       throw new Error(errorMessage)
