@@ -355,110 +355,14 @@ PRIORITERING AV INFORMASJON:
     : userMessage
   messages.push({ role: 'user', content: userMessageContent })
 
-  // Try Gemini first (primary), then Groq as fallback
-  const geminiResult = await callGemini(systemPrompt, messages)
-  if (geminiResult.success) {
-    return geminiResult.response
-  }
+  // Use shared AI provider (Gemini primary, Groq fallback)
+  const { generateAIResponse } = await import('@/lib/ai-providers')
+  const result = await generateAIResponse(systemPrompt, messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, { maxTokens: 500, temperature: 0.7 })
 
-  const groqResult = await callGroq(messages)
-  if (groqResult.success) {
-    return groqResult.response
+  if (result.success) {
+    return result.response
   }
 
   return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
 }
 
-async function callGemini(
-  systemPrompt: string,
-  messages: Array<{ role: string; content: string }>
-): Promise<{ success: boolean; response: string }> {
-  try {
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) {
-      return { success: false, response: '' }
-    }
-
-    // Use gemini-1.5-flash with v1beta API (supports systemInstruction)
-    const geminiContents = messages
-      .filter(m => m.role !== 'system')
-      .map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      }))
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: geminiContents,
-          generationConfig: {
-            maxOutputTokens: 500,
-            temperature: 0.7,
-          },
-        }),
-      }
-    )
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[Messenger AI] Gemini error:', errorText)
-      return { success: false, response: '' }
-    }
-
-    const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-
-    if (text) {
-      return { success: true, response: text }
-    }
-
-    return { success: false, response: '' }
-  } catch (error) {
-    console.error('[Messenger AI] Gemini error:', error)
-    return { success: false, response: '' }
-  }
-}
-
-async function callGroq(
-  messages: Array<{ role: string; content: string }>
-): Promise<{ success: boolean; response: string }> {
-  try {
-    const apiKey = process.env.GROQ_API_KEY
-    if (!apiKey) {
-      return { success: false, response: '' }
-    }
-
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages,
-        max_tokens: 500,
-        temperature: 0.7,
-      }),
-    })
-
-    if (!response.ok) {
-      return { success: false, response: '' }
-    }
-
-    const data = await response.json()
-    const text = data.choices?.[0]?.message?.content
-
-    if (text) {
-      return { success: true, response: text }
-    }
-
-    return { success: false, response: '' }
-  } catch {
-    return { success: false, response: '' }
-  }
-}
