@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
   MessageCircle,
   Sparkles,
   Plus,
   X,
-  Save,
   Lightbulb,
   Volume2,
   Ban,
@@ -21,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { saveToneConfig, getBusinessProfile } from '@/lib/firestore'
+import { useUnsavedChanges } from '@/contexts/UnsavedChangesContext'
 import type { ToneConfig, BusinessProfile, HumorLevel, ResponseLength } from '@/types'
 
 interface ToneConfigViewProps {
@@ -54,6 +54,7 @@ const PREFERRED_PHRASE_SUGGESTIONS = [
 ]
 
 export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProps) {
+  const { setHasUnsavedChanges, setSaveCallback } = useUnsavedChanges()
   const [config, setConfig] = useState<ToneConfig>({
     customInstructions: '',
     personality: '',
@@ -67,6 +68,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isInitialized, setIsInitialized] = useState(false)
   const [currentTone, setCurrentTone] = useState<'formal' | 'friendly' | 'casual'>('friendly')
   const [greeting, setGreeting] = useState('Hei! 👋 Hvordan kan jeg hjelpe deg?')
   const [useEmojis, setUseEmojis] = useState(true)
@@ -99,6 +101,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         // Silent fail - will use defaults
       } finally {
         setIsLoading(false)
+        setIsInitialized(true)
       }
     }
 
@@ -126,11 +129,13 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
           setCurrentTone(profile.tone)
         }
         setIsLoading(false)
+        setIsInitialized(true)
       })
     }
   }, [companyId, initialProfile])
 
-  const handleSave = async () => {
+  // Handle save function
+  const handleSave = useCallback(async () => {
     setIsSaving(true)
     setSaveSuccess(false)
     try {
@@ -143,13 +148,27 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         responseLength,
       })
       setSaveSuccess(true)
+      setHasUnsavedChanges(false)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch {
       // Silent fail
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [companyId, config, currentTone, greeting, useEmojis, humorLevel, responseLength, setHasUnsavedChanges])
+
+  // Register save callback with context
+  useEffect(() => {
+    setSaveCallback(handleSave)
+    return () => setSaveCallback(null)
+  }, [handleSave, setSaveCallback])
+
+  // Track changes after initialization
+  useEffect(() => {
+    if (isInitialized) {
+      setHasUnsavedChanges(true)
+    }
+  }, [config, currentTone, greeting, useEmojis, humorLevel, responseLength, isInitialized, setHasUnsavedChanges])
 
   const addAvoidPhrase = () => {
     if (newAvoidPhrase.trim() && !config.avoidPhrases?.includes(newAvoidPhrase.trim())) {
@@ -611,27 +630,17 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end gap-3 pt-4 border-t border-white/[0.06]">
-        {saveSuccess && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2 text-green-400 text-sm"
-          >
-            <Check className="h-4 w-4" />
-            Lagret!
-          </motion.div>
-        )}
-        <Button onClick={handleSave} disabled={isSaving} className="min-w-[140px]">
-          {isSaving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          {isSaving ? 'Lagrer...' : 'Lagre endringer'}
-        </Button>
-      </div>
+      {/* Success message */}
+      {saveSuccess && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm"
+        >
+          <Check className="h-4 w-4" />
+          Lagret!
+        </motion.div>
+      )}
     </div>
   )
 }

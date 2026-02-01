@@ -46,6 +46,8 @@ import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, PermissionProvider } from '@/contexts/PermissionContext'
+import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext'
+import { FloatingSaveButton } from '@/components/dashboard/FloatingSaveButton'
 import { BotsyChatPanel } from '@/components/dashboard/BotsyChatPanel'
 import { InstructionsView } from '@/components/dashboard/InstructionsView'
 import { WidgetSettingsView } from '@/components/dashboard/WidgetSettingsView'
@@ -71,7 +73,10 @@ export default function AdminPanel() {
   return (
     <ProtectedRoute>
       <PermissionProvider>
-        <AdminContent />
+        <UnsavedChangesProvider>
+          <AdminContent />
+          <FloatingSaveButton />
+        </UnsavedChangesProvider>
       </PermissionProvider>
     </ProtectedRoute>
   )

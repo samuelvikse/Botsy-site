@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
+import { sendTeamInvitationEmail } from '@/lib/botsy-emails'
 import type { Invitation, EmployeePermissions, AdminPermissions } from '@/types'
 import crypto from 'crypto'
 
@@ -196,11 +197,34 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://botsy.no'
     const inviteUrl = `${baseUrl}/invite/${token}`
 
+    // Send invitation email
+    let emailSent = false
+    let emailError: string | undefined
+    try {
+      const emailResult = await sendTeamInvitationEmail({
+        to: email.toLowerCase(),
+        inviterName: inviterName || 'En administrator',
+        companyName: companyName || 'Din bedrift',
+        role: role as 'admin' | 'employee',
+        inviteUrl,
+      })
+      emailSent = emailResult.success
+      if (!emailResult.success) {
+        emailError = emailResult.error
+        console.error('[Invitation] Failed to send email:', emailResult.error)
+      }
+    } catch (err) {
+      console.error('[Invitation] Error sending email:', err)
+      emailError = err instanceof Error ? err.message : 'Unknown error'
+    }
+
     return NextResponse.json({
       success: true,
       invitationId: docId,
       token,
       inviteUrl,
+      emailSent,
+      emailError,
     })
   } catch {
     return NextResponse.json(

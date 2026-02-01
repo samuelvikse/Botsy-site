@@ -33,6 +33,7 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
   })
   const [isLoading, setIsLoading] = useState(false)
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const handleSubmit = async () => {
@@ -69,7 +70,13 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
 
       const data = await response.json()
       setInviteUrl(data.inviteUrl)
-      toast.success('Invitasjon sendt', `Invitasjon ble opprettet for ${email}`)
+      setEmailSent(data.emailSent || false)
+
+      if (data.emailSent) {
+        toast.success('Invitasjon sendt!', `E-post med invitasjon ble sendt til ${email}`)
+      } else {
+        toast.info('Invitasjon opprettet', 'E-post kunne ikke sendes. Del lenken manuelt.')
+      }
       onSuccess()
     } catch (error) {
       toast.error('Kunne ikke sende invitasjon', error instanceof Error ? error.message : 'Prøv igjen senere')
@@ -101,6 +108,7 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
     })
     setAdminPermissions({ channels: true })
     setInviteUrl(null)
+    setEmailSent(false)
     setCopied(false)
     onClose()
   }
@@ -118,45 +126,79 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
       size="md"
     >
       {inviteUrl ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-center py-4">
-            <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center">
-              <CheckCircle className="h-8 w-8 text-green-400" />
-            </div>
+        <div className="space-y-5">
+          {/* Hero image */}
+          <div className="flex items-center justify-center pt-2">
+            <img
+              src="/images/invitert.png"
+              alt="Invitasjon sendt"
+              className="h-32 w-auto"
+            />
           </div>
 
-          <div className="text-center">
-            <h3 className="text-white font-medium mb-2">Invitasjon opprettet!</h3>
-            <p className="text-[#6B7A94] text-sm">
-              Del denne lenken med {email} for å la dem bli med.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex-1 px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm truncate">
-              {inviteUrl}
-            </div>
-            <Button onClick={handleCopyLink} className="shrink-0">
-              {copied ? (
+          {/* Success message */}
+          <div className="text-center space-y-2">
+            <h3 className="text-xl font-semibold text-white">
+              {emailSent ? 'Invitasjonen er på vei!' : 'Invitasjon klar!'}
+            </h3>
+            <p className="text-[#A8B4C8] text-sm leading-relaxed">
+              {emailSent ? (
                 <>
-                  <CheckCircle className="h-4 w-4 mr-1.5" />
-                  Kopiert
+                  Vi har sendt en magisk lenke til <span className="text-botsy-lime font-medium">{email}</span>.
+                  <br />
+                  Be dem sjekke innboksen (og spam-mappen, for sikkerhets skyld).
                 </>
               ) : (
                 <>
-                  <Copy className="h-4 w-4 mr-1.5" />
-                  Kopier
+                  Del lenken nedenfor med <span className="text-botsy-lime font-medium">{email}</span>
+                  <br />
+                  så er de med på laget i løpet av sekunder!
                 </>
               )}
-            </Button>
+            </p>
           </div>
 
-          <p className="text-[#6B7A94] text-xs text-center">
-            Lenken utløper om 7 dager
-          </p>
+          {/* Email confirmation badge */}
+          {emailSent && (
+            <div className="flex items-center justify-center gap-2 py-2">
+              <div className="flex items-center gap-2 px-4 py-2 bg-botsy-lime/10 border border-botsy-lime/20 rounded-full">
+                <CheckCircle className="h-4 w-4 text-botsy-lime" />
+                <span className="text-botsy-lime text-sm font-medium">E-post sendt</span>
+              </div>
+            </div>
+          )}
 
+          {/* Invite link section */}
+          <div className="space-y-2">
+            <p className="text-[#6B7A94] text-xs">
+              {emailSent ? 'Invitasjonslenke (for manuell deling):' : 'Del denne lenken:'}
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white/70 text-sm truncate font-mono">
+                {inviteUrl}
+              </div>
+              <Button onClick={handleCopyLink} size="sm" className="shrink-0">
+                {copied ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-1.5" />
+                    Kopiert!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-1.5" />
+                    Kopier
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-[#6B7A94] text-xs text-center">
+              Lenken er gyldig i 7 dager
+            </p>
+          </div>
+
+          {/* Close button */}
           <Button variant="outline" onClick={handleClose} className="w-full">
-            Lukk
+            Ferdig
           </Button>
         </div>
       ) : (

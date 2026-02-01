@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2, Maximize2, Sparkles, Play, X } from 'lucide-react'
 import Image from 'next/image'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { updateWidgetSettings } from '@/lib/firestore'
 import { uploadCompanyLogo, deleteCompanyLogo } from '@/lib/storage'
+import { useUnsavedChanges } from '@/contexts/UnsavedChangesContext'
 
 interface WidgetSettingsViewProps {
   companyId: string
@@ -87,6 +88,7 @@ export function WidgetSettingsView({
   initialSettings,
   businessName,
 }: WidgetSettingsViewProps) {
+  const { setHasUnsavedChanges, setSaveCallback } = useUnsavedChanges()
   const [settings, setSettings] = useState({
     primaryColor: initialSettings?.primaryColor || '#CCFF00',
     position: initialSettings?.position || 'bottom-right',
@@ -97,28 +99,52 @@ export function WidgetSettingsView({
     animationStyle: initialSettings?.animationStyle || 'scale' as 'scale' | 'slide' | 'fade' | 'bounce' | 'flip',
   })
   const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const [logoError, setLogoError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const [animationPreview, setAnimationPreview] = useState<string | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
 
   const embedCode = `<script src="${baseUrl}/widget.js" data-company-id="${companyId}"></script>`
 
-  const handleSave = async () => {
+  // Mark as initialized after first render
+  useEffect(() => {
+    setIsInitialized(true)
+  }, [])
+
+  // Handle save function
+  const handleSave = useCallback(async () => {
     setIsSaving(true)
     try {
       await updateWidgetSettings(companyId, settings)
+      setHasUnsavedChanges(false)
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
     } catch {
       // Silent fail
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [companyId, settings, setHasUnsavedChanges])
+
+  // Register save callback with context
+  useEffect(() => {
+    setSaveCallback(handleSave)
+    return () => setSaveCallback(null)
+  }, [handleSave, setSaveCallback])
+
+  // Track changes after initialization
+  useEffect(() => {
+    if (isInitialized) {
+      setHasUnsavedChanges(true)
+    }
+  }, [settings, isInitialized, setHasUnsavedChanges])
 
   const handleCopy = async () => {
     try {
@@ -215,15 +241,22 @@ export function WidgetSettingsView({
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Chat Widget</h1>
-          <p className="text-[#6B7A94]">Tilpass utseendet og legg widgeten på nettsiden din</p>
-        </div>
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Lagrer...' : 'Lagre endringer'}
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold text-white mb-1">Chat Widget</h1>
+        <p className="text-[#6B7A94]">Tilpass utseendet og legg widgeten på nettsiden din</p>
       </div>
+
+      {/* Success message */}
+      {saveSuccess && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm"
+        >
+          <Check className="h-4 w-4" />
+          Lagret!
+        </motion.div>
+      )}
 
       {/* Enable/Disable Toggle */}
       <Card className="p-4">
