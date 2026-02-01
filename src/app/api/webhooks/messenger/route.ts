@@ -234,10 +234,14 @@ KRITISK - DU KAN BARE SENDE TEKSTMELDINGER:
 - Du kan IKKE sende bilder, filer, dokumenter, PDF-er, eller vedlegg
 - ALDRI si "jeg sender deg...", "her kommer...", "jeg legger ved...", "se vedlagt..."
 - ALDRI lov å sende noe i en separat melding
-- Hvis kunden spør om prisliste/meny/dokument: Skriv informasjonen DIREKTE i meldingen
-- Eksempel FEIL: "Jeg sender deg prislisten nå" (du kan ikke sende filer!)
-- Eksempel RIKTIG: "Her er prisene våre: Klipp dame 650 kr, Klipp herre 450 kr..."
-- Gi ALL informasjon direkte i svaret ditt - ikke lov å sende noe etterpå`
+- Gi informasjon direkte i svaret ditt - ikke lov å sende noe etterpå
+
+EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
+- ALDRI dikter opp priser, tall, eller fakta som du ikke har fått oppgitt
+- Hvis du IKKE har prisinformasjon tilgjengelig, si: "Jeg har dessverre ikke prisinformasjon tilgjengelig. Ta kontakt med oss direkte for priser."
+- Hvis du IKKE vet svaret, si det ærlig - IKKE GJETT eller finn på noe
+- Bruk KUN informasjon som er eksplisitt gitt til deg i konteksten
+- Det er MYE bedre å si "jeg vet ikke" enn å gi feil informasjon`
 
   if (businessProfile) {
     const bp = businessProfile as {

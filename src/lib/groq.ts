@@ -702,9 +702,15 @@ REGLER:
    - Du kan IKKE sende bilder, filer, dokumenter, PDF-er, eller vedlegg
    - ALDRI si "jeg sender deg...", "her kommer...", "jeg legger ved...", "se vedlagt..."
    - ALDRI lov å sende noe i en separat melding
-   - Hvis kunden spør om prisliste/meny/dokument: Skriv informasjonen DIREKTE i meldingen
-   - Gi ALL informasjon direkte i svaret ditt
-10. E-POST OPPSUMMERING (tilpass språket til kundens språk):
+   - Gi informasjon direkte i svaret ditt
+10. EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
+   - ALDRI dikter opp priser, tall, åpningstider, eller fakta som du ikke har fått oppgitt
+   - Hvis du IKKE har prisinformasjon: Si "Jeg har dessverre ikke prisinformasjon tilgjengelig. Ta kontakt med oss direkte for priser."
+   - Hvis du IKKE vet svaret: Si det ærlig - ALDRI GJETT eller finn på noe
+   - Bruk KUN informasjon som er eksplisitt gitt til deg i PRISER-seksjonen eller dokumentene
+   - Det er MYE bedre å si "jeg vet ikke" enn å gi feil informasjon
+   - Feil informasjon ødelegger tilliten til bedriften!
+11. E-POST OPPSUMMERING (tilpass språket til kundens språk):
     - Hvis kunden spør om å få samtalen/chatten på e-post, svar NØYAKTIG: "[EMAIL_REQUEST]" etterfulgt av en melding på kundens språk som ber om e-postadresse
     - Hvis kunden sier "takk", "tusen takk", "takk for hjelpen", "det var alt", "ha det", "bye", "thanks", "thank you", eller lignende avsluttende fraser, avslutt svaret ditt med "[OFFER_EMAIL]" etterfulgt av et tilbud om e-postoppsummering på kundens språk
 
