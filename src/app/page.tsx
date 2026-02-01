@@ -247,8 +247,8 @@ export default function LandingPage() {
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">100%</p>
-              <p className="text-sm text-[#6B7A94] mt-1">Norsk språk</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">10+</p>
+              <p className="text-sm text-[#6B7A94] mt-1">Språk støttet</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
@@ -301,10 +301,10 @@ export default function LandingPage() {
               title="Alle kanaler, ett sted"
               description="WhatsApp, SMS, Facebook Messenger og e-post. Alle samtaler samlet i ett oversiktlig dashboard."
             />
-            <FeatureCard 
+            <FeatureCard
               icon={<Globe className="h-6 w-6" />}
-              title="Flytende norsk"
-              description="Botsy snakker norsk som en nordmann. Bokmål, nynorsk, eller dialekt – du bestemmer tonen."
+              title="Automatisk språktilpasning"
+              description="Botsy identifiserer kundens språk og svarer på samme språk. Norsk, engelsk, svensk eller spansk – Botsy tilpasser seg automatisk."
             />
             <FeatureCard
               icon={<Zap className="h-6 w-6" />}
@@ -808,8 +808,8 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-botsy-lime/10 flex items-center justify-center mb-4">
                 <Globe className="h-6 w-6 text-botsy-lime" />
               </div>
-              <h3 className="text-white font-semibold text-lg mb-2">Ekte norsk AI</h3>
-              <p className="text-[#A8B4C8] text-sm">Forstår nyanser, dialekter og kulturelle referanser. Ikke bare oversatt fra engelsk.</p>
+              <h3 className="text-white font-semibold text-lg mb-2">Flerspråklig AI</h3>
+              <p className="text-[#A8B4C8] text-sm">Identifiserer kundens språk automatisk og svarer på samme språk. Støtter 10+ språk inkludert norsk, engelsk og svensk.</p>
             </Card>
             <Card className="p-6 bg-white/[0.02] border-white/[0.06]">
               <div className="h-12 w-12 rounded-xl bg-botsy-lime/10 flex items-center justify-center mb-4">

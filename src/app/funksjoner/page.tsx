@@ -459,7 +459,7 @@ export default function FeaturesPage() {
               { icon: Clock, title: '24/7 tilgjengelighet', desc: 'Aldri gå glipp av en kunde' },
               { icon: Zap, title: 'Lynrask respons', desc: 'Svar på under 3 sekunder' },
               { icon: Shield, title: 'GDPR-compliant', desc: 'Data trygt i EU' },
-              { icon: Languages, title: 'Flytende norsk', desc: 'Bygget for norsk språk' },
+              { icon: Languages, title: 'Flerspråklig', desc: 'Tilpasser seg kundens språk' },
               { icon: Bell, title: 'Smarte varsler', desc: 'Bli varslet når det trengs' },
               { icon: Users, title: 'Ubegrenset team', desc: 'Hele teamet inkludert' },
               { icon: Code, title: 'Enkel integrasjon', desc: 'Én kodelinje på siden' },

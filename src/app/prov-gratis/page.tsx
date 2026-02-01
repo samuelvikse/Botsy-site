@@ -401,8 +401,8 @@ export default function TryFreePage() {
             />
             <FeatureCard
               icon={<Globe className="h-6 w-6" />}
-              title="Flytende norsk"
-              description="Bygget for norsk fra grunnen. Forstår dialekter, nyanser og kulturelle referanser."
+              title="Automatisk språktilpasning"
+              description="Identifiserer kundens språk og svarer på samme språk. Støtter norsk, engelsk, svensk og flere."
             />
             <FeatureCard
               icon={<Zap className="h-6 w-6" />}
