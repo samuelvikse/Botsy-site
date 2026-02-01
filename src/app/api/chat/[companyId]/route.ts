@@ -160,9 +160,6 @@ export async function POST(
         )
       }
 
-      console.log('[Chat API] widgetSettings:', JSON.stringify(companyData?.widgetSettings))
-      console.log('[Chat API] isEnabled value:', companyData?.widgetSettings?.isEnabled, 'type:', typeof companyData?.widgetSettings?.isEnabled)
-
       if (!companyData?.widgetSettings?.isEnabled) {
         return NextResponse.json(
           { success: false, error: 'Chat er ikke aktivert for denne bedriften' },
@@ -256,7 +253,6 @@ export async function POST(
       }
 
       // Fetch knowledge documents (include uploadedAt and fileName for prioritization)
-      console.log('[Chat API] Fetching knowledge docs...')
       try {
         const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
         const docsQuery = query(docsRef, where('status', '==', 'ready'))
@@ -272,7 +268,6 @@ export async function POST(
         })
 
         // Generate response with knowledge documents
-        console.log('[Chat API] Calling chatWithCustomer...')
         const reply = await chatWithCustomer(message, {
           businessProfile,
           faqs: businessProfile.faqs,
@@ -280,7 +275,6 @@ export async function POST(
           conversationHistory: history,
           knowledgeDocuments,
         })
-        console.log('[Chat API] Got reply, length:', reply?.length)
 
         // Save assistant response
         try {
@@ -305,8 +299,7 @@ export async function POST(
           success: true,
           reply,
         }, { headers: corsHeaders })
-      } catch (error) {
-        console.error('[Chat API] Error in knowledge docs flow:', error)
+      } catch {
         // Fall through to default response generation
       }
     }

@@ -32,8 +32,6 @@ export async function generateAIResponse(
     return { ...geminiResult, provider: 'gemini' }
   }
 
-  console.log('[AI] Gemini failed, trying Groq fallback...')
-
   // Fallback to Groq
   const groqResult = await callGroq(systemPrompt, messages, maxTokens, temperature)
   if (groqResult.success) {
@@ -51,16 +49,11 @@ async function callGemini(
 ): Promise<{ success: boolean; response: string }> {
   try {
     const apiKey = process.env.GEMINI_API_KEY
-    console.log('[AI Gemini] API key exists:', !!apiKey, 'length:', apiKey?.length || 0)
     if (!apiKey) {
-      console.log('[AI Gemini] No GEMINI_API_KEY found - skipping Gemini')
       return { success: false, response: '' }
     }
 
-    console.log('[AI Gemini] Calling API with key starting with:', apiKey.substring(0, 10) + '...')
-
-    // Convert messages to Gemini format
-    // gemini-pro doesn't support systemInstruction, so prepend it to first user message
+    // gemini-pro doesn't support systemInstruction, so prepend it as conversation
     const geminiContents: Array<{ role: string; parts: Array<{ text: string }> }> = []
 
     // Add system prompt as first user message
@@ -96,26 +89,15 @@ async function callGemini(
       }
     )
 
-    console.log('[AI Gemini] Response status:', response.status)
-
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[AI Gemini] Error:', errorText)
       return { success: false, response: '' }
     }
 
     const data = await response.json()
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text
 
-    if (text) {
-      console.log('[AI Gemini] Success, response length:', text.length)
-      return { success: true, response: text }
-    }
-
-    console.log('[AI Gemini] No text in response')
-    return { success: false, response: '' }
-  } catch (error) {
-    console.error('[AI Gemini] Exception:', error)
+    return text ? { success: true, response: text } : { success: false, response: '' }
+  } catch {
     return { success: false, response: '' }
   }
 }
@@ -129,11 +111,8 @@ async function callGroq(
   try {
     const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) {
-      console.log('[AI Groq] No GROQ_API_KEY found')
       return { success: false, response: '' }
     }
-
-    console.log('[AI Groq] Calling API (fallback)')
 
     // Groq uses OpenAI-compatible format
     const groqMessages = [
@@ -155,26 +134,15 @@ async function callGroq(
       }),
     })
 
-    console.log('[AI Groq] Response status:', response.status)
-
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[AI Groq] Error:', errorText)
       return { success: false, response: '' }
     }
 
     const data = await response.json()
     const text = data.choices?.[0]?.message?.content
 
-    if (text) {
-      console.log('[AI Groq] Success, response length:', text.length)
-      return { success: true, response: text }
-    }
-
-    console.log('[AI Groq] No text in response')
-    return { success: false, response: '' }
-  } catch (error) {
-    console.error('[AI Groq] Exception:', error)
+    return text ? { success: true, response: text } : { success: false, response: '' }
+  } catch {
     return { success: false, response: '' }
   }
 }

@@ -42,24 +42,18 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Messenger Webhook] Received POST request')
-
     // Get raw body for signature verification
     const rawBody = await request.text()
-    console.log('[Messenger Webhook] Raw body length:', rawBody.length)
 
     let body
     try {
       body = JSON.parse(rawBody)
-      console.log('[Messenger Webhook] Parsed body object:', body.object)
-    } catch (parseError) {
-      console.error('[Messenger Webhook] JSON parse error:', parseError)
+    } catch {
       return NextResponse.json({ status: 'ok' })
     }
 
     // Parse incoming messages
     const messages = parseMessengerWebhook(body)
-    console.log('[Messenger Webhook] Parsed messages count:', messages.length)
 
     if (messages.length === 0) {
       // No messages to process (could be delivery/read receipts)
@@ -68,14 +62,12 @@ export async function POST(request: NextRequest) {
 
     // Process each message
     for (const message of messages) {
-      console.log('[Messenger Webhook] Processing message from:', message.senderId)
       await processMessage(message, rawBody, request.headers.get('x-hub-signature-256'))
     }
 
     // Always return 200 quickly to Facebook
     return NextResponse.json({ status: 'ok' })
-  } catch (error) {
-    console.error('[Messenger Webhook] Error:', error)
+  } catch {
     // Still return 200 to prevent Facebook from retrying
     return NextResponse.json({ status: 'error' })
   }
@@ -93,23 +85,17 @@ async function processMessage(
   signature: string | null
 ) {
   try {
-    console.log('[Messenger] Processing - Page ID:', message.recipientId, 'Sender:', message.senderId)
-
     // Find company by Page ID (recipientId is the Page ID)
     const companyId = await findCompanyByPageId(message.recipientId)
-    console.log('[Messenger] Found company ID:', companyId)
 
     if (!companyId) {
-      console.log('[Messenger] No company found for Page ID:', message.recipientId)
       return
     }
 
     // Get Messenger channel configuration
     const channel = await getMessengerChannel(companyId)
-    console.log('[Messenger] Channel found:', !!channel, 'Active:', channel?.isActive)
 
     if (!channel || !channel.isActive) {
-      console.log('[Messenger] Channel not active or not found')
       return
     }
 
@@ -150,7 +136,6 @@ async function processMessage(
     ])
 
     // Generate AI response
-    console.log('[Messenger] Generating AI response for:', message.text.substring(0, 50))
     const aiResponse = await generateAIResponse({
       userMessage: message.text,
       userName: userProfile?.firstName,
@@ -160,16 +145,13 @@ async function processMessage(
       history,
       knowledgeDocs,
     })
-    console.log('[Messenger] AI response generated, length:', aiResponse.length)
 
     // Send response via Messenger
     if (channel.credentials.pageAccessToken) {
-      console.log('[Messenger] Sending response to:', message.senderId)
       const result = await sendMessengerMessage(
         { pageAccessToken: channel.credentials.pageAccessToken, appSecret: channel.credentials.appSecret || '' },
         { recipientId: message.senderId, text: aiResponse }
       )
-      console.log('[Messenger] Send result:', result.success, result.error || '')
 
       if (result.success) {
         // Save outgoing message
@@ -180,13 +162,10 @@ async function processMessage(
           timestamp: new Date(),
           messageId: result.messageId,
         })
-        console.log('[Messenger] Message saved to Firestore')
       }
-    } else {
-      console.log('[Messenger] No pageAccessToken available')
     }
-  } catch (error) {
-    console.error('[Messenger] Error processing message:', error)
+  } catch {
+    // Silently fail - Facebook expects 200 response
   }
 }
 
@@ -382,7 +361,6 @@ PRIORITERING AV INFORMASJON:
     return geminiResult.response
   }
 
-  console.log('[Messenger AI] Gemini failed, trying Groq fallback...')
   const groqResult = await callGroq(messages)
   if (groqResult.success) {
     return groqResult.response
@@ -398,27 +376,36 @@ async function callGemini(
   try {
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
-      console.log('[Messenger AI] No GEMINI_API_KEY found')
       return { success: false, response: '' }
     }
 
-    console.log('[Messenger AI] Calling Gemini API')
+    // gemini-pro doesn't support systemInstruction, so prepend it as conversation
+    const geminiContents: Array<{ role: string; parts: Array<{ text: string }> }> = []
 
-    // Convert messages to Gemini format
-    const geminiContents = messages
-      .filter(m => m.role !== 'system')
-      .map(m => ({
+    // Add system prompt as first user message
+    geminiContents.push({
+      role: 'user',
+      parts: [{ text: `System instructions: ${systemPrompt}\n\nNow respond to the conversation below.` }]
+    })
+    geminiContents.push({
+      role: 'model',
+      parts: [{ text: 'Forstått. Jeg vil følge disse instruksjonene.' }]
+    })
+
+    // Add conversation messages
+    for (const m of messages.filter(msg => msg.role !== 'system')) {
+      geminiContents.push({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.content }]
-      }))
+      })
+    }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: geminiContents,
           generationConfig: {
             maxOutputTokens: 500,
@@ -427,8 +414,6 @@ async function callGemini(
         }),
       }
     )
-
-    console.log('[Messenger AI] Gemini response status:', response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -440,7 +425,6 @@ async function callGemini(
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text
 
     if (text) {
-      console.log('[Messenger AI] Gemini success, response length:', text.length)
       return { success: true, response: text }
     }
 
@@ -457,11 +441,8 @@ async function callGroq(
   try {
     const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) {
-      console.log('[Messenger AI] No GROQ_API_KEY found')
       return { success: false, response: '' }
     }
-
-    console.log('[Messenger AI] Calling Groq API (fallback)')
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -477,11 +458,7 @@ async function callGroq(
       }),
     })
 
-    console.log('[Messenger AI] Groq response status:', response.status)
-
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[Messenger AI] Groq error:', errorText)
       return { success: false, response: '' }
     }
 
@@ -489,13 +466,11 @@ async function callGroq(
     const text = data.choices?.[0]?.message?.content
 
     if (text) {
-      console.log('[Messenger AI] Groq success, response length:', text.length)
       return { success: true, response: text }
     }
 
     return { success: false, response: '' }
-  } catch (error) {
-    console.error('[Messenger AI] Groq error:', error)
+  } catch {
     return { success: false, response: '' }
   }
 }
