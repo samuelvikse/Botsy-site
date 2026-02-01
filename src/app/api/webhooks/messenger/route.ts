@@ -356,13 +356,17 @@ PRIORITERING AV INFORMASJON:
   messages.push({ role: 'user', content: userMessageContent })
 
   // Use shared AI provider (Gemini primary, Groq fallback)
+  console.log('[Messenger] Calling AI provider...')
   const { generateAIResponse } = await import('@/lib/ai-providers')
   const result = await generateAIResponse(systemPrompt, messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, { maxTokens: 500, temperature: 0.7 })
+
+  console.log('[Messenger] AI result:', result.success, result.provider, result.response?.length || 0)
 
   if (result.success) {
     return result.response
   }
 
+  console.log('[Messenger] AI failed, returning error message')
   return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
 }
 
