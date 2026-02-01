@@ -644,6 +644,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store verification ID for later use
       setConfirmationResult({ verificationId } as unknown as ConfirmationResult)
     } catch (err: unknown) {
+      // Log the actual error for debugging
+      console.error('MFA sendCode error:', err)
+      const firebaseError = err as { code?: string; message?: string }
+      console.error('Firebase error code:', firebaseError.code)
+      console.error('Firebase error message:', firebaseError.message)
+
       const errorMessage = getFirebaseErrorMessage(err)
       setError(errorMessage)
       throw new Error(errorMessage)

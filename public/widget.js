@@ -4,6 +4,11 @@
     return;
   }
 
+  // Don't run on admin pages
+  if (window.location.pathname.startsWith('/admin')) {
+    return;
+  }
+
   // Find the Botsy script element
   const scripts = document.getElementsByTagName('script');
   let script = null;
@@ -40,6 +45,14 @@
 
   let position = 'right';
   let chatIsOpen = false;
+  let widgetSize = 'medium';
+
+  // Size dimensions matching the widget settings
+  const SIZE_DIMENSIONS = {
+    small: { width: 360, height: 480 },
+    medium: { width: 400, height: 540 },
+    large: { width: 440, height: 620 },
+  };
 
   // Small size for just the button (56px button + 16px padding + extra for shadow)
   const setClosedStyle = () => {
@@ -72,12 +85,13 @@
         z-index: 999999;
       `;
     } else {
+      const size = SIZE_DIMENSIONS[widgetSize] || SIZE_DIMENSIONS.medium;
       iframe.style.cssText = `
         position: fixed;
         bottom: 0;
         ${position === 'bottom-left' ? 'left: 0;' : 'right: 0;'}
-        width: 450px;
-        height: 650px;
+        width: ${size.width}px;
+        height: ${size.height}px;
         border: none;
         background: transparent;
         z-index: 999999;
@@ -116,6 +130,13 @@
       if (!chatIsOpen) {
         setClosedStyle();
       } else {
+        setOpenStyle();
+      }
+    }
+
+    if (event.data.type === 'botsy-size') {
+      widgetSize = event.data.size || 'medium';
+      if (chatIsOpen) {
         setOpenStyle();
       }
     }

@@ -41,9 +41,13 @@ export default function LoginPage() {
   useEffect(() => {
     if (showMfaVerification && mfaResolver && !mfaCodeSent) {
       setMfaCodeSent(true)
-      sendMfaCode().catch(() => {
-        // Error will be shown in the error state
-      })
+      console.log('Sending MFA code...')
+      sendMfaCode()
+        .then(() => console.log('MFA code sent successfully'))
+        .catch((err) => {
+          console.error('Failed to send MFA code:', err)
+          // Error will be shown in the error state
+        })
     }
   }, [showMfaVerification, mfaResolver, mfaCodeSent, sendMfaCode])
 
@@ -160,8 +164,8 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Hidden recaptcha container */}
-          <div id="recaptcha-container" />
+          {/* Hidden recaptcha container - must be outside modal and always visible */}
+          <div id="recaptcha-container" style={{ position: 'fixed', bottom: 0, left: 0, zIndex: 9999 }} />
 
           {/* MFA Verification Modal */}
           <AnimatePresence>
@@ -179,9 +183,16 @@ export default function LoginPage() {
                   className="bg-botsy-dark-card border border-white/[0.06] rounded-2xl p-6 max-w-md w-full"
                 >
                   <h2 className="text-xl font-bold text-white mb-2">Tofaktorautentisering</h2>
-                  <p className="text-[#6B7A94] mb-6">
-                    Skriv inn koden sendt til telefonen din for å fullføre innloggingen.
+                  <p className="text-[#6B7A94] mb-4">
+                    {mfaCodeSent
+                      ? 'Skriv inn koden sendt til telefonen din for å fullføre innloggingen.'
+                      : 'Sender kode til telefonen din...'}
                   </p>
+                  {error && (
+                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                      <p className="text-red-400 text-sm">{error}</p>
+                    </div>
+                  )}
                   <form onSubmit={handleMfaVerify} className="space-y-4">
                     <input
                       type="text"
@@ -196,7 +207,11 @@ export default function LoginPage() {
                         type="button"
                         variant="outline"
                         className="flex-1"
-                        onClick={() => setShowMfaVerification(false)}
+                        onClick={() => {
+                          setShowMfaVerification(false)
+                          setMfaCodeSent(false)
+                          setVerificationCode('')
+                        }}
                       >
                         Avbryt
                       </Button>
@@ -204,6 +219,20 @@ export default function LoginPage() {
                         {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Bekreft'}
                       </Button>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMfaCodeSent(false)
+                        clearError()
+                        setTimeout(() => {
+                          setMfaCodeSent(true)
+                          sendMfaCode().catch(console.error)
+                        }, 100)
+                      }}
+                      className="w-full text-[#6B7A94] text-sm hover:text-white transition-colors mt-3"
+                    >
+                      Send kode på nytt
+                    </button>
                   </form>
                 </motion.div>
               </motion.div>

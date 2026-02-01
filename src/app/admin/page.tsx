@@ -70,6 +70,7 @@ import { ConfirmDialog, InputDialog, Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
 import { doc, getDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { saveInstruction } from '@/lib/firestore'
 import type { BusinessProfile, Instruction } from '@/types'
 
 type Tab = 'dashboard' | 'conversations' | 'knowledge' | 'documents' | 'instructions' | 'analytics' | 'widget' | 'channels' | 'tone' | 'security' | 'settings'
@@ -154,8 +155,27 @@ function AdminContent() {
     router.push('/login')
   }
 
-  const handleInstructionCreated = (instruction: Instruction) => {
-    setInstructions(prev => [instruction, ...prev])
+  const handleInstructionCreated = async (instruction: Instruction) => {
+    if (!companyId) return
+
+    try {
+      // Save to Firestore
+      const newId = await saveInstruction(companyId, {
+        content: instruction.content,
+        category: instruction.category,
+        priority: instruction.priority,
+        isActive: instruction.isActive,
+        startsAt: instruction.startsAt,
+        expiresAt: instruction.expiresAt,
+        createdAt: new Date(),
+        createdBy: user?.displayName || user?.email || 'Botsy Chat',
+      })
+
+      // Add to local state with the new ID
+      setInstructions(prev => [{ ...instruction, id: newId }, ...prev])
+    } catch (error) {
+      console.error('Failed to save instruction:', error)
+    }
   }
 
   // Get user initials

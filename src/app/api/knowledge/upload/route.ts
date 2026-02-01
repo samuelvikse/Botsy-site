@@ -4,7 +4,10 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import {
   saveKnowledgeDocument,
   updateKnowledgeDocument,
+  getFAQs,
+  saveFAQs,
 } from '@/lib/firestore'
+import type { FAQ } from '@/types'
 import Groq from 'groq-sdk'
 
 // Force dynamic rendering
@@ -320,11 +323,48 @@ export async function POST(request: NextRequest) {
       processedAt: new Date(),
     })
 
+    // Automatically add extracted FAQs to FAQ panel
+    let faqsAdded = 0
+    if (analyzedData.faqs && analyzedData.faqs.length > 0) {
+      try {
+        const existingFAQs = await getFAQs(companyId)
+        const newFAQs: FAQ[] = []
+
+        for (const faq of analyzedData.faqs) {
+          // Check if FAQ already exists (avoid duplicates)
+          const exists = existingFAQs.some(
+            (existing) =>
+              existing.question.toLowerCase().trim() === faq.question.toLowerCase().trim()
+          )
+
+          if (!exists) {
+            newFAQs.push({
+              id: `doc-${documentId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              question: faq.question,
+              answer: faq.answer,
+              source: 'extracted',
+              confirmed: false, // Mark as unconfirmed so user can review
+            })
+          }
+        }
+
+        if (newFAQs.length > 0) {
+          await saveFAQs(companyId, [...existingFAQs, ...newFAQs])
+          faqsAdded = newFAQs.length
+        }
+      } catch (error) {
+        console.error('Failed to add FAQs from document:', error)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       documentId,
       analyzedData,
-      message: 'Dokumentet ble lastet opp og analysert',
+      faqsAdded,
+      message: faqsAdded > 0
+        ? `Dokumentet ble lastet opp og ${faqsAdded} FAQ(s) ble lagt til`
+        : 'Dokumentet ble lastet opp og analysert',
     })
   } catch (error) {
     return NextResponse.json(

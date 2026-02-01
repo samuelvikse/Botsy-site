@@ -63,6 +63,9 @@ const SIZE_DIMENSIONS = {
   large: { width: '420px', height: '600px' },
 }
 
+// Padding added by iframe container
+const IFRAME_PADDING = 20
+
 // Session timeout settings
 const INACTIVITY_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
 const AWAY_TIMEOUT = 15 * 60 * 1000 // 15 minutes in milliseconds
@@ -353,6 +356,13 @@ export default function WidgetPage({
       window.parent.postMessage({ type: 'botsy-position', position: config.position }, '*')
     }
   }, [config?.position])
+
+  // Notify parent of size
+  useEffect(() => {
+    if (config?.widgetSize) {
+      window.parent.postMessage({ type: 'botsy-size', size: config.widgetSize }, '*')
+    }
+  }, [config?.widgetSize])
 
   // Ref to prevent double submissions
   const isSubmitting = useRef(false)

@@ -3,6 +3,7 @@ import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/toast'
 import { OrganizationJsonLd, WebsiteJsonLd, SoftwareApplicationJsonLd } from '@/components/seo/JsonLd'
+import { WidgetScript } from '@/components/WidgetScript'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -63,15 +64,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-    ],
+    icon: { url: '/favicon.svg', type: 'image/svg+xml' },
     shortcut: '/favicon.svg',
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
+    apple: { url: '/favicon.svg', type: 'image/svg+xml' },
   },
   manifest: '/manifest.json',
   openGraph: {
@@ -151,7 +146,7 @@ export default function RootLayout({
             {children}
           </ToastProvider>
         </AuthProvider>
-<script src="/widget.js" data-company-id="RjR6IBzbd2YX2TLFoXwuHzY2N3O2"></script>
+        <WidgetScript companyId="RjR6IBzbd2YX2TLFoXwuHzY2N3O2" />
       </body>
     </html>
   )
