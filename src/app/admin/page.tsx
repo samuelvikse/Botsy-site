@@ -162,7 +162,7 @@ function AdminContent() {
     : user?.email?.substring(0, 2).toUpperCase() || 'U'
 
   return (
-    <div className="min-h-screen bg-botsy-dark flex">
+    <div className="h-screen bg-botsy-dark flex overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -176,8 +176,8 @@ function AdminContent() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 h-screen bg-botsy-dark-deep border-r border-white/[0.06] flex flex-col transform transition-transform lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      {/* Sidebar - Fixed on all screen sizes */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-botsy-dark-deep border-r border-white/[0.06] flex flex-col transform transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 border-b border-white/[0.06] flex-shrink-0">
           <Link href="/" className="flex items-center gap-2">
             <Image
@@ -281,8 +281,8 @@ function AdminContent() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content - Add left margin for fixed sidebar on desktop */}
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
         {/* Top Bar */}
         <header className="h-16 border-b border-white/[0.06] flex items-center justify-between px-4 lg:px-6 bg-botsy-dark-deep/50">
           <div className="flex items-center gap-4">
@@ -311,8 +311,8 @@ function AdminContent() {
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4 lg:p-6">
+        {/* Page Content - Scrollable area */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {activeTab === 'dashboard' && companyId && <DashboardView companyId={companyId} onViewAllConversations={() => setActiveTab('conversations')} />}
           {activeTab === 'conversations' && companyId && <ConversationsView companyId={companyId} />}
           {activeTab === 'knowledge' && companyId && <KnowledgeBaseView companyId={companyId} />}
