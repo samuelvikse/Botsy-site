@@ -246,12 +246,15 @@ EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
   }
 
   if (faqs.length > 0) {
-    systemPrompt += '\n\nVanlige spørsmål og svar:'
+    systemPrompt += `\n\nKUNNSKAPSBASE:
+VIKTIG: ALDRI kopier svarene ordrett - bruk din egen formulering. Forstå innholdet og forklar det naturlig med egne ord.
+
+Tilgjengelig kunnskap:`
     for (const faq of faqs.slice(0, 10)) {
       const question = faq.question as string | undefined
       const answer = faq.answer as string | undefined
       if (question && answer) {
-        systemPrompt += `\nQ: ${question}\nA: ${answer}`
+        systemPrompt += `\nTema: ${question}\nInfo: ${answer}`
       }
     }
   }

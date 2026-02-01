@@ -298,19 +298,22 @@ PRIORITERING AV INFORMASJON:
   }
 
   if (faqs.length > 0) {
-    systemPrompt += '\n\nVanlige spørsmål og svar:'
+    systemPrompt += `\n\nKUNNSKAPSBASE:
+VIKTIG: ALDRI kopier svarene ordrett - bruk din egen formulering. Forstå innholdet og forklar det naturlig med egne ord. Tilpass til samtalen.
+
+Tilgjengelig kunnskap:`
     for (const faq of faqs.slice(0, 10)) {
       const question = faq.question as string | undefined
       const answer = faq.answer as string | undefined
       if (question && answer) {
-        systemPrompt += `\nQ: ${question}\nA: ${answer}`
+        systemPrompt += `\nTema: ${question}\nInfo: ${answer}`
       }
     }
   }
 
   // Add knowledge from uploaded documents (sorted by newest first)
   if (knowledgeDocs && knowledgeDocs.length > 0) {
-    systemPrompt += '\n\n=== BEDRIFTSDOKUMENTER (nyeste først - prioriter nyere info ved konflikt) ==='
+    systemPrompt += '\n\n=== BEDRIFTSDOKUMENTER (omformuler alltid med egne ord) ==='
 
     // Process each document with date info for AI to understand priority
     for (const doc of knowledgeDocs) {
@@ -319,9 +322,9 @@ PRIORITERING AV INFORMASJON:
 
       // FAQs from this document
       if (doc.faqs.length > 0) {
-        systemPrompt += '\nSpørsmål og svar:'
+        systemPrompt += '\nKunnskap (omformuler):'
         for (const faq of doc.faqs.slice(0, 10)) {
-          systemPrompt += `\nQ: ${faq.question}\nA: ${faq.answer}`
+          systemPrompt += `\nTema: ${faq.question}\nInfo: ${faq.answer}`
         }
       }
 

@@ -644,9 +644,18 @@ ${toneGuide}
 
   // Add FAQs as knowledge base
   if (faqs?.length > 0) {
-    prompt += `\nVANLIGE SPØRSMÅL OG SVAR:\n`
+    prompt += `\nKUNNSKAPSBASE (Spørsmål og svar):
+VIKTIG OM BRUK AV KUNNSKAPSBASEN:
+- ALDRI kopier svarene ordrett - bruk din egen formulering
+- Forstå INNHOLDET og forklar det naturlig med egne ord
+- Tilpass svaret til samtalen og kundens spørsmål
+- Du kan legge til kontekst, forkorte, eller utdype etter behov
+- Målet er å gi samme INFORMASJON, men med naturlig, conversational tone
+- Svar som om du FORSTÅR temaet, ikke som om du leser fra et skript
+
+Tilgjengelig kunnskap:\n`
     faqs.forEach((faq, i) => {
-      prompt += `${i + 1}. Spørsmål: ${faq.question}\n   Svar: ${faq.answer}\n\n`
+      prompt += `${i + 1}. Tema: ${faq.question}\n   Informasjon: ${faq.answer}\n\n`
     })
   }
 
@@ -667,9 +676,9 @@ ${toneGuide}
       prompt += `\n--- Fra dokument: ${fileName} (lastet opp: ${dateStr}) ---\n`
 
       if (doc.faqs.length > 0) {
-        prompt += 'Spørsmål og svar:\n'
+        prompt += 'Kunnskap fra dokument (omformuler med egne ord):\n'
         doc.faqs.forEach((faq, i) => {
-          prompt += `${i + 1}. Q: ${faq.question}\n   A: ${faq.answer}\n`
+          prompt += `${i + 1}. Tema: ${faq.question}\n   Info: ${faq.answer}\n`
         })
       }
 
