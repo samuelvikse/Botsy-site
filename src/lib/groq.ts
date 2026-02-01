@@ -455,7 +455,16 @@ interface CustomerChatContext {
   knowledgeDocuments?: KnowledgeData[]
 }
 
-function buildIndustryExpertise(industry: string): string {
+function buildIndustryExpertise(industry: string | undefined): string {
+  // Handle undefined or empty industry
+  if (!industry) {
+    return `Du har generell forståelse for kundeservice og kan svare på vanlige spørsmål om:
+- Tjenester og produkter
+- Priser og tilgjengelighet
+- Bestilling og kontakt
+- Åpningstider og lokasjon`
+  }
+
   // Generate industry-specific expertise and knowledge
   const industryExpertise: Record<string, string> = {
     'Restaurant': `Du har dyp kunnskap om restaurantbransjen, inkludert:
@@ -518,7 +527,7 @@ function buildIndustryExpertise(industry: string): string {
   }
 
   // Generic industry expertise
-  return `Du har god forståelse for ${industry}-bransjen og kan svare på vanlige spørsmål om:
+  return `Du har god forståelse for ${industry || 'denne'}-bransjen og kan svare på vanlige spørsmål om:
 - Tjenester og produkter
 - Priser og tilgjengelighet
 - Bestilling og kontakt
