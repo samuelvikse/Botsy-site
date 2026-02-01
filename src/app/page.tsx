@@ -18,12 +18,14 @@ import {
   Sparkles,
   ArrowRight,
   Menu,
-  X
+  X,
+  LayoutDashboard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Animation variants
 const fadeInUp = {
@@ -56,6 +58,7 @@ const slideInRight = {
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, loading } = useAuth()
 
   return (
     <div className="min-h-screen bg-botsy-dark overflow-x-hidden">
@@ -107,17 +110,28 @@ export default function LandingPage() {
           </div>
 
           <div className="hidden lg:flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-[#A8B4C8] hover:text-white">
-                Logg inn
-              </Button>
-            </Link>
-            <Link href="/prov-gratis">
-              <Button size="sm" className="shadow-lg shadow-botsy-lime/20">
-                Prøv gratis
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            {!loading && user ? (
+              <Link href="/admin">
+                <Button size="sm" className="shadow-lg shadow-botsy-lime/20">
+                  <LayoutDashboard className="h-4 w-4 mr-1.5" />
+                  Admin
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="sm" className="text-[#A8B4C8] hover:text-white">
+                    Logg inn
+                  </Button>
+                </Link>
+                <Link href="/prov-gratis">
+                  <Button size="sm" className="shadow-lg shadow-botsy-lime/20">
+                    Prøv gratis
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -143,8 +157,19 @@ export default function LandingPage() {
               <Link href="#how-it-works" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Slik fungerer det</Link>
               <Link href="/kontakt" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Kontakt</Link>
               <div className="h-px bg-white/[0.06] my-2" />
-              <Link href="/login"><Button variant="outline" className="w-full">Logg inn</Button></Link>
-              <Link href="/prov-gratis"><Button className="w-full shadow-lg shadow-botsy-lime/20">Prøv gratis</Button></Link>
+              {!loading && user ? (
+                <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                  <Button className="w-full shadow-lg shadow-botsy-lime/20">
+                    <LayoutDashboard className="h-4 w-4 mr-1.5" />
+                    Admin
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}><Button variant="outline" className="w-full">Logg inn</Button></Link>
+                  <Link href="/prov-gratis" onClick={() => setMobileMenuOpen(false)}><Button className="w-full shadow-lg shadow-botsy-lime/20">Prøv gratis</Button></Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}
@@ -972,8 +997,14 @@ export default function LandingPage() {
               <h4 className="text-white font-semibold mb-4">Ressurser</h4>
               <ul className="space-y-3 text-sm">
                 <li><Link href="/kontakt" className="text-[#6B7A94] hover:text-white transition-colors">Kontakt oss</Link></li>
-                <li><Link href="/login" className="text-[#6B7A94] hover:text-white transition-colors">Logg inn</Link></li>
-                <li><Link href="/registrer" className="text-[#6B7A94] hover:text-white transition-colors">Registrer</Link></li>
+                {user ? (
+                  <li><Link href="/admin" className="text-[#6B7A94] hover:text-white transition-colors">Admin</Link></li>
+                ) : (
+                  <>
+                    <li><Link href="/login" className="text-[#6B7A94] hover:text-white transition-colors">Logg inn</Link></li>
+                    <li><Link href="/registrer" className="text-[#6B7A94] hover:text-white transition-colors">Registrer</Link></li>
+                  </>
+                )}
               </ul>
             </div>
 
