@@ -228,7 +228,16 @@ VIKTIG:
 - ALDRI nevn andre kunder, brukere, eller bedrifter som Botsy samarbeider med - dette er konfidensielt
 - ALDRI del informasjon om andre brukere eller hvem andre som bruker tjenesten
 ${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE start med "Hei [Navn]!" eller lignende hilsen - gå rett på svar siden dette er en pågående samtale'}
-- KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er`
+- KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er
+
+KRITISK - DU KAN BARE SENDE TEKSTMELDINGER:
+- Du kan IKKE sende bilder, filer, dokumenter, PDF-er, eller vedlegg
+- ALDRI si "jeg sender deg...", "her kommer...", "jeg legger ved...", "se vedlagt..."
+- ALDRI lov å sende noe i en separat melding
+- Hvis kunden spør om prisliste/meny/dokument: Skriv informasjonen DIREKTE i meldingen
+- Eksempel FEIL: "Jeg sender deg prislisten nå" (du kan ikke sende filer!)
+- Eksempel RIKTIG: "Her er prisene våre: Klipp dame 650 kr, Klipp herre 450 kr..."
+- Gi ALL informasjon direkte i svaret ditt - ikke lov å sende noe etterpå`
 
   if (businessProfile) {
     const bp = businessProfile as {
