@@ -160,7 +160,16 @@ export default function LoginPage() {
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-              <p className="text-red-400 text-sm">{error}</p>
+              {error.includes('Ingen bruker funnet') ? (
+                <p className="text-red-400 text-sm">
+                  Denne e-postadressen er ikke registrert.{' '}
+                  <Link href="/registrer" className="underline hover:text-red-300">
+                    Opprett en konto her
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-red-400 text-sm">{error}</p>
+              )}
             </div>
           )}
 

@@ -44,7 +44,7 @@ export function OwnershipTransferOfferEmail({
             {/* Header */}
             <Section style={styles.header}>
               <Img
-                src="https://botsy.no/brand/botsy-full-logo.svg"
+                src="https://botsy.no/email/botsy-logo.png"
                 width="120"
                 height="40"
                 alt="Botsy"
@@ -54,20 +54,9 @@ export function OwnershipTransferOfferEmail({
 
             {/* Content */}
             <Section style={styles.content}>
-              {/* Icon */}
+              {/* Icon - using emoji as fallback */}
               <Section style={{ textAlign: 'center' as const }}>
-                <Section style={{
-                  ...styles.iconContainer,
-                  backgroundColor: 'rgba(253, 203, 110, 0.1)',
-                  border: '1px solid rgba(253, 203, 110, 0.2)',
-                }}>
-                  <Img
-                    src="https://botsy.no/email/icon-crown.png"
-                    width="32"
-                    height="32"
-                    alt=""
-                  />
-                </Section>
+                <Text style={{ fontSize: '48px', margin: '0 0 8px 0' }}>👑</Text>
               </Section>
 
               <Heading style={styles.heading}>
