@@ -147,11 +147,15 @@ async function processMessage(
     })
 
     // Send response via Messenger
+    console.log('[Messenger] AI response to send:', aiResponse?.substring(0, 50), '... length:', aiResponse?.length)
+
     if (channel.credentials.pageAccessToken) {
+      console.log('[Messenger] Sending to Facebook...')
       const result = await sendMessengerMessage(
         { pageAccessToken: channel.credentials.pageAccessToken, appSecret: channel.credentials.appSecret || '' },
         { recipientId: message.senderId, text: aiResponse }
       )
+      console.log('[Messenger] Facebook send result:', result.success, result.error || '')
 
       if (result.success) {
         // Save outgoing message
@@ -163,9 +167,11 @@ async function processMessage(
           messageId: result.messageId,
         })
       }
+    } else {
+      console.log('[Messenger] No pageAccessToken!')
     }
-  } catch {
-    // Silently fail - Facebook expects 200 response
+  } catch (error) {
+    console.error('[Messenger] Error in processMessage:', error)
   }
 }
 
