@@ -717,7 +717,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         <div
           className={`p-3 rounded-2xl ${
             isUser
-              ? 'bg-botsy-lime text-botsy-dark rounded-br-md'
+              ? 'bg-[#1E3A5F] text-white rounded-br-md'
               : isManual
               ? 'bg-amber-500/20 text-white rounded-bl-md border border-amber-500/30'
               : 'bg-white/[0.05] text-white rounded-bl-md'
