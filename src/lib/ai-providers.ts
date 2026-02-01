@@ -60,12 +60,26 @@ async function callGemini(
     console.log('[AI Gemini] Calling API with key starting with:', apiKey.substring(0, 10) + '...')
 
     // Convert messages to Gemini format
-    const geminiContents = messages
-      .filter(m => m.role !== 'system')
-      .map(m => ({
+    // gemini-pro doesn't support systemInstruction, so prepend it to first user message
+    const geminiContents: Array<{ role: string; parts: Array<{ text: string }> }> = []
+
+    // Add system prompt as first user message
+    geminiContents.push({
+      role: 'user',
+      parts: [{ text: `System instructions: ${systemPrompt}\n\nNow respond to the conversation below.` }]
+    })
+    geminiContents.push({
+      role: 'model',
+      parts: [{ text: 'Forstått. Jeg vil følge disse instruksjonene.' }]
+    })
+
+    // Add conversation messages
+    for (const m of messages.filter(msg => msg.role !== 'system')) {
+      geminiContents.push({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.content }]
-      }))
+      })
+    }
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`,
@@ -73,7 +87,6 @@ async function callGemini(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: geminiContents,
           generationConfig: {
             maxOutputTokens: maxTokens,
