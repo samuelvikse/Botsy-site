@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   MessageCircle,
   Sparkles,
@@ -16,11 +16,11 @@ import {
   Check,
   Smile,
   AlignLeft,
+  Cloud,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { saveToneConfig, getBusinessProfile } from '@/lib/firestore'
-import { useUnsavedChanges } from '@/contexts/UnsavedChangesContext'
 import type { ToneConfig, BusinessProfile, HumorLevel, ResponseLength } from '@/types'
 
 interface ToneConfigViewProps {
@@ -54,7 +54,6 @@ const PREFERRED_PHRASE_SUGGESTIONS = [
 ]
 
 export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProps) {
-  const { setHasUnsavedChanges, setSaveCallback } = useUnsavedChanges()
   const [config, setConfig] = useState<ToneConfig>({
     customInstructions: '',
     personality: '',
@@ -74,6 +73,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   const [useEmojis, setUseEmojis] = useState(true)
   const [humorLevel, setHumorLevel] = useState<HumorLevel>('subtle')
   const [responseLength, setResponseLength] = useState<ResponseLength>('balanced')
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load existing config
   useEffect(() => {
@@ -134,75 +134,50 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
     }
   }, [companyId, initialProfile])
 
-  // Handle save function
-  const handleSave = useCallback(async () => {
-    setIsSaving(true)
-    setSaveSuccess(false)
-    try {
-      await saveToneConfig(companyId, {
-        ...config,
-        tone: currentTone,
-        greeting,
-        useEmojis,
-        humorLevel,
-        responseLength,
-      })
-      setSaveSuccess(true)
-      setHasUnsavedChanges(false)
-      setTimeout(() => setSaveSuccess(false), 3000)
-    } catch {
-      // Silent fail
-    } finally {
-      setIsSaving(false)
-    }
-  }, [companyId, config, currentTone, greeting, useEmojis, humorLevel, responseLength, setHasUnsavedChanges])
-
-  // Register save callback with context and clear on unmount
+  // Auto-save when settings change (debounced)
   useEffect(() => {
-    setSaveCallback(handleSave)
+    if (!isInitialized) return
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    // Set a new timeout to save after 800ms of no changes
+    saveTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true)
+      try {
+        await saveToneConfig(companyId, {
+          ...config,
+          tone: currentTone,
+          greeting,
+          useEmojis,
+          humorLevel,
+          responseLength,
+        })
+        setSaveSuccess(true)
+        setTimeout(() => setSaveSuccess(false), 2000)
+      } catch {
+        // Silent fail
+      } finally {
+        setIsSaving(false)
+      }
+    }, 800)
+
     return () => {
-      setSaveCallback(null)
-      setHasUnsavedChanges(false)
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
     }
-  }, [handleSave, setSaveCallback, setHasUnsavedChanges])
+  }, [companyId, config, currentTone, greeting, useEmojis, humorLevel, responseLength, isInitialized])
 
-  // Helper to mark changes - called by user interactions
-  const markChanged = useCallback(() => {
-    if (isInitialized) {
-      setHasUnsavedChanges(true)
-    }
-  }, [isInitialized, setHasUnsavedChanges])
-
-  // Wrapper setters that mark changes
-  const updateConfig = useCallback((updater: (c: ToneConfig) => ToneConfig) => {
-    setConfig(updater)
-    markChanged()
-  }, [markChanged])
-
-  const updateTone = useCallback((tone: 'formal' | 'friendly' | 'casual') => {
-    setCurrentTone(tone)
-    markChanged()
-  }, [markChanged])
-
-  const updateGreeting = useCallback((value: string) => {
-    setGreeting(value)
-    markChanged()
-  }, [markChanged])
-
-  const updateUseEmojis = useCallback((value: boolean) => {
-    setUseEmojis(value)
-    markChanged()
-  }, [markChanged])
-
-  const updateHumorLevel = useCallback((value: HumorLevel) => {
-    setHumorLevel(value)
-    markChanged()
-  }, [markChanged])
-
-  const updateResponseLength = useCallback((value: ResponseLength) => {
-    setResponseLength(value)
-    markChanged()
-  }, [markChanged])
+  // Simple aliases for setters (auto-save handles the rest)
+  const updateConfig = setConfig
+  const updateTone = setCurrentTone
+  const updateGreeting = setGreeting
+  const updateUseEmojis = setUseEmojis
+  const updateHumorLevel = setHumorLevel
+  const updateResponseLength = setResponseLength
 
   const addAvoidPhrase = () => {
     if (newAvoidPhrase.trim() && !config.avoidPhrases?.includes(newAvoidPhrase.trim())) {
@@ -272,11 +247,48 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-1">Tone-konfigurasjon</h1>
-        <p className="text-[#6B7A94]">
-          Finjuster hvordan Botsy kommuniserer med kundene dine
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-1">Tone-konfigurasjon</h1>
+          <p className="text-[#6B7A94]">
+            Finjuster hvordan Botsy kommuniserer med kundene dine
+          </p>
+        </div>
+        <AnimatePresence mode="wait">
+          {isSaving ? (
+            <motion.div
+              key="saving"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.05] rounded-full"
+            >
+              <Loader2 className="h-3.5 w-3.5 text-botsy-lime animate-spin" />
+              <span className="text-[#A8B4C8] text-sm">Lagrer...</span>
+            </motion.div>
+          ) : saveSuccess ? (
+            <motion.div
+              key="saved"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-full"
+            >
+              <Check className="h-3.5 w-3.5 text-green-400" />
+              <span className="text-green-400 text-sm">Lagret</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="autosave"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-2 px-3 py-1.5 text-[#6B7A94]"
+            >
+              <Cloud className="h-3.5 w-3.5" />
+              <span className="text-sm">Auto-lagring på</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Basic Tone Settings */}
@@ -664,17 +676,6 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         </div>
       </div>
 
-      {/* Success message */}
-      {saveSuccess && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm"
-        >
-          <Check className="h-4 w-4" />
-          Lagret!
-        </motion.div>
-      )}
     </div>
   )
 }

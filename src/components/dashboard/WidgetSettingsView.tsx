@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2, Maximize2, Sparkles, Play, X } from 'lucide-react'
+import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2, Maximize2, Sparkles, Play, X, Cloud } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { updateWidgetSettings } from '@/lib/firestore'
 import { uploadCompanyLogo, deleteCompanyLogo } from '@/lib/storage'
-import { useUnsavedChanges } from '@/contexts/UnsavedChangesContext'
 
 interface WidgetSettingsViewProps {
   companyId: string
@@ -88,7 +87,6 @@ export function WidgetSettingsView({
   initialSettings,
   businessName,
 }: WidgetSettingsViewProps) {
-  const { setHasUnsavedChanges, setSaveCallback } = useUnsavedChanges()
   const [settings, setSettings] = useState({
     primaryColor: initialSettings?.primaryColor || '#CCFF00',
     position: initialSettings?.position || 'bottom-right',
@@ -108,6 +106,7 @@ export function WidgetSettingsView({
   const [animationPreview, setAnimationPreview] = useState<string | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
 
@@ -118,42 +117,38 @@ export function WidgetSettingsView({
     setIsInitialized(true)
   }, [])
 
-  // Handle save function
-  const handleSave = useCallback(async () => {
-    setIsSaving(true)
-    try {
-      await updateWidgetSettings(companyId, settings)
-      setHasUnsavedChanges(false)
-      setSaveSuccess(true)
-      setTimeout(() => setSaveSuccess(false), 3000)
-    } catch {
-      // Silent fail
-    } finally {
-      setIsSaving(false)
-    }
-  }, [companyId, settings, setHasUnsavedChanges])
-
-  // Register save callback with context and clear on unmount
+  // Auto-save when settings change (debounced)
   useEffect(() => {
-    setSaveCallback(handleSave)
+    if (!isInitialized) return
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    // Set a new timeout to save after 800ms of no changes
+    saveTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true)
+      try {
+        await updateWidgetSettings(companyId, settings)
+        setSaveSuccess(true)
+        setTimeout(() => setSaveSuccess(false), 2000)
+      } catch {
+        // Silent fail
+      } finally {
+        setIsSaving(false)
+      }
+    }, 800)
+
     return () => {
-      setSaveCallback(null)
-      setHasUnsavedChanges(false)
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
     }
-  }, [handleSave, setSaveCallback, setHasUnsavedChanges])
+  }, [companyId, settings, isInitialized])
 
-  // Helper to mark changes - called by user interactions
-  const markChanged = useCallback(() => {
-    if (isInitialized) {
-      setHasUnsavedChanges(true)
-    }
-  }, [isInitialized, setHasUnsavedChanges])
-
-  // Wrapper setter that marks changes
-  const updateSettings = useCallback((updater: (s: typeof settings) => typeof settings) => {
-    setSettings(updater)
-    markChanged()
-  }, [markChanged])
+  // Simple alias for setter (auto-save handles the rest)
+  const updateSettings = setSettings
 
   const handleCopy = async () => {
     try {
@@ -250,22 +245,48 @@ export function WidgetSettingsView({
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-1">Chat Widget</h1>
-        <p className="text-[#6B7A94]">Tilpass utseendet og legg widgeten på nettsiden din</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-1">Chat Widget</h1>
+          <p className="text-[#6B7A94]">Tilpass utseendet og legg widgeten på nettsiden din</p>
+        </div>
+        <AnimatePresence mode="wait">
+          {isSaving ? (
+            <motion.div
+              key="saving"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.05] rounded-full"
+            >
+              <Loader2 className="h-3.5 w-3.5 text-botsy-lime animate-spin" />
+              <span className="text-[#A8B4C8] text-sm">Lagrer...</span>
+            </motion.div>
+          ) : saveSuccess ? (
+            <motion.div
+              key="saved"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-full"
+            >
+              <Check className="h-3.5 w-3.5 text-green-400" />
+              <span className="text-green-400 text-sm">Lagret</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="autosave"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-2 px-3 py-1.5 text-[#6B7A94]"
+            >
+              <Cloud className="h-3.5 w-3.5" />
+              <span className="text-sm">Auto-lagring på</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Success message */}
-      {saveSuccess && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm"
-        >
-          <Check className="h-4 w-4" />
-          Lagret!
-        </motion.div>
-      )}
 
       {/* Enable/Disable Toggle */}
       <Card className="p-4">
