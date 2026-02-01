@@ -160,6 +160,9 @@ export async function POST(
         )
       }
 
+      console.log('[Chat API] widgetSettings:', JSON.stringify(companyData?.widgetSettings))
+      console.log('[Chat API] isEnabled value:', companyData?.widgetSettings?.isEnabled, 'type:', typeof companyData?.widgetSettings?.isEnabled)
+
       if (!companyData?.widgetSettings?.isEnabled) {
         return NextResponse.json(
           { success: false, error: 'Chat er ikke aktivert for denne bedriften' },
