@@ -156,16 +156,31 @@ export async function saveToneConfig(
     greeting?: string
     useEmojis?: boolean
     humorLevel?: 'none' | 'subtle' | 'moderate' | 'playful'
+    language?: string
+    languageName?: string
   }
 ): Promise<void> {
   if (!db) throw new Error('Firestore not initialized')
 
   const docRef = doc(db, 'companies', companyId)
 
-  await updateDoc(docRef, {
-    'businessProfile.toneConfig': toneConfig,
+  // Extract language fields to save at businessProfile level
+  const { language, languageName, ...restToneConfig } = toneConfig
+
+  const updateData: Record<string, unknown> = {
+    'businessProfile.toneConfig': restToneConfig,
     updatedAt: serverTimestamp(),
-  })
+  }
+
+  // Save language at businessProfile level (not inside toneConfig)
+  if (language) {
+    updateData['businessProfile.language'] = language
+  }
+  if (languageName) {
+    updateData['businessProfile.languageName'] = languageName
+  }
+
+  await updateDoc(docRef, updateData)
 }
 
 // ============================================
