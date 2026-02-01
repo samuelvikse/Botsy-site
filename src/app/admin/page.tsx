@@ -3,7 +3,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -12,32 +11,18 @@ import {
   Settings,
   BarChart3,
   Users,
-  Bell,
   Search,
-  ChevronDown,
-  LogOut,
   Plus,
   Filter,
-  MoreHorizontal,
-  Send,
-  Paperclip,
   Clock,
   CheckCheck,
-  AlertCircle,
   TrendingUp,
   TrendingDown,
   Zap,
   Bot,
   User,
   Phone,
-  Mail,
   MessageCircle,
-  ArrowUpRight,
-  Calendar,
-  FileText,
-  Trash2,
-  Edit,
-  Eye,
   ChevronRight,
   Menu,
   X,
@@ -49,13 +34,18 @@ import {
   Shield,
   Globe,
   Copy,
-  EyeOff
+  EyeOff,
+  Trash2,
+  Edit,
+  Eye,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
+import { usePermissions, PermissionProvider } from '@/contexts/PermissionContext'
 import { BotsyChatPanel } from '@/components/dashboard/BotsyChatPanel'
 import { InstructionsView } from '@/components/dashboard/InstructionsView'
 import { WidgetSettingsView } from '@/components/dashboard/WidgetSettingsView'
@@ -65,6 +55,8 @@ import { ToneConfigView } from '@/components/dashboard/ToneConfigView'
 import { KnowledgeDocsView } from '@/components/dashboard/KnowledgeDocsView'
 import { ChannelsView } from '@/components/dashboard/ChannelsView'
 import SecuritySettingsView from '@/components/dashboard/SecuritySettingsView'
+import { EmployeesView } from '@/components/dashboard/EmployeesView'
+import { ProfileDropdown } from '@/components/dashboard/ProfileDropdown'
 import { SimpleNotificationBell } from '@/components/ui/notification-panel'
 import { ConfirmDialog, InputDialog, Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
@@ -73,12 +65,14 @@ import { db } from '@/lib/firebase'
 import { saveInstruction } from '@/lib/firestore'
 import type { BusinessProfile, Instruction } from '@/types'
 
-type Tab = 'dashboard' | 'conversations' | 'knowledge' | 'documents' | 'instructions' | 'analytics' | 'widget' | 'channels' | 'tone' | 'security' | 'settings'
+type Tab = 'dashboard' | 'conversations' | 'knowledge' | 'documents' | 'instructions' | 'analytics' | 'widget' | 'channels' | 'tone' | 'security' | 'settings' | 'employees'
 
 export default function AdminPanel() {
   return (
     <ProtectedRoute>
-      <AdminContent />
+      <PermissionProvider>
+        <AdminContent />
+      </PermissionProvider>
     </ProtectedRoute>
   )
 }
@@ -96,8 +90,8 @@ function AdminContent() {
     logoUrl: null as string | null,
     widgetSize: 'medium' as 'small' | 'medium' | 'large',
   })
-  const { user, userData, signOut } = useAuth()
-  const router = useRouter()
+  const { user, userData } = useAuth()
+  const { hasAccess } = usePermissions()
 
   const companyId = userData?.companyId || user?.uid
 
@@ -150,11 +144,6 @@ function AdminContent() {
     fetchData()
   }, [fetchData])
 
-  const handleSignOut = async () => {
-    await signOut()
-    router.push('/login')
-  }
-
   const handleInstructionCreated = async (instruction: Instruction) => {
     if (!companyId) return
 
@@ -177,11 +166,6 @@ function AdminContent() {
       console.error('Failed to save instruction:', error)
     }
   }
-
-  // Get user initials
-  const userInitials = user?.displayName
-    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
-    : user?.email?.substring(0, 2).toUpperCase() || 'U'
 
   return (
     <div className="h-screen bg-botsy-dark flex overflow-hidden">
@@ -213,93 +197,108 @@ function AdminContent() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <NavItem
-            icon={<LayoutDashboard className="h-5 w-5" />}
-            label="Dashboard"
-            active={activeTab === 'dashboard'}
-            onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<MessageSquare className="h-5 w-5" />}
-            label="Samtaler"
-            active={activeTab === 'conversations'}
-            onClick={() => { setActiveTab('conversations'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<BookOpen className="h-5 w-5" />}
-            label="Kunnskapsbase"
-            active={activeTab === 'knowledge'}
-            onClick={() => { setActiveTab('knowledge'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<FileUp className="h-5 w-5" />}
-            label="Dokumenter"
-            active={activeTab === 'documents'}
-            onClick={() => { setActiveTab('documents'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<ListChecks className="h-5 w-5" />}
-            label="Instruksjoner"
-            active={activeTab === 'instructions'}
-            onClick={() => { setActiveTab('instructions'); setSidebarOpen(false); }}
-            badge={instructions.length > 0 ? instructions.length : undefined}
-          />
-          <NavItem
-            icon={<Code2 className="h-5 w-5" />}
-            label="Widget"
-            active={activeTab === 'widget'}
-            onClick={() => { setActiveTab('widget'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<Sparkles className="h-5 w-5" />}
-            label="Tone-konfigurasjon"
-            active={activeTab === 'tone'}
-            onClick={() => { setActiveTab('tone'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<Layers className="h-5 w-5" />}
-            label="Kanaler"
-            active={activeTab === 'channels'}
-            onClick={() => { setActiveTab('channels'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<BarChart3 className="h-5 w-5" />}
-            label="Analyser"
-            active={activeTab === 'analytics'}
-            onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<Shield className="h-5 w-5" />}
-            label="Sikkerhet"
-            active={activeTab === 'security'}
-            onClick={() => { setActiveTab('security'); setSidebarOpen(false); }}
-          />
-          <NavItem
-            icon={<Settings className="h-5 w-5" />}
-            label="Innstillinger"
-            active={activeTab === 'settings'}
-            onClick={() => { setActiveTab('settings'); setSidebarOpen(false); }}
-          />
+          {hasAccess('dashboard') && (
+            <NavItem
+              icon={<LayoutDashboard className="h-5 w-5" />}
+              label="Dashboard"
+              active={activeTab === 'dashboard'}
+              onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('conversations') && (
+            <NavItem
+              icon={<MessageSquare className="h-5 w-5" />}
+              label="Samtaler"
+              active={activeTab === 'conversations'}
+              onClick={() => { setActiveTab('conversations'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('knowledge') && (
+            <NavItem
+              icon={<BookOpen className="h-5 w-5" />}
+              label="Kunnskapsbase"
+              active={activeTab === 'knowledge'}
+              onClick={() => { setActiveTab('knowledge'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('documents') && (
+            <NavItem
+              icon={<FileUp className="h-5 w-5" />}
+              label="Dokumenter"
+              active={activeTab === 'documents'}
+              onClick={() => { setActiveTab('documents'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('instructions') && (
+            <NavItem
+              icon={<ListChecks className="h-5 w-5" />}
+              label="Instruksjoner"
+              active={activeTab === 'instructions'}
+              onClick={() => { setActiveTab('instructions'); setSidebarOpen(false); }}
+              badge={instructions.length > 0 ? instructions.length : undefined}
+            />
+          )}
+          {hasAccess('widget') && (
+            <NavItem
+              icon={<Code2 className="h-5 w-5" />}
+              label="Widget"
+              active={activeTab === 'widget'}
+              onClick={() => { setActiveTab('widget'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('tone') && (
+            <NavItem
+              icon={<Sparkles className="h-5 w-5" />}
+              label="Tone-konfigurasjon"
+              active={activeTab === 'tone'}
+              onClick={() => { setActiveTab('tone'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('channels') && (
+            <NavItem
+              icon={<Layers className="h-5 w-5" />}
+              label="Kanaler"
+              active={activeTab === 'channels'}
+              onClick={() => { setActiveTab('channels'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('analytics') && (
+            <NavItem
+              icon={<BarChart3 className="h-5 w-5" />}
+              label="Analyser"
+              active={activeTab === 'analytics'}
+              onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('employees') && (
+            <NavItem
+              icon={<Users className="h-5 w-5" />}
+              label="Ansatte"
+              active={activeTab === 'employees'}
+              onClick={() => { setActiveTab('employees'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('security') && (
+            <NavItem
+              icon={<Shield className="h-5 w-5" />}
+              label="Sikkerhet"
+              active={activeTab === 'security'}
+              onClick={() => { setActiveTab('security'); setSidebarOpen(false); }}
+            />
+          )}
+          {hasAccess('settings') && (
+            <NavItem
+              icon={<Settings className="h-5 w-5" />}
+              label="Innstillinger"
+              active={activeTab === 'settings'}
+              onClick={() => { setActiveTab('settings'); setSidebarOpen(false); }}
+            />
+          )}
         </nav>
 
         {/* User Menu */}
         <div className="p-4 border-t border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] cursor-pointer transition-colors group">
-            <div className="h-9 w-9 rounded-full bg-botsy-lime/20 flex items-center justify-center text-botsy-lime font-medium text-sm">
-              {userInitials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">{user?.displayName || 'Bruker'}</p>
-              <p className="text-[#6B7A94] text-xs truncate">{user?.email}</p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="p-2 text-[#6B7A94] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-              title="Logg ut"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
+          <ProfileDropdown onNavigateToSettings={() => { setActiveTab('settings'); setSidebarOpen(false); }} />
         </div>
       </aside>
 
@@ -364,6 +363,7 @@ function AdminContent() {
           {activeTab === 'tone' && companyId && (
             <ToneConfigView companyId={companyId} initialProfile={businessProfile} />
           )}
+          {activeTab === 'employees' && companyId && <EmployeesView companyId={companyId} />}
           {activeTab === 'security' && <SecuritySettingsView />}
           {activeTab === 'settings' && companyId && <SettingsView companyId={companyId} onNavigateToChannels={() => setActiveTab('channels')} />}
         </main>

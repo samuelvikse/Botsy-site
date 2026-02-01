@@ -87,3 +87,88 @@ export async function deleteCompanyLogo(logoUrl: string): Promise<void> {
     // Ignore errors if file doesn't exist
   }
 }
+
+/**
+ * Upload a user avatar to Firebase Storage
+ * @param userId - The user's unique ID
+ * @param file - The image file to upload
+ * @returns The download URL of the uploaded image
+ */
+export async function uploadUserAvatar(
+  userId: string,
+  file: File
+): Promise<string> {
+  if (!storage) {
+    throw new Error('Firebase Storage er ikke konfigurert. Kontakt support.')
+  }
+
+  // Validate file type
+  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  if (!validTypes.includes(file.type)) {
+    throw new Error('Ugyldig filtype. Bruk JPG, PNG, GIF eller WebP.')
+  }
+
+  // Validate file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024 // 5MB
+  if (file.size > maxSize) {
+    throw new Error('Filen er for stor. Maks 5MB.')
+  }
+
+  // Create a unique filename
+  const extension = file.name.split('.').pop() || 'png'
+  const filename = `avatar_${Date.now()}.${extension}`
+  const storagePath = `users/${userId}/avatars/${filename}`
+
+  // Create storage reference
+  const storageRef = ref(storage, storagePath)
+
+  try {
+    // Upload the file
+    const snapshot = await uploadBytes(storageRef, file, {
+      contentType: file.type,
+      customMetadata: {
+        uploadedAt: new Date().toISOString(),
+        originalName: file.name,
+      },
+    })
+
+    // Get the download URL
+    const downloadUrl = await getDownloadURL(snapshot.ref)
+    return downloadUrl
+  } catch (error) {
+    // Provide more helpful error messages
+    if (error instanceof Error) {
+      if (error.message.includes('unauthorized') || error.message.includes('permission')) {
+        throw new Error('Ingen tilgang til å laste opp. Sjekk at du er logget inn.')
+      }
+      if (error.message.includes('network') || error.message.includes('fetch')) {
+        throw new Error('Nettverksfeil. Sjekk internettforbindelsen og prøv igjen.')
+      }
+      if (error.message.includes('quota')) {
+        throw new Error('Lagringskvoten er full. Kontakt support.')
+      }
+    }
+    throw error
+  }
+}
+
+/**
+ * Delete a user avatar from Firebase Storage
+ * @param avatarUrl - The URL of the avatar to delete
+ */
+export async function deleteUserAvatar(avatarUrl: string): Promise<void> {
+  if (!storage) throw new Error('Firebase Storage not initialized')
+
+  try {
+    const url = new URL(avatarUrl)
+    const pathMatch = url.pathname.match(/\/o\/(.+)$/)
+    if (!pathMatch) return
+
+    const path = decodeURIComponent(pathMatch[1].split('?')[0])
+    const storageRef = ref(storage, path)
+
+    await deleteObject(storageRef)
+  } catch {
+    // Ignore errors if file doesn't exist
+  }
+}

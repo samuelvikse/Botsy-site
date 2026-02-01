@@ -345,3 +345,124 @@ export interface SMSMessageDoc {
   providerMessageId?: string
   timestamp: unknown // Firestore Timestamp
 }
+
+// ============================================
+// Role & Permission Types
+// ============================================
+
+export type UserRole = 'owner' | 'admin' | 'employee'
+
+export interface EmployeePermissions {
+  knowledgebase: boolean
+  documents: boolean
+  instructions: boolean
+  analytics: boolean
+}
+
+export interface AdminPermissions {
+  channels: boolean
+}
+
+export type MembershipPermissions = EmployeePermissions | AdminPermissions | Record<string, never>
+
+export interface Membership {
+  id: string
+  userId: string
+  companyId: string
+  role: UserRole
+  permissions: MembershipPermissions
+  invitedBy: string
+  joinedAt: Date
+  status: 'active' | 'suspended'
+}
+
+export interface MembershipDoc {
+  userId: string
+  companyId: string
+  role: UserRole
+  permissions: MembershipPermissions
+  invitedBy: string
+  joinedAt: unknown // Firestore Timestamp
+  status: 'active' | 'suspended'
+}
+
+export interface Invitation {
+  id: string
+  companyId: string
+  email: string
+  role: 'admin' | 'employee'
+  permissions: EmployeePermissions | AdminPermissions
+  invitedBy: string
+  inviterName: string
+  companyName: string
+  createdAt: Date
+  expiresAt: Date
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled'
+  token: string
+}
+
+export interface InvitationDoc {
+  companyId: string
+  email: string
+  role: 'admin' | 'employee'
+  permissions: EmployeePermissions | AdminPermissions
+  invitedBy: string
+  inviterName: string
+  companyName: string
+  createdAt: unknown // Firestore Timestamp
+  expiresAt: unknown // Firestore Timestamp
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled'
+  token: string
+}
+
+export interface OwnershipTransfer {
+  id: string
+  companyId: string
+  fromUserId: string
+  toUserId: string
+  createdAt: Date
+  expiresAt: Date
+  fromUserConfirmed: boolean
+  toUserConfirmed: boolean
+  fromUserToken: string
+  toUserToken: string
+  status: 'pending' | 'completed' | 'expired' | 'cancelled'
+}
+
+export interface OwnershipTransferDoc {
+  companyId: string
+  fromUserId: string
+  toUserId: string
+  createdAt: unknown // Firestore Timestamp
+  expiresAt: unknown // Firestore Timestamp
+  fromUserConfirmed: boolean
+  toUserConfirmed: boolean
+  fromUserToken: string
+  toUserToken: string
+  status: 'pending' | 'completed' | 'expired' | 'cancelled'
+}
+
+// Panel names for access control
+export type PanelName =
+  | 'dashboard'
+  | 'conversations'
+  | 'knowledge'
+  | 'documents'
+  | 'instructions'
+  | 'widget'
+  | 'tone'
+  | 'channels'
+  | 'analytics'
+  | 'security'
+  | 'settings'
+  | 'employees'
+
+// Team member with user details for display
+export interface TeamMember {
+  membership: Membership
+  user: {
+    email: string
+    displayName: string
+    avatarUrl?: string
+  }
+}
