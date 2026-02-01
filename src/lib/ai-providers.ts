@@ -49,6 +49,7 @@ async function callGemini(
 ): Promise<{ success: boolean; response: string }> {
   try {
     const apiKey = process.env.GEMINI_API_KEY
+    console.log('[Gemini v2] Starting call, API key exists:', !!apiKey)
     if (!apiKey) {
       return { success: false, response: '' }
     }
