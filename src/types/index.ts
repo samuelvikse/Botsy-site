@@ -30,8 +30,11 @@ export interface BusinessProfile {
   tone: 'formal' | 'friendly' | 'casual'
   toneReason?: string // Why Botsy recommends this tone
   toneConfig?: ToneConfig // Custom tone configuration
+  language?: string // Detected website language (ISO code, e.g., 'no', 'en', 'sv')
+  languageName?: string // Human-readable language name (e.g., 'Norsk', 'English')
   services: string[]
   products: string[]
+  pricing?: Array<{ item: string; price: string }> // Pricing information from website
   terminology: string[]
   description: string
   targetAudience?: string

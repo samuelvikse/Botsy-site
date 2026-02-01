@@ -306,10 +306,10 @@ export default function LandingPage() {
               title="Flytende norsk"
               description="Botsy snakker norsk som en nordmann. Bokmål, nynorsk, eller dialekt – du bestemmer tonen."
             />
-            <FeatureCard 
+            <FeatureCard
               icon={<Zap className="h-6 w-6" />}
-              title="Lynrask opplæring"
-              description="Last opp FAQs, og Botsy lærer seg bedriften din på minutter. Oppdater når som helst."
+              title="Lærer bransjen din"
+              description="Botsy tilegner seg bransjekompetanse automatisk – akkurat som en ny kollega. Fagterminologi, vanlige spørsmål og kundens behov."
             />
             <FeatureCard 
               icon={<HeartHandshake className="h-6 w-6" />}
@@ -322,6 +322,81 @@ export default function LandingPage() {
               description="Se hva kundene spør om, hvordan Botsy presterer, og hvor du kan forbedre deg."
             />
           </motion.div>
+        </div>
+      </section>
+
+      {/* ===== INDUSTRY EXPERTISE SECTION ===== */}
+      <section className="py-24 lg:py-32 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-botsy-dark-deep/30 to-transparent" />
+        <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-botsy-lime/[0.03] rounded-full blur-[120px] translate-x-1/2" />
+
+        <div className="container relative">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <motion.div
+              variants={slideInLeft}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+            >
+              <Image
+                src="/images/bransjekompetanse.png"
+                alt="Botsy lærer bransjekompetanse"
+                width={600}
+                height={500}
+                className="w-full h-auto feathered-image"
+              />
+            </motion.div>
+
+            <motion.div
+              variants={slideInRight}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+            >
+              <Badge variant="secondary" className="mb-4">
+                <Sparkles className="h-3 w-3 mr-1.5" />
+                Bransjekunnskap
+              </Badge>
+              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6 font-display">
+                Tilegner seg bransjekompetansen automatisk
+              </h2>
+              <p className="text-lg text-[#A8B4C8] mb-8 leading-relaxed">
+                Akkurat som en ny kundeservice-kollega må lære seg bransjen, tilegner Botsy seg
+                bransjekunnskap automatisk. Den forstår fagterminologi, vanlige spørsmål og
+                bransjespesifikke behov – uten at du trenger å lære den opp manuelt.
+              </p>
+
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  <div className="h-6 w-6 rounded-full bg-botsy-lime/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="h-3.5 w-3.5 text-botsy-lime" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium mb-1">Automatisk bransjegjenkjenning</h4>
+                    <p className="text-sm text-[#6B7A94]">Botsy analyserer nettsiden din og forstår hvilken bransje du er i.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="h-6 w-6 rounded-full bg-botsy-lime/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="h-3.5 w-3.5 text-botsy-lime" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium mb-1">Fagterminologi inkludert</h4>
+                    <p className="text-sm text-[#6B7A94]">Kjenner bransjespesifikke ord og uttrykk – fra restaurant til eiendom til helse.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="h-6 w-6 rounded-full bg-botsy-lime/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="h-3.5 w-3.5 text-botsy-lime" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium mb-1">Forstår kundens behov</h4>
+                    <p className="text-sm text-[#6B7A94]">Vet hva kunder i din bransje typisk spør om og trenger hjelp med.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 

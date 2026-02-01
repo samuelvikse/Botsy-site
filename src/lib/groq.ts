@@ -17,7 +17,15 @@ ANALYSER FØLGENDE ASPEKTER:
    - Hvilken bransje/sektor opererer de i?
    - Hva er deres viktigste produkter/tjenester?
 
-2. **Kommunikasjonstone** (VIKTIG - gi en begrunnet anbefaling)
+2. **PRISER OG PRISLISTE** (SVÆRT VIKTIG!)
+   - Let grundig etter ALL prisinformasjon på nettsiden
+   - Inkluder priser for produkter, tjenester, abonnementer, pakker
+   - Inkluder timepris, fastpris, fra-priser, kampanjepriser
+   - Inkluder valuta (kr, NOK, EUR, etc.)
+   - Strukturer prisene tydelig med navn og pris
+   - Dette er KRITISK informasjon som kunder ofte spør om!
+
+3. **Kommunikasjonstone** (VIKTIG - gi en begrunnet anbefaling)
    Analyser språkbruken på nettsiden og avgjør:
    - Er språket formelt (akademisk, profesjonelt, distansert)?
    - Er språket vennlig (personlig men profesjonelt, imøtekommende)?
@@ -29,16 +37,20 @@ ANALYSER FØLGENDE ASPEKTER:
    - Eventuell bruk av emojis, humor eller uformelle uttrykk
    - Bransjenormer
 
-3. **Målgruppe**
+4. **Målgruppe**
    - Hvem ser ut til å være primærmålgruppen?
    - Er det B2B, B2C, eller begge?
 
-4. **Bransjeterminologi**
+5. **Bransjeterminologi**
    - Hvilke faguttrykk og bransjespesifikke ord brukes?
 
-5. **FAQ og vanlige spørsmål**
+6. **FAQ og vanlige spørsmål**
    - Identifiser alle spørsmål og svar du finner
    - Strukturer dem som klare Q&A-par
+
+7. **Språk**
+   - Identifiser hovedspråket på nettsiden
+   - Bruk ISO 639-1 koder (no, en, sv, da, de, fr, es, etc.)
 
 Returner ALLTID gyldig JSON med denne strukturen:
 {
@@ -46,10 +58,16 @@ Returner ALLTID gyldig JSON med denne strukturen:
   "industry": "Bransje/sektor",
   "tone": "formal" | "friendly" | "casual",
   "toneReason": "Begrunnelse på 1-2 setninger for hvorfor denne tonen passer",
+  "language": "ISO 639-1 språkkode (f.eks. 'no', 'en', 'sv')",
+  "languageName": "Menneskelesbart språknavn (f.eks. 'Norsk', 'English', 'Svenska')",
   "targetAudience": "Beskrivelse av målgruppen",
   "brandPersonality": "2-3 adjektiver som beskriver merkevaren",
   "services": ["tjeneste1", "tjeneste2"],
   "products": ["produkt1", "produkt2"],
+  "pricing": [
+    {"item": "Produkt/tjeneste navn", "price": "Pris med valuta (f.eks. '299 kr', 'fra 599 kr/mnd')"},
+    {"item": "Annet produkt", "price": "Pris"}
+  ],
   "terminology": ["faguttrykk1", "faguttrykk2"],
   "description": "2-3 setninger som oppsummerer bedriften",
   "faqs": [
@@ -101,10 +119,13 @@ export interface AnalysisResult {
   industry: string
   tone: 'formal' | 'friendly' | 'casual'
   toneReason: string
+  language: string // ISO 639-1 code (e.g., 'no', 'en', 'sv')
+  languageName: string // Human-readable (e.g., 'Norsk', 'English')
   targetAudience: string
   brandPersonality: string
   services: string[]
   products: string[]
+  pricing: Array<{ item: string; price: string }> // Pricing information
   terminology: string[]
   description: string
   faqs: Array<{ question: string; answer: string }>
@@ -151,10 +172,13 @@ Gjør en grundig analyse og returner JSON.`,
       industry: parsed.industry || 'Ukjent',
       tone: parsed.tone || 'friendly',
       toneReason: parsed.toneReason || 'Basert på innholdet virker en vennlig tone passende.',
+      language: parsed.language || 'no',
+      languageName: parsed.languageName || 'Norsk',
       targetAudience: parsed.targetAudience || '',
       brandPersonality: parsed.brandPersonality || '',
       services: parsed.services || [],
       products: parsed.products || [],
+      pricing: parsed.pricing || [],
       terminology: parsed.terminology || [],
       description: parsed.description || '',
       faqs: parsed.faqs || [],
@@ -165,10 +189,13 @@ Gjør en grundig analyse og returner JSON.`,
       industry: 'Ukjent',
       tone: 'friendly',
       toneReason: 'Standard vennlig tone anbefales.',
+      language: 'no',
+      languageName: 'Norsk',
       targetAudience: '',
       brandPersonality: '',
       services: [],
       products: [],
+      pricing: [],
       terminology: [],
       description: '',
       faqs: [],
@@ -490,6 +517,15 @@ function buildCustomerSystemPrompt(context: CustomerChatContext): string {
   const toneGuide = buildToneConfiguration(businessProfile.tone, businessProfile.toneConfig)
   const industryExpertise = buildIndustryExpertise(businessProfile.industry)
 
+  // Build pricing section
+  let pricingSection = ''
+  if (businessProfile.pricing && businessProfile.pricing.length > 0) {
+    pricingSection = `\nPRISER (VIKTIG - bruk denne informasjonen når kunder spør om priser):\n`
+    businessProfile.pricing.forEach((p) => {
+      pricingSection += `- ${p.item}: ${p.price}\n`
+    })
+  }
+
   let prompt = `Du er en kundeservice-assistent for ${businessProfile.businessName}.
 
 BEDRIFTSINFORMASJON:
@@ -497,7 +533,7 @@ BEDRIFTSINFORMASJON:
 - Beskrivelse: ${businessProfile.description}
 ${businessProfile.services.length > 0 ? `- Tjenester: ${businessProfile.services.join(', ')}` : ''}
 ${businessProfile.products.length > 0 ? `- Produkter: ${businessProfile.products.join(', ')}` : ''}
-
+${pricingSection}
 BRANSJEKUNNSKAP:
 ${industryExpertise}
 
@@ -566,26 +602,38 @@ ${toneGuide}
     })
   }
 
+  // Get language settings
+  const websiteLanguage = businessProfile.language || 'no'
+  const websiteLanguageName = businessProfile.languageName || 'Norsk'
+
   prompt += `
+SPRÅKHÅNDTERING:
+- Nettsidens primærspråk er: ${websiteLanguageName} (${websiteLanguage})
+- Som standard skal du svare på ${websiteLanguageName}
+- VIKTIG: Hvis kunden skriver på et ANNET språk enn ${websiteLanguageName}, SKAL du automatisk bytte til kundens språk
+  - Eksempel: Hvis nettsiden er norsk men kunden skriver på engelsk, svar på engelsk
+  - Eksempel: Hvis nettsiden er engelsk men kunden skriver på spansk, svar på spansk
+- Du må forstå og kunne svare på alle vanlige språk (norsk, engelsk, svensk, dansk, tysk, fransk, spansk, etc.)
+- Tilpass også tone og uttrykk til det aktuelle språket - ikke bare oversett ordrett
+
 REGLER:
-1. Svar alltid på norsk
-2. Hold svarene korte og konsise (maks 2-3 setninger med mindre kunden trenger mer info)
-3. Hvis du ikke vet svaret, si det ærlig og tilby å sette kunden i kontakt med en person
-4. Følg alltid instruksjonene fra bedriftseieren
-5. Vær hjelpsom og løsningsorientert
-6. Hvis kunden virker frustrert, vis empati
-7. Ikke finn på informasjon - hold deg til det du vet om bedriften
-8. KRITISK: ALDRI oversett eller endre følgende - de skal gjengis NØYAKTIG som de er:
+1. Hold svarene korte og konsise (maks 2-3 setninger med mindre kunden trenger mer info)
+2. Hvis du ikke vet svaret, si det ærlig og tilby å sette kunden i kontakt med en person
+3. Følg alltid instruksjonene fra bedriftseieren
+4. Vær hjelpsom og løsningsorientert
+5. Hvis kunden virker frustrert, vis empati
+6. Ikke finn på informasjon - hold deg til det du vet om bedriften
+7. KRITISK: ALDRI oversett eller endre følgende - de skal gjengis NØYAKTIG som de er:
    - E-postadresser (f.eks. contact@example.no skal IKKE bli kontakt@example.no)
    - Fysiske adresser (gatenavn, stedsnavn)
    - Personnavn og bedriftsnavn
    - Telefonnumre
    - URLer og nettsideadresser
    - Produktnavn og merkenavn
-9. VIKTIG - SPØRSMÅL UTENFOR NISJEN: Hvis kunden spør om noe som tydelig IKKE har med ${businessProfile.businessName}, ${businessProfile.industry}-bransjen, eller bedriftens tjenester/produkter å gjøre (f.eks. oppskrifter til en bilforhandler, politiske spørsmål, generelle trivia, personlige råd osv.), skal du vennlig si at det er ikke noe du er her for å svare på, men at du gjerne hjelper med spørsmål om ${businessProfile.businessName} og deres tjenester. Vær høflig og vennlig, ikke avvisende.
-10. E-POST OPPSUMMERING:
-    - Hvis kunden spør om å få samtalen/chatten på e-post, svar NØYAKTIG: "[EMAIL_REQUEST]Selvfølgelig! Skriv inn e-postadressen din, så sender jeg deg en oppsummering av samtalen vår."
-    - Hvis kunden sier "takk", "tusen takk", "takk for hjelpen", "det var alt", "ha det", "bye", eller lignende avsluttende fraser, avslutt svaret ditt med NØYAKTIG denne teksten på en ny linje: "[OFFER_EMAIL]Vil du ha en oppsummering av samtalen vår på e-post?"
+8. VIKTIG - SPØRSMÅL UTENFOR NISJEN: Hvis kunden spør om noe som tydelig IKKE har med ${businessProfile.businessName}, ${businessProfile.industry}-bransjen, eller bedriftens tjenester/produkter å gjøre (f.eks. oppskrifter til en bilforhandler, politiske spørsmål, generelle trivia, personlige råd osv.), skal du vennlig si at det er ikke noe du er her for å svare på, men at du gjerne hjelper med spørsmål om ${businessProfile.businessName} og deres tjenester. Vær høflig og vennlig, ikke avvisende.
+9. E-POST OPPSUMMERING (tilpass språket til kundens språk):
+    - Hvis kunden spør om å få samtalen/chatten på e-post, svar NØYAKTIG: "[EMAIL_REQUEST]" etterfulgt av en melding på kundens språk som ber om e-postadresse
+    - Hvis kunden sier "takk", "tusen takk", "takk for hjelpen", "det var alt", "ha det", "bye", "thanks", "thank you", eller lignende avsluttende fraser, avslutt svaret ditt med "[OFFER_EMAIL]" etterfulgt av et tilbud om e-postoppsummering på kundens språk
 
 Svar nå på kundens melding.`
 

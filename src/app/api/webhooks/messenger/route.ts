@@ -45,18 +45,31 @@ export async function POST(request: NextRequest) {
   try {
     // Get raw body for signature verification
     const rawBody = await request.text()
-    const body = JSON.parse(rawBody)
+    console.log('[Messenger Webhook] Received POST request, body length:', rawBody.length)
+
+    let body
+    try {
+      body = JSON.parse(rawBody)
+    } catch (parseError) {
+      console.error('[Messenger Webhook] Failed to parse JSON:', parseError)
+      return NextResponse.json({ status: 'ok' })
+    }
+
+    console.log('[Messenger Webhook] Parsed body object:', body.object)
 
     // Parse incoming messages
     const messages = parseMessengerWebhook(body)
+    console.log('[Messenger Webhook] Parsed messages count:', messages.length)
 
     if (messages.length === 0) {
       // No messages to process (could be delivery/read receipts)
+      console.log('[Messenger Webhook] No messages to process')
       return NextResponse.json({ status: 'ok' })
     }
 
     // Process each message
     for (const message of messages) {
+      console.log('[Messenger Webhook] Processing message from:', message.senderId)
       await processMessage(message, rawBody, request.headers.get('x-hub-signature-256'))
     }
 
@@ -88,15 +101,18 @@ async function processMessage(
     })
 
     // Find company by Page ID (recipientId is the Page ID)
+    console.log('[Messenger] Looking up company for Page ID:', message.recipientId)
     const companyId = await findCompanyByPageId(message.recipientId)
 
     if (!companyId) {
       console.log('[Messenger] No company found for Page ID:', message.recipientId)
       return
     }
+    console.log('[Messenger] Found company:', companyId)
 
     // Get Messenger channel configuration
     const channel = await getMessengerChannel(companyId)
+    console.log('[Messenger] Channel config:', channel ? { isActive: channel.isActive, isVerified: channel.isVerified, hasToken: !!channel.credentials.pageAccessToken } : null)
 
     if (!channel || !channel.isActive) {
       console.log('[Messenger] Channel not active for company:', companyId)
@@ -140,6 +156,7 @@ async function processMessage(
     ])
 
     // Generate AI response
+    console.log('[Messenger] Generating AI response for company:', companyId)
     const aiResponse = await generateAIResponse({
       userMessage: message.text,
       userName: userProfile?.firstName,
@@ -148,9 +165,11 @@ async function processMessage(
       instructions,
       history,
     })
+    console.log('[Messenger] AI response generated, length:', aiResponse.length)
 
     // Send response via Messenger
     if (channel.credentials.pageAccessToken) {
+      console.log('[Messenger] Sending response to:', message.senderId)
       const result = await sendMessengerMessage(
         { pageAccessToken: channel.credentials.pageAccessToken, appSecret: channel.credentials.appSecret || '' },
         { recipientId: message.senderId, text: aiResponse }
@@ -193,21 +212,37 @@ async function generateAIResponse(context: {
   let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på Facebook Messenger.
 
 VIKTIG:
-- Svar alltid på norsk med mindre kunden skriver på et annet språk
 - Hold svarene korte og konsise (maks 2-3 setninger når mulig)
 - Vær vennlig og profesjonell
 - Ikke bruk markdown-formatering (Messenger støtter det ikke godt)
 - Bruk emoji sparsomt og naturlig
 - ALDRI nevn andre kunder, brukere, eller bedrifter som Botsy samarbeider med - dette er konfidensielt
 - ALDRI del informasjon om andre brukere eller hvem andre som bruker tjenesten
-${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE start med "Hei [Navn]!" eller lignende hilsen - gå rett på svar siden dette er en pågående samtale'}`
+${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE start med "Hei [Navn]!" eller lignende hilsen - gå rett på svar siden dette er en pågående samtale'}
+- KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er`
 
   if (businessProfile) {
-    const bp = businessProfile as { businessName?: string; industry?: string; description?: string; tone?: string }
+    const bp = businessProfile as { businessName?: string; industry?: string; description?: string; tone?: string; language?: string; languageName?: string; pricing?: Array<{ item: string; price: string }> }
     systemPrompt += `\n\nDu representerer: ${bp.businessName || 'Bedriften'}`
     if (bp.industry) systemPrompt += `\nBransje: ${bp.industry}`
     if (bp.description) systemPrompt += `\nOm bedriften: ${bp.description}`
     if (bp.tone) systemPrompt += `\nTonefall: ${bp.tone}`
+
+    // Pricing information (IMPORTANT)
+    if (bp.pricing && bp.pricing.length > 0) {
+      systemPrompt += `\n\nPRISER (bruk denne informasjonen når kunder spør om priser):`
+      bp.pricing.forEach((p) => {
+        systemPrompt += `\n- ${p.item}: ${p.price}`
+      })
+    }
+
+    // Language handling
+    const websiteLanguage = bp.language || 'no'
+    const websiteLanguageName = bp.languageName || 'Norsk'
+    systemPrompt += `\n\nSPRÅKHÅNDTERING:
+- Nettsidens primærspråk er: ${websiteLanguageName}
+- Som standard skal du svare på ${websiteLanguageName}
+- VIKTIG: Hvis kunden skriver på et ANNET språk, skal du automatisk bytte til kundens språk`
   }
 
   if (instructions.length > 0) {
@@ -256,7 +291,7 @@ ${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE
         Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.3-70b-versatile',
         messages,
         max_tokens: 500,
         temperature: 0.7,

@@ -182,7 +182,8 @@ export async function saveKnowledgeDocument(
 
   const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
 
-  const docData: KnowledgeDocumentDoc = {
+  // Build document data, excluding undefined values (Firestore doesn't accept undefined)
+  const docData: Record<string, unknown> = {
     fileName: document.fileName,
     fileUrl: document.fileUrl,
     fileType: document.fileType,
@@ -190,7 +191,6 @@ export async function saveKnowledgeDocument(
     extractedContent: document.extractedContent,
     analyzedData: document.analyzedData,
     status: document.status,
-    errorMessage: document.errorMessage || undefined,
     uploadedAt: Timestamp.fromDate(
       document.uploadedAt instanceof Date
         ? document.uploadedAt
@@ -204,6 +204,11 @@ export async function saveKnowledgeDocument(
         )
       : null,
     uploadedBy: document.uploadedBy,
+  }
+
+  // Only add errorMessage if it has a value
+  if (document.errorMessage) {
+    docData.errorMessage = document.errorMessage
   }
 
   const docRef = await addDoc(docsRef, docData)

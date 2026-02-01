@@ -35,7 +35,7 @@ export async function sendMessengerMessage(
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v18.0/me/messages?access_token=${credentials.pageAccessToken}`,
+      `https://graph.facebook.com/v21.0/me/messages?access_token=${credentials.pageAccessToken}`,
       {
         method: 'POST',
         headers: {
@@ -171,7 +171,7 @@ export async function getMessengerUserProfile(
 ): Promise<{ firstName?: string; lastName?: string; profilePic?: string } | null> {
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v18.0/${userId}?fields=first_name,last_name,profile_pic&access_token=${pageAccessToken}`
+      `https://graph.facebook.com/v21.0/${userId}?fields=first_name,last_name,profile_pic&access_token=${pageAccessToken}`
     )
 
     if (!response.ok) {
