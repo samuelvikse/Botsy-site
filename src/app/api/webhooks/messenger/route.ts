@@ -158,7 +158,12 @@ async function processMessage(
     ])
 
     // Generate AI response
-    console.log('[Messenger] Generating AI response for company:', companyId, 'with', knowledgeDocs.length, 'knowledge docs')
+    console.log('[Messenger] Generating AI response for company:', companyId)
+    console.log('[Messenger] Knowledge docs count:', knowledgeDocs.length)
+    if (knowledgeDocs.length > 0) {
+      console.log('[Messenger] First doc FAQs:', knowledgeDocs[0].faqs.length)
+      console.log('[Messenger] First doc ImportantInfo:', JSON.stringify(knowledgeDocs[0].importantInfo).substring(0, 300))
+    }
     const aiResponse = await generateAIResponse({
       userMessage: message.text,
       userName: userProfile?.firstName,

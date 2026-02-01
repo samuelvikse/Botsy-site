@@ -598,8 +598,16 @@ export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
     }
 
     const results = await response.json()
+    console.log('[Messenger Firestore] Knowledge docs raw results:', JSON.stringify(results).substring(0, 500))
 
-    if (!results || results.length === 0 || !results[0].document) {
+    if (!results || results.length === 0) {
+      console.log('[Messenger Firestore] No knowledge documents found (empty results)')
+      return []
+    }
+
+    // Check if the first result has a document (query might return empty skipping documents)
+    if (!results[0].document && results.length === 1) {
+      console.log('[Messenger Firestore] No knowledge documents found (no document in result)')
       return []
     }
 
@@ -611,22 +619,35 @@ export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
     }> = []
 
     for (const result of results) {
-      if (!result.document?.fields) continue
+      if (!result.document?.fields) {
+        console.log('[Messenger Firestore] Skipping result without document fields')
+        continue
+      }
 
       const data = parseFirestoreFields(result.document.fields)
+      console.log('[Messenger Firestore] Parsed document data keys:', Object.keys(data))
+
       const analyzedData = data.analyzedData as Record<string, unknown> | undefined
 
       if (analyzedData) {
+        console.log('[Messenger Firestore] AnalyzedData keys:', Object.keys(analyzedData))
+        console.log('[Messenger Firestore] FAQs count:', (analyzedData.faqs as unknown[])?.length || 0)
+        console.log('[Messenger Firestore] Rules count:', (analyzedData.rules as unknown[])?.length || 0)
+        console.log('[Messenger Firestore] ImportantInfo count:', (analyzedData.importantInfo as unknown[])?.length || 0)
+        console.log('[Messenger Firestore] ImportantInfo content:', JSON.stringify(analyzedData.importantInfo).substring(0, 300))
+
         documents.push({
           faqs: (analyzedData.faqs as Array<{ question: string; answer: string }>) || [],
           rules: (analyzedData.rules as string[]) || [],
           policies: (analyzedData.policies as string[]) || [],
           importantInfo: (analyzedData.importantInfo as string[]) || [],
         })
+      } else {
+        console.log('[Messenger Firestore] No analyzedData in document')
       }
     }
 
-    console.log('[Messenger Firestore] Found', documents.length, 'knowledge documents')
+    console.log('[Messenger Firestore] Found', documents.length, 'knowledge documents with data')
     return documents
   } catch (error) {
     console.error('[Messenger Firestore] Error getting knowledge documents:', error)
