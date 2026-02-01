@@ -13,6 +13,7 @@ import {
   getBusinessProfile,
   getFAQs,
   getActiveInstructions,
+  getKnowledgeDocuments,
 } from '@/lib/messenger-firestore'
 
 // Webhook verification token (should match what you set in Facebook App)
@@ -147,16 +148,17 @@ async function processMessage(
       ? await getMessengerUserProfile(message.senderId, channel.credentials.pageAccessToken)
       : null
 
-    // Get context for AI
-    const [businessProfile, faqs, instructions, history] = await Promise.all([
+    // Get context for AI (including knowledge documents)
+    const [businessProfile, faqs, instructions, history, knowledgeDocs] = await Promise.all([
       getBusinessProfile(companyId),
       getFAQs(companyId),
       getActiveInstructions(companyId),
       getMessengerHistory(companyId, message.senderId, 10),
+      getKnowledgeDocuments(companyId),
     ])
 
     // Generate AI response
-    console.log('[Messenger] Generating AI response for company:', companyId)
+    console.log('[Messenger] Generating AI response for company:', companyId, 'with', knowledgeDocs.length, 'knowledge docs')
     const aiResponse = await generateAIResponse({
       userMessage: message.text,
       userName: userProfile?.firstName,
@@ -164,6 +166,7 @@ async function processMessage(
       faqs,
       instructions,
       history,
+      knowledgeDocs,
     })
     console.log('[Messenger] AI response generated, length:', aiResponse.length)
 
@@ -202,8 +205,14 @@ async function generateAIResponse(context: {
   faqs: Array<Record<string, unknown>>
   instructions: Array<{ content: string; priority: string }>
   history: Array<{ direction: string; text: string }>
+  knowledgeDocs?: Array<{
+    faqs: Array<{ question: string; answer: string }>
+    rules: string[]
+    policies: string[]
+    importantInfo: string[]
+  }>
 }): Promise<string> {
-  const { userMessage, userName, businessProfile, faqs, instructions, history } = context
+  const { userMessage, userName, businessProfile, faqs, instructions, history, knowledgeDocs } = context
 
   // Check if this is the first message in the conversation
   const isFirstMessage = history.length === 0
@@ -286,6 +295,45 @@ ${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE
       const answer = faq.answer as string | undefined
       if (question && answer) {
         systemPrompt += `\nQ: ${question}\nA: ${answer}`
+      }
+    }
+  }
+
+  // Add knowledge from uploaded documents
+  if (knowledgeDocs && knowledgeDocs.length > 0) {
+    // Collect all FAQs from documents
+    const docFaqs = knowledgeDocs.flatMap(doc => doc.faqs)
+    if (docFaqs.length > 0) {
+      systemPrompt += '\n\nEkstra spørsmål og svar fra bedriftsdokumenter:'
+      for (const faq of docFaqs.slice(0, 15)) {
+        systemPrompt += `\nQ: ${faq.question}\nA: ${faq.answer}`
+      }
+    }
+
+    // Collect all rules
+    const allRules = knowledgeDocs.flatMap(doc => doc.rules)
+    if (allRules.length > 0) {
+      systemPrompt += '\n\nBedriftsregler (følg alltid disse):'
+      for (const rule of allRules) {
+        systemPrompt += `\n- ${rule}`
+      }
+    }
+
+    // Collect all policies
+    const allPolicies = knowledgeDocs.flatMap(doc => doc.policies)
+    if (allPolicies.length > 0) {
+      systemPrompt += '\n\nRetningslinjer og policies:'
+      for (const policy of allPolicies) {
+        systemPrompt += `\n- ${policy}`
+      }
+    }
+
+    // Collect important info
+    const allInfo = knowledgeDocs.flatMap(doc => doc.importantInfo)
+    if (allInfo.length > 0) {
+      systemPrompt += '\n\nViktig informasjon:'
+      for (const info of allInfo) {
+        systemPrompt += `\n- ${info}`
       }
     }
   }

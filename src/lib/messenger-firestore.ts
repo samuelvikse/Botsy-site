@@ -558,3 +558,78 @@ export async function getActiveInstructions(companyId: string): Promise<Array<{ 
     return []
   }
 }
+
+/**
+ * Get knowledge documents for AI context
+ */
+export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
+  faqs: Array<{ question: string; answer: string }>
+  rules: string[]
+  policies: string[]
+  importantInfo: string[]
+}>> {
+  try {
+    // Query for documents with status 'ready'
+    const query = {
+      structuredQuery: {
+        from: [{ collectionId: 'knowledgeDocs' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'status' },
+            op: 'EQUAL',
+            value: { stringValue: 'ready' }
+          }
+        }
+      }
+    }
+
+    const response = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/companies/${companyId}/knowledgeDocs:runQuery`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(query)
+      }
+    )
+
+    if (!response.ok) {
+      console.log('[Messenger Firestore] Knowledge docs query failed:', response.status)
+      return []
+    }
+
+    const results = await response.json()
+
+    if (!results || results.length === 0 || !results[0].document) {
+      return []
+    }
+
+    const documents: Array<{
+      faqs: Array<{ question: string; answer: string }>
+      rules: string[]
+      policies: string[]
+      importantInfo: string[]
+    }> = []
+
+    for (const result of results) {
+      if (!result.document?.fields) continue
+
+      const data = parseFirestoreFields(result.document.fields)
+      const analyzedData = data.analyzedData as Record<string, unknown> | undefined
+
+      if (analyzedData) {
+        documents.push({
+          faqs: (analyzedData.faqs as Array<{ question: string; answer: string }>) || [],
+          rules: (analyzedData.rules as string[]) || [],
+          policies: (analyzedData.policies as string[]) || [],
+          importantInfo: (analyzedData.importantInfo as string[]) || [],
+        })
+      }
+    }
+
+    console.log('[Messenger Firestore] Found', documents.length, 'knowledge documents')
+    return documents
+  } catch (error) {
+    console.error('[Messenger Firestore] Error getting knowledge documents:', error)
+    return []
+  }
+}
