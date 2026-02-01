@@ -48,7 +48,8 @@ import {
   Layers,
   Shield,
   Globe,
-  Copy
+  Copy,
+  EyeOff
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -861,6 +862,7 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(false)
+  const [showCompanyId, setShowCompanyId] = useState(false)
   const toast = useToast()
 
   const handleCopyCompanyId = async () => {
@@ -950,9 +952,20 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
           Denne ID-en brukes til å koble widgeten til nettsiden din og andre integrasjoner.
         </p>
         <div className="flex items-center gap-3">
-          <code className="flex-1 px-4 py-3 bg-black/30 rounded-xl text-botsy-lime font-mono text-sm border border-white/[0.06]">
-            {companyId}
+          <code className="flex-1 px-4 py-3 bg-black/30 rounded-xl font-mono text-sm border border-white/[0.06] select-none">
+            {showCompanyId ? (
+              <span className="text-botsy-lime">{companyId}</span>
+            ) : (
+              <span className="text-[#6B7A94]">••••••••••••••••••••</span>
+            )}
           </code>
+          <button
+            onClick={() => setShowCompanyId(!showCompanyId)}
+            className="p-3 rounded-xl border bg-white/[0.03] border-white/[0.06] text-[#6B7A94] hover:text-white hover:border-white/[0.12] transition-all"
+            title={showCompanyId ? 'Skjul' : 'Vis'}
+          >
+            {showCompanyId ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          </button>
           <button
             onClick={handleCopyCompanyId}
             className={`p-3 rounded-xl border transition-all ${
