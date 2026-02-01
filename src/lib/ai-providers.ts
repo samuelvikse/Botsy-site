@@ -51,12 +51,13 @@ async function callGemini(
 ): Promise<{ success: boolean; response: string }> {
   try {
     const apiKey = process.env.GEMINI_API_KEY
+    console.log('[AI Gemini] API key exists:', !!apiKey, 'length:', apiKey?.length || 0)
     if (!apiKey) {
-      console.log('[AI Gemini] No GEMINI_API_KEY found')
+      console.log('[AI Gemini] No GEMINI_API_KEY found - skipping Gemini')
       return { success: false, response: '' }
     }
 
-    console.log('[AI Gemini] Calling API')
+    console.log('[AI Gemini] Calling API with key starting with:', apiKey.substring(0, 10) + '...')
 
     // Convert messages to Gemini format
     const geminiContents = messages
