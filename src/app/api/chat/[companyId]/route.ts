@@ -256,6 +256,7 @@ export async function POST(
       }
 
       // Fetch knowledge documents (include uploadedAt and fileName for prioritization)
+      console.log('[Chat API] Fetching knowledge docs...')
       try {
         const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
         const docsQuery = query(docsRef, where('status', '==', 'ready'))
@@ -271,6 +272,7 @@ export async function POST(
         })
 
         // Generate response with knowledge documents
+        console.log('[Chat API] Calling chatWithCustomer...')
         const reply = await chatWithCustomer(message, {
           businessProfile,
           faqs: businessProfile.faqs,
@@ -278,6 +280,7 @@ export async function POST(
           conversationHistory: history,
           knowledgeDocuments,
         })
+        console.log('[Chat API] Got reply, length:', reply?.length)
 
         // Save assistant response
         try {
@@ -302,7 +305,8 @@ export async function POST(
           success: true,
           reply,
         }, { headers: corsHeaders })
-      } catch {
+      } catch (error) {
+        console.error('[Chat API] Error in knowledge docs flow:', error)
         // Fall through to default response generation
       }
     }
