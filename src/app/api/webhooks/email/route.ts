@@ -234,31 +234,17 @@ Skriv et profesjonelt svar på denne e-posten.`
     },
   ]
 
-  // Call Groq API
+  // Use Gemini (primary) with Groq fallback
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages,
-        max_tokens: 1000,
-        temperature: 0.7,
-      }),
-    })
+    const { generateAIResponse: callAI } = await import('@/lib/ai-providers')
+    const result = await callAI(systemPrompt, messages, { maxTokens: 1000, temperature: 0.7 })
 
-    if (!response.ok) {
-      return `Takk for din henvendelse. Vi har mottatt e-posten din og vil svare så snart som mulig.
-
-Med vennlig hilsen,
-Kundeservice`
+    if (result.success) {
+      console.log(`[Email AI] Response from ${result.provider}`)
+      return result.response
     }
 
-    const data = await response.json()
-    return data.choices?.[0]?.message?.content || `Takk for din henvendelse. Vi har mottatt e-posten din og vil svare så snart som mulig.
+    return `Takk for din henvendelse. Vi har mottatt e-posten din og vil svare så snart som mulig.
 
 Med vennlig hilsen,
 Kundeservice`

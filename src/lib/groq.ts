@@ -738,9 +738,7 @@ export async function chatWithCustomer(
 ): Promise<string> {
   const systemPrompt = buildCustomerSystemPrompt(context)
 
-  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: systemPrompt },
-  ]
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = []
 
   // Add conversation history (last 10 messages)
   context.conversationHistory.slice(-10).forEach((msg) => {
@@ -758,17 +756,14 @@ export async function chatWithCustomer(
     content: message,
   })
 
-  try {
-    const response = await groq.chat.completions.create({
-      model: MODEL,
-      messages,
-      temperature: 0.7,
-      max_tokens: 400,
-    })
+  // Use Gemini (primary) with Groq fallback
+  const { generateAIResponse } = await import('./ai-providers')
+  const result = await generateAIResponse(systemPrompt, messages, { maxTokens: 400, temperature: 0.7 })
 
-    return response.choices[0]?.message?.content?.trim() ||
-      'Beklager, jeg kunne ikke behandle meldingen din. Prøv igjen eller kontakt oss direkte.'
-  } catch (error) {
-    throw error
+  if (result.success) {
+    console.log(`[Chat] Response from ${result.provider}, length: ${result.response.length}`)
+    return result.response.trim()
   }
+
+  return 'Beklager, jeg kunne ikke behandle meldingen din. Prøv igjen eller kontakt oss direkte.'
 }

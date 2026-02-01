@@ -208,19 +208,19 @@ export default function LandingPage() {
             </motion.div>
 
             {/* Right: Hero Image */}
-            <motion.div 
+            <motion.div
               variants={slideInRight}
               initial="hidden"
               animate="visible"
-              className="relative lg:ml-auto"
+              className="relative lg:ml-auto lg:translate-x-20"
             >
               <Image
                 src="/images/1.png"
                 alt="Botsy Dashboard"
-                width={700}
-                height={500}
+                width={780}
+                height={560}
                 priority
-                className="w-full h-auto feathered-image"
+                className="w-full h-auto feathered-image scale-105"
               />
             </motion.div>
           </div>

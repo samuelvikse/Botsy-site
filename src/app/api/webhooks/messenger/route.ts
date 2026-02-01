@@ -376,14 +376,98 @@ PRIORITERING AV INFORMASJON:
     : userMessage
   messages.push({ role: 'user', content: userMessageContent })
 
-  // Call Groq API
+  // Try Gemini first (primary), then Groq as fallback
+  const geminiResult = await callGemini(systemPrompt, messages)
+  if (geminiResult.success) {
+    return geminiResult.response
+  }
+
+  console.log('[Messenger AI] Gemini failed, trying Groq fallback...')
+  const groqResult = await callGroq(messages)
+  if (groqResult.success) {
+    return groqResult.response
+  }
+
+  return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
+}
+
+async function callGemini(
+  systemPrompt: string,
+  messages: Array<{ role: string; content: string }>
+): Promise<{ success: boolean; response: string }> {
   try {
-    console.log('[Messenger AI] Calling Groq API, GROQ_API_KEY exists:', !!process.env.GROQ_API_KEY)
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) {
+      console.log('[Messenger AI] No GEMINI_API_KEY found')
+      return { success: false, response: '' }
+    }
+
+    console.log('[Messenger AI] Calling Gemini API')
+
+    // Convert messages to Gemini format
+    const geminiContents = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }))
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: geminiContents,
+          generationConfig: {
+            maxOutputTokens: 500,
+            temperature: 0.7,
+          },
+        }),
+      }
+    )
+
+    console.log('[Messenger AI] Gemini response status:', response.status)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Messenger AI] Gemini error:', errorText)
+      return { success: false, response: '' }
+    }
+
+    const data = await response.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+    if (text) {
+      console.log('[Messenger AI] Gemini success, response length:', text.length)
+      return { success: true, response: text }
+    }
+
+    return { success: false, response: '' }
+  } catch (error) {
+    console.error('[Messenger AI] Gemini error:', error)
+    return { success: false, response: '' }
+  }
+}
+
+async function callGroq(
+  messages: Array<{ role: string; content: string }>
+): Promise<{ success: boolean; response: string }> {
+  try {
+    const apiKey = process.env.GROQ_API_KEY
+    if (!apiKey) {
+      console.log('[Messenger AI] No GROQ_API_KEY found')
+      return { success: false, response: '' }
+    }
+
+    console.log('[Messenger AI] Calling Groq API (fallback)')
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
@@ -398,13 +482,20 @@ PRIORITERING AV INFORMASJON:
     if (!response.ok) {
       const errorText = await response.text()
       console.error('[Messenger AI] Groq error:', errorText)
-      return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
+      return { success: false, response: '' }
     }
 
     const data = await response.json()
-    return data.choices?.[0]?.message?.content || 'Beklager, jeg forstod ikke helt. Kan du prøve å omformulere?'
+    const text = data.choices?.[0]?.message?.content
+
+    if (text) {
+      console.log('[Messenger AI] Groq success, response length:', text.length)
+      return { success: true, response: text }
+    }
+
+    return { success: false, response: '' }
   } catch (error) {
-    console.error('[Messenger AI] Error calling Groq:', error)
-    return 'Beklager, det oppstod en feil. Vennligst prøv igjen.'
+    console.error('[Messenger AI] Groq error:', error)
+    return { success: false, response: '' }
   }
 }

@@ -734,9 +734,9 @@ export default function OnboardingPage() {
                   <Image
                     src="/images/klarskjerm.png"
                     alt="Botsy er klar"
-                    width={500}
-                    height={400}
-                    className="w-full h-auto"
+                    width={700}
+                    height={560}
+                    className="w-full h-auto max-w-2xl"
                   />
                 </div>
               </div>
