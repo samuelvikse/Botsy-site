@@ -604,13 +604,13 @@ function buildCustomerSystemPrompt(context: CustomerChatContext): string {
     })
   }
 
-  let prompt = `Du er en kundeservice-assistent for ${businessProfile.businessName}.
+  let prompt = `Du er en kundeservice-assistent for ${businessProfile.businessName || 'bedriften'}.
 
 BEDRIFTSINFORMASJON:
-- Bransje: ${businessProfile.industry}
-- Beskrivelse: ${businessProfile.description}
-${businessProfile.services.length > 0 ? `- Tjenester: ${businessProfile.services.join(', ')}` : ''}
-${businessProfile.products.length > 0 ? `- Produkter: ${businessProfile.products.join(', ')}` : ''}
+- Bransje: ${businessProfile.industry || 'Ikke spesifisert'}
+- Beskrivelse: ${businessProfile.description || 'Ingen beskrivelse tilgjengelig'}
+${businessProfile.services?.length > 0 ? `- Tjenester: ${businessProfile.services.join(', ')}` : ''}
+${businessProfile.products?.length > 0 ? `- Produkter: ${businessProfile.products.join(', ')}` : ''}
 ${contactSection}${pricingSection}${staffSection}
 BRANSJEKUNNSKAP:
 ${industryExpertise}
@@ -621,7 +621,7 @@ ${toneGuide}
 `
 
   // Add FAQs as knowledge base
-  if (faqs.length > 0) {
+  if (faqs?.length > 0) {
     prompt += `\nVANLIGE SPØRSMÅL OG SVAR:\n`
     faqs.forEach((faq, i) => {
       prompt += `${i + 1}. Spørsmål: ${faq.question}\n   Svar: ${faq.answer}\n\n`
@@ -677,7 +677,7 @@ ${toneGuide}
   }
 
   // Add active instructions
-  const activeInstructions = instructions.filter(i => i.isActive)
+  const activeInstructions = (instructions || []).filter(i => i.isActive)
   if (activeInstructions.length > 0) {
     prompt += `\nVIKTIGE INSTRUKSJONER FRA BEDRIFTSEIER:\n`
     activeInstructions.forEach((inst, i) => {
