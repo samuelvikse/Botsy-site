@@ -325,11 +325,14 @@ export default function WidgetPage({
     return () => clearInterval(pollInterval)
   }, [isOpen, sessionId, companyId])
 
-  // Focus input when chat opens and update activity
+  // Focus input and scroll to bottom when chat opens
   useEffect(() => {
     if (isOpen) {
       updateActivity(companyId)
-      setTimeout(() => inputRef.current?.focus(), 100)
+      setTimeout(() => {
+        inputRef.current?.focus()
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
+      }, 100)
     }
   }, [isOpen, companyId])
 
