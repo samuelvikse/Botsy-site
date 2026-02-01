@@ -21,7 +21,6 @@ import { Badge } from '@/components/ui/badge'
 import { getAllSMSChats, getSMSHistory, saveSMSMessage } from '@/lib/sms-firestore'
 import { getSMSChannel } from '@/lib/sms-firestore'
 import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
-import { getAllMessengerChats, getMessengerHistory } from '@/lib/messenger-firestore'
 import { getSMSProvider } from '@/lib/sms'
 import { Facebook } from 'lucide-react'
 import type { SMSMessage } from '@/types'
@@ -121,23 +120,34 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
         // No widget chats or error - continue
       }
 
-      // Fetch Messenger chats
+      // Fetch Messenger chats via API
       try {
-        const messengerChats = await getAllMessengerChats(companyId)
-        messengerChats.forEach((chat) => {
-          convos.push({
-            id: `messenger-${chat.senderId}`,
-            name: `Facebook ${chat.senderId.slice(-6)}`,
-            phone: chat.senderId,
-            channel: 'messenger' as const,
-            lastMessage: chat.lastMessage?.text || 'Ingen meldinger',
-            lastMessageAt: chat.lastMessageAt,
-            messageCount: chat.messageCount,
-            status: 'active' as const,
-          })
-        })
-      } catch {
-        // No Messenger chats or error - continue
+        const messengerResponse = await fetch(`/api/messenger/chats?companyId=${companyId}`)
+        if (messengerResponse.ok) {
+          const messengerData = await messengerResponse.json()
+          console.log('[Conversations] Messenger API response:', messengerData)
+          if (messengerData.success && messengerData.chats) {
+            messengerData.chats.forEach((chat: {
+              senderId: string
+              lastMessage: { text: string } | null
+              lastMessageAt: string
+              messageCount: number
+            }) => {
+              convos.push({
+                id: `messenger-${chat.senderId}`,
+                name: `Facebook ${chat.senderId.slice(-6)}`,
+                phone: chat.senderId,
+                channel: 'messenger' as const,
+                lastMessage: chat.lastMessage?.text || 'Ingen meldinger',
+                lastMessageAt: new Date(chat.lastMessageAt),
+                messageCount: chat.messageCount,
+                status: 'active' as const,
+              })
+            })
+          }
+        }
+      } catch (err) {
+        console.error('[Conversations] Error fetching Messenger chats:', err)
       }
 
       // Sort by last message time
@@ -188,14 +198,27 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
           status: msg.status,
         }))
       } else if (conversation.channel === 'messenger') {
-        // Fetch Messenger messages
-        const messengerHistory = await getMessengerHistory(companyId, conversation.phone, 100)
-        msgs = messengerHistory.map((msg) => ({
-          id: msg.id,
-          role: msg.direction === 'inbound' ? 'user' : 'assistant',
-          content: msg.text,
-          timestamp: msg.timestamp,
-        }))
+        // Fetch Messenger messages via API
+        const messengerResponse = await fetch(
+          `/api/messenger/chats?companyId=${companyId}&senderId=${conversation.phone}`
+        )
+        if (messengerResponse.ok) {
+          const messengerData = await messengerResponse.json()
+          console.log('[Conversations] Messenger messages API response:', messengerData)
+          if (messengerData.success && messengerData.messages) {
+            msgs = messengerData.messages.map((msg: {
+              id: string
+              direction: 'inbound' | 'outbound'
+              text: string
+              timestamp: string
+            }) => ({
+              id: msg.id,
+              role: msg.direction === 'inbound' ? 'user' : 'assistant',
+              content: msg.text,
+              timestamp: new Date(msg.timestamp),
+            }))
+          }
+        }
       } else {
         // Fetch widget chat messages
         const widgetHistory = await getWidgetChatHistory(companyId, conversation.phone)

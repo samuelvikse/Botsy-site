@@ -21,6 +21,9 @@ import {
   getMultiFactorResolver,
   MultiFactorResolver,
   MultiFactorError,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  reauthenticateWithPopup,
 } from 'firebase/auth'
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db, isConfigured } from '@/lib/firebase'
@@ -64,7 +67,7 @@ interface AuthContextType {
     employeeCount: string
   }) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
-  signInWithGoogle: () => Promise<void>
+  signInWithGoogle: (allowNewUsers?: boolean) => Promise<void>
   signInWithApple: () => Promise<void>
   signInWithMicrosoft: () => Promise<void>
   sendPhoneVerification: (phoneNumber: string, recaptchaContainerId: string) => Promise<void>
@@ -78,6 +81,7 @@ interface AuthContextType {
   disableTwoFactor: () => Promise<void>
   sendMfaCode: () => Promise<void>
   verifyMfaCode: (code: string) => Promise<void>
+  reauthenticate: (password?: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -201,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (allowNewUsers: boolean = true) => {
     if (!auth || !db) {
       throw new Error('Firebase er ikke konfigurert')
     }
@@ -217,6 +221,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDoc = await getDoc(doc(db, 'users', user.uid))
 
       if (!userDoc.exists()) {
+        if (!allowNewUsers) {
+          // Sign out the new user and throw an error
+          await firebaseSignOut(auth)
+          throw new Error('Denne Google-kontoen er ikke registrert. Vennligst registrer deg først.')
+        }
+
         // Create company and user documents for new Google users
         const companyRef = doc(db, 'companies', user.uid)
         await setDoc(companyRef, {
@@ -243,6 +253,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
       }
     } catch (err: unknown) {
+      // Check if this is an MFA challenge
+      const firebaseError = err as { code?: string }
+      if (firebaseError.code === 'auth/multi-factor-auth-required') {
+        handleMfaError(err as MultiFactorError)
+        throw new Error('MFA_REQUIRED')
+      }
       const errorMessage = getFirebaseErrorMessage(err)
       setError(errorMessage)
       throw new Error(errorMessage)
@@ -448,21 +464,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       setError(null)
-      setLoading(true)
+      console.log('[Auth] Setting up 2FA for:', phoneNumber)
 
       // Clear any existing recaptcha
       if (recaptchaVerifier) {
-        recaptchaVerifier.clear()
+        try {
+          recaptchaVerifier.clear()
+        } catch {
+          // Ignore clear errors
+        }
+        setRecaptchaVerifier(null)
+      }
+
+      // Clear the container element
+      const container = document.getElementById(recaptchaContainerId)
+      if (container) {
+        container.innerHTML = ''
       }
 
       // Create new recaptcha verifier
+      console.log('[Auth] Creating recaptcha verifier...')
       const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
         size: 'invisible',
       })
       setRecaptchaVerifier(verifier)
 
       // Get multi-factor session
+      console.log('[Auth] Getting MFA session...')
       const multiFactorSession = await multiFactor(auth.currentUser).getSession()
+      console.log('[Auth] MFA session obtained')
 
       // Generate phone info options
       const phoneInfoOptions = {
@@ -471,18 +501,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Get phone auth provider
+      console.log('[Auth] Verifying phone number...')
       const phoneAuthProvider = new PhoneAuthProvider(auth)
       const verificationId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, verifier)
+      console.log('[Auth] Phone verification ID obtained')
 
       // Store verification ID for later use
       setPendingMfaPhoneNumber(phoneNumber)
       setConfirmationResult({ verificationId } as unknown as ConfirmationResult)
+      console.log('[Auth] 2FA setup step 1 complete')
     } catch (err: unknown) {
+      console.error('[Auth] 2FA setup error:', err)
       const errorMessage = getFirebaseErrorMessage(err)
       setError(errorMessage)
       throw new Error(errorMessage)
-    } finally {
-      setLoading(false)
     }
   }, [recaptchaVerifier])
 
@@ -556,6 +588,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(errorMessage)
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  // Re-authenticate user (required for sensitive operations like 2FA setup)
+  const reauthenticate = useCallback(async (password?: string) => {
+    if (!auth || !auth.currentUser) {
+      throw new Error('Du må være logget inn')
+    }
+
+    try {
+      setError(null)
+      const user = auth.currentUser
+      const providerId = user.providerData[0]?.providerId
+
+      if (providerId === 'google.com') {
+        // Re-authenticate with Google popup
+        const provider = new GoogleAuthProvider()
+        await reauthenticateWithPopup(user, provider)
+      } else if (providerId === 'password' && password) {
+        // Re-authenticate with email/password
+        const credential = EmailAuthProvider.credential(user.email!, password)
+        await reauthenticateWithCredential(user, credential)
+      } else {
+        throw new Error('Kunne ikke re-autentisere. Vennligst logg ut og inn igjen.')
+      }
+
+      console.log('[Auth] Re-authentication successful')
+    } catch (err: unknown) {
+      console.error('[Auth] Re-authentication error:', err)
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
     }
   }, [])
 
@@ -695,6 +759,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         disableTwoFactor,
         sendMfaCode,
         verifyMfaCode,
+        reauthenticate,
       }}
     >
       {children}
@@ -758,6 +823,8 @@ function getFirebaseErrorMessage(error: unknown): string {
       return 'Maksimalt antall 2FA-faktorer nådd'
     case 'auth/unsupported-first-factor':
       return 'Denne innloggingsmetoden støtter ikke 2FA'
+    case 'auth/requires-recent-login':
+      return 'REQUIRES_RECENT_LOGIN'
     default:
       return 'En feil oppstod. Prøv igjen'
   }

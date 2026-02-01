@@ -475,7 +475,7 @@ export default function TryFreePage() {
               <div className="absolute top-0 right-0 w-96 h-96 bg-botsy-lime/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
 
               <div className="relative grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                <div className="text-center lg:text-left">
+                <div className="text-center lg:text-left flex flex-col items-center lg:items-start">
                   <Badge className="mb-4">PRØVEPERIODE</Badge>
 
                   <h3 className="text-3xl lg:text-4xl font-bold text-white mb-4 font-display">
@@ -487,14 +487,14 @@ export default function TryFreePage() {
                     ingen forpliktelser, ingen skjulte kostnader.
                   </p>
 
-                  <Link href="/registrer" className="block">
+                  <Link href="/registrer" className="w-full lg:w-auto">
                     <Button size="xl" className="w-full lg:w-auto shadow-lg shadow-botsy-lime/20 group">
                       Start gratis prøveperiode
                       <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
 
-                  <p className="text-center lg:text-left text-sm text-[#6B7A94] mt-4">
+                  <p className="text-sm text-[#6B7A94] mt-4">
                     Deretter kun 699 kr/mnd
                   </p>
                 </div>

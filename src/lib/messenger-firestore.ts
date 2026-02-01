@@ -29,27 +29,35 @@ export interface MessengerChatMessage {
 }
 
 /**
+ * Parse a single Firestore value to JavaScript value
+ */
+function parseFirestoreValue(value: unknown): unknown {
+  const v = value as Record<string, unknown>
+  if ('stringValue' in v) return v.stringValue
+  if ('integerValue' in v) return parseInt(v.integerValue as string)
+  if ('doubleValue' in v) return v.doubleValue
+  if ('booleanValue' in v) return v.booleanValue
+  if ('timestampValue' in v) return v.timestampValue // Keep as string for parsing later
+  if ('mapValue' in v) {
+    const mapValue = v.mapValue as { fields?: Record<string, unknown> }
+    return mapValue.fields ? parseFirestoreFields(mapValue.fields) : {}
+  }
+  if ('arrayValue' in v) {
+    const arrayValue = v.arrayValue as { values?: unknown[] }
+    return (arrayValue.values || []).map(parseFirestoreValue)
+  }
+  if ('nullValue' in v) return null
+  return null
+}
+
+/**
  * Parse Firestore document fields to JavaScript object
  */
 function parseFirestoreFields(fields: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(fields)) {
-    const v = value as Record<string, unknown>
-    if ('stringValue' in v) result[key] = v.stringValue
-    else if ('integerValue' in v) result[key] = parseInt(v.integerValue as string)
-    else if ('doubleValue' in v) result[key] = v.doubleValue
-    else if ('booleanValue' in v) result[key] = v.booleanValue
-    else if ('timestampValue' in v) result[key] = new Date(v.timestampValue as string)
-    else if ('mapValue' in v) {
-      const mapValue = v.mapValue as { fields?: Record<string, unknown> }
-      result[key] = mapValue.fields ? parseFirestoreFields(mapValue.fields) : {}
-    }
-    else if ('arrayValue' in v) {
-      const arrayValue = v.arrayValue as { values?: unknown[] }
-      result[key] = arrayValue.values || []
-    }
-    else if ('nullValue' in v) result[key] = null
+    result[key] = parseFirestoreValue(value)
   }
 
   return result
@@ -230,21 +238,32 @@ export async function saveMessengerMessage(
       const existingData = doc.fields ? parseFirestoreFields(doc.fields) : {}
       const existingMessages = (existingData.messages as unknown[]) || []
 
+      // Filter out corrupted messages (where text is undefined/null)
+      // and properly format valid messages
+      const validMessages = existingMessages
+        .map(m => {
+          const msg = m as Record<string, unknown>
+          // Skip messages without valid text
+          if (!msg.text || typeof msg.text !== 'string') {
+            console.log('[Messenger] Skipping corrupted message:', msg)
+            return null
+          }
+          return {
+            id: msg.id as string || `msg-recovered-${Date.now()}`,
+            direction: msg.direction as string || 'inbound',
+            senderId: msg.senderId as string || senderId,
+            text: msg.text as string,
+            timestamp: msg.timestamp as string || new Date().toISOString(),
+            messageId: msg.messageId as string || '',
+          }
+        })
+        .filter((m): m is NonNullable<typeof m> => m !== null)
+
       // Build update
       const updateData = {
         fields: {
           senderId: toFirestoreValue(senderId),
-          messages: toFirestoreValue([...existingMessages.map(m => {
-            const msg = m as Record<string, unknown>
-            return {
-              id: msg.id,
-              direction: msg.direction,
-              senderId: msg.senderId,
-              text: msg.text,
-              timestamp: msg.timestamp,
-              messageId: msg.messageId,
-            }
-          }), messageData]),
+          messages: toFirestoreValue([...validMessages, messageData]),
           lastMessageAt: toFirestoreValue(new Date()),
           updatedAt: toFirestoreValue(new Date()),
         }
@@ -299,17 +318,46 @@ export async function getMessengerHistory(
     const data = parseFirestoreFields(doc.fields)
     const messages = (data.messages as unknown[]) || []
 
-    return messages.slice(-limitCount).map((m) => {
-      const msg = m as Record<string, unknown>
-      return {
-        id: msg.id as string,
-        direction: msg.direction as 'inbound' | 'outbound',
-        senderId: msg.senderId as string,
-        text: msg.text as string,
-        timestamp: new Date(msg.timestamp as string),
-        messageId: msg.messageId as string | undefined,
-      }
-    })
+    console.log('[Messenger] Raw messages from Firestore:', JSON.stringify(messages, null, 2))
+
+    // Filter and parse messages, skipping corrupted ones
+    const validMessages = messages
+      .map((m) => {
+        const msg = m as Record<string, unknown>
+
+        // Skip messages without valid text
+        if (!msg.text || typeof msg.text !== 'string') {
+          console.log('[Messenger] Skipping invalid message:', msg)
+          return null
+        }
+
+        // Parse timestamp - handle both string and already-parsed formats
+        let timestamp: Date
+        if (msg.timestamp instanceof Date) {
+          timestamp = msg.timestamp
+        } else if (typeof msg.timestamp === 'string') {
+          timestamp = new Date(msg.timestamp)
+        } else {
+          timestamp = new Date()
+        }
+
+        // Check if timestamp is valid
+        if (isNaN(timestamp.getTime())) {
+          timestamp = new Date()
+        }
+
+        return {
+          id: (msg.id as string) || `msg-${Date.now()}`,
+          direction: (msg.direction as 'inbound' | 'outbound') || 'inbound',
+          senderId: (msg.senderId as string) || senderId,
+          text: msg.text as string,
+          timestamp,
+          messageId: msg.messageId as string | undefined,
+        }
+      })
+      .filter((m): m is NonNullable<typeof m> => m !== null)
+
+    return validMessages.slice(-limitCount)
   } catch (error) {
     console.error('[Messenger Firestore] Error getting history:', error)
     return []
@@ -330,10 +378,18 @@ export async function getAllMessengerChats(
   try {
     const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/messengerChats`)
 
-    if (!response.ok) return []
+    if (!response.ok) {
+      console.log('[Messenger] Failed to fetch chats:', response.status)
+      return []
+    }
 
     const data = await response.json()
-    if (!data.documents) return []
+    if (!data.documents) {
+      console.log('[Messenger] No documents in response')
+      return []
+    }
+
+    console.log('[Messenger] Found', data.documents.length, 'chat documents')
 
     const chats: Array<{
       senderId: string
@@ -347,27 +403,67 @@ export async function getAllMessengerChats(
 
       const chatData = parseFirestoreFields(doc.fields)
       const messages = (chatData.messages as unknown[]) || []
-      const lastMsg = messages.length > 0 ? messages[messages.length - 1] as Record<string, unknown> : null
+
+      // Filter to only valid messages (with text)
+      const validMessages = messages.filter((m) => {
+        const msg = m as Record<string, unknown>
+        return msg.text && typeof msg.text === 'string'
+      })
+
+      // Get the last valid message
+      const lastMsg = validMessages.length > 0
+        ? validMessages[validMessages.length - 1] as Record<string, unknown>
+        : null
+
+      // Parse lastMessageAt - handle both string and Date
+      let lastMessageAt: Date
+      if (chatData.lastMessageAt instanceof Date) {
+        lastMessageAt = chatData.lastMessageAt
+      } else if (typeof chatData.lastMessageAt === 'string') {
+        lastMessageAt = new Date(chatData.lastMessageAt)
+      } else {
+        lastMessageAt = new Date()
+      }
+
+      // Ensure valid date
+      if (isNaN(lastMessageAt.getTime())) {
+        lastMessageAt = new Date()
+      }
+
+      // Parse last message timestamp
+      let lastMsgTimestamp: Date | undefined
+      if (lastMsg) {
+        if (lastMsg.timestamp instanceof Date) {
+          lastMsgTimestamp = lastMsg.timestamp
+        } else if (typeof lastMsg.timestamp === 'string') {
+          lastMsgTimestamp = new Date(lastMsg.timestamp)
+        } else {
+          lastMsgTimestamp = new Date()
+        }
+        if (isNaN(lastMsgTimestamp.getTime())) {
+          lastMsgTimestamp = new Date()
+        }
+      }
 
       chats.push({
-        senderId: chatData.senderId as string || doc.name.split('/').pop() || '',
+        senderId: (chatData.senderId as string) || doc.name.split('/').pop() || '',
         lastMessage: lastMsg ? {
-          id: lastMsg.id as string,
-          direction: lastMsg.direction as 'inbound' | 'outbound',
-          senderId: lastMsg.senderId as string,
-          text: lastMsg.text as string,
-          timestamp: new Date(lastMsg.timestamp as string),
+          id: (lastMsg.id as string) || '',
+          direction: (lastMsg.direction as 'inbound' | 'outbound') || 'inbound',
+          senderId: (lastMsg.senderId as string) || '',
+          text: (lastMsg.text as string) || '',
+          timestamp: lastMsgTimestamp!,
           messageId: lastMsg.messageId as string | undefined,
         } : null,
-        lastMessageAt: chatData.lastMessageAt
-          ? new Date(chatData.lastMessageAt as string)
-          : new Date(),
-        messageCount: messages.length,
+        lastMessageAt,
+        messageCount: validMessages.length,
       })
     }
 
     // Sort by last message time
     chats.sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime())
+
+    console.log('[Messenger] Returning', chats.length, 'chats')
 
     return chats
   } catch (error) {

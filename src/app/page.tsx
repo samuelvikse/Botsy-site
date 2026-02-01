@@ -622,15 +622,15 @@ export default function LandingPage() {
 
               <div className="relative grid lg:grid-cols-[1fr,auto,1.2fr] gap-8 lg:gap-12 items-center">
                 {/* Left: Price */}
-                <div className="text-center lg:text-left">
+                <div className="text-center lg:text-left flex flex-col items-center lg:items-start">
                   <Badge className="mb-4 bg-orange-500/20 text-orange-400 border-orange-500/30">INTRODUKSJONSTILBUD</Badge>
 
-                  <div className="flex items-baseline gap-2 mb-2 justify-center lg:justify-start">
+                  <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-6xl lg:text-7xl font-bold text-white font-display">699</span>
                     <span className="text-xl text-[#6B7A94]">kr/mnd</span>
                   </div>
 
-                  <p className="text-[#6B7A94] text-sm mb-4 justify-center lg:justify-start flex items-center gap-2">
+                  <p className="text-[#6B7A94] text-sm mb-4 flex items-center gap-2">
                     <span className="line-through">Ordinær pris 1499 kr/mnd</span>
                     <span className="text-orange-400 font-semibold">Spar 800 kr!</span>
                   </p>
@@ -639,14 +639,14 @@ export default function LandingPage() {
                     Alt du trenger for å automatisere kundeservicen din
                   </p>
 
-                  <Link href="/prov-gratis" className="block">
+                  <Link href="/prov-gratis" className="w-full lg:w-auto">
                     <Button size="xl" className="w-full shadow-lg shadow-botsy-lime/20">
                       Start 14 dagers gratis prøveperiode
                       <ArrowRight className="h-5 w-5" />
                     </Button>
                   </Link>
 
-                  <p className="text-center lg:text-left text-sm text-[#6B7A94] mt-4">
+                  <p className="text-sm text-[#6B7A94] mt-4">
                     Ingen kredittkort nødvendig
                   </p>
                 </div>

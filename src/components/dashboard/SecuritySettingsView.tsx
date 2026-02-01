@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function SecuritySettingsView() {
-  const { user, userData, setupTwoFactor, verifyTwoFactorSetup, disableTwoFactor, error, clearError, loading } = useAuth()
+  const { user, userData, setupTwoFactor, verifyTwoFactorSetup, disableTwoFactor, reauthenticate, error, clearError, loading } = useAuth()
 
   const [showSetupModal, setShowSetupModal] = useState(false)
   const [showDisableModal, setShowDisableModal] = useState(false)
@@ -27,6 +27,7 @@ export default function SecuritySettingsView() {
   const [setupStep, setSetupStep] = useState<'phone' | 'verify'>('phone')
   const [isProcessing, setIsProcessing] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [needsReauth, setNeedsReauth] = useState(false)
 
   const is2FAEnabled = userData?.twoFactorEnabled || false
 
@@ -39,6 +40,26 @@ export default function SecuritySettingsView() {
     setSuccessMessage(null)
   }
 
+  const handleReauthenticate = async () => {
+    clearError()
+    setIsProcessing(true)
+
+    try {
+      console.log('[2FA Setup] Re-authenticating...')
+      await reauthenticate()
+      console.log('[2FA Setup] Re-authentication successful')
+      setNeedsReauth(false)
+      // Now try sending the code again
+      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+47${phoneNumber}`
+      await setupTwoFactor(formattedPhone, 'recaptcha-2fa')
+      setSetupStep('verify')
+    } catch (err) {
+      console.error('[2FA Setup] Re-auth error:', err)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault()
     clearError()
@@ -46,10 +67,16 @@ export default function SecuritySettingsView() {
 
     try {
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+47${phoneNumber}`
+      console.log('[2FA Setup] Sending code to:', formattedPhone)
       await setupTwoFactor(formattedPhone, 'recaptcha-2fa')
+      console.log('[2FA Setup] Code sent successfully')
       setSetupStep('verify')
-    } catch {
-      // Error handled by context
+    } catch (err) {
+      console.error('[2FA Setup] Error:', err)
+      // Check if re-authentication is required
+      if (err instanceof Error && (err.message.includes('REQUIRES_RECENT_LOGIN') || err.message.includes('requires-recent-login'))) {
+        setNeedsReauth(true)
+      }
     } finally {
       setIsProcessing(false)
     }
@@ -267,13 +294,44 @@ export default function SecuritySettingsView() {
                 </div>
               </div>
 
-              {error && (
+              {error && !needsReauth && (
                 <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                   <p className="text-red-400 text-sm">{error}</p>
                 </div>
               )}
 
-              {setupStep === 'phone' ? (
+              {needsReauth ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                    <p className="text-yellow-400 text-sm mb-2 font-medium">Sikkerhetskontroll kreves</p>
+                    <p className="text-[#A8B4C8] text-sm">
+                      For å aktivere 2FA må du bekrefte identiteten din.
+                      Klikk knappen under for å logge inn på nytt.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleReauthenticate}
+                    className="w-full"
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        Verifiserer...
+                      </>
+                    ) : (
+                      'Bekreft med Google'
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setNeedsReauth(false); setShowSetupModal(false); }}
+                    className="w-full"
+                  >
+                    Avbryt
+                  </Button>
+                </div>
+              ) : setupStep === 'phone' ? (
                 <form onSubmit={handleSendCode} className="space-y-4">
                   <div>
                     <label className="text-white text-sm font-medium block mb-2">

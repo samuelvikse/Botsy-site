@@ -127,7 +127,7 @@ export const metadata: Metadata = {
   },
   other: {
     'msapplication-TileColor': '#0A0F1C',
-    'apple-mobile-web-app-capable': 'yes',
+    'mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'black-translucent',
     'apple-mobile-web-app-title': 'Botsy',
   },

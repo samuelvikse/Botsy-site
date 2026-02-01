@@ -117,10 +117,15 @@ export default function LoginPage() {
     setIsGoogleLoading(true)
 
     try {
-      await signInWithGoogle()
+      // Pass false to reject new users - they must register first
+      await signInWithGoogle(false)
       router.push('/admin')
-    } catch {
-      // Error is handled by the auth context
+    } catch (err) {
+      // Check if MFA is required
+      if (err instanceof Error && err.message === 'MFA_REQUIRED') {
+        setShowMfaVerification(true)
+      }
+      // Other errors are handled by the auth context
     } finally {
       setIsGoogleLoading(false)
     }
