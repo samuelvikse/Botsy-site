@@ -90,12 +90,18 @@ async function callGemini(
       }
     )
 
+    console.log('[Gemini v2] Response status:', response.status)
+
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Gemini v2] Error:', errorText)
       return { success: false, response: '' }
     }
 
     const data = await response.json()
+    console.log('[Gemini v2] Response data keys:', Object.keys(data))
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+    console.log('[Gemini v2] Extracted text length:', text?.length || 0)
 
     return text ? { success: true, response: text } : { success: false, response: '' }
   } catch {
