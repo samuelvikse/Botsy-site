@@ -36,6 +36,7 @@ interface UserData {
   createdAt: Date
   phone?: string
   twoFactorEnabled?: boolean
+  avatarUrl?: string
 }
 
 interface CompanyData {

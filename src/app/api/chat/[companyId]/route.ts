@@ -253,12 +253,21 @@ export async function POST(
       }
 
       // Fetch knowledge documents (include uploadedAt and fileName for prioritization)
+      let knowledgeDocuments: Array<{
+        faqs: Array<{ question: string; answer: string }>
+        rules: string[]
+        policies: string[]
+        importantInfo: string[]
+        uploadedAt: Date
+        fileName: string
+      }> = []
+
       try {
         const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
         const docsQuery = query(docsRef, where('status', '==', 'ready'))
         const docsSnapshot = await getDocs(docsQuery)
 
-        const knowledgeDocuments = docsSnapshot.docs.map(doc => {
+        knowledgeDocuments = docsSnapshot.docs.map(doc => {
           const data = doc.data()
           return {
             ...data.analyzedData,
@@ -266,45 +275,45 @@ export async function POST(
             fileName: data.fileName || 'Ukjent dokument',
           }
         })
-
-        // Generate response with knowledge documents
-        const reply = await chatWithCustomer(message, {
-          businessProfile,
-          faqs: businessProfile.faqs,
-          instructions,
-          conversationHistory: history,
-          knowledgeDocuments,
-        })
-
-        // Save assistant response
-        try {
-          const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-          const sessionDoc = await getDoc(sessionRef)
-
-          if (sessionDoc.exists()) {
-            const sessionData = sessionDoc.data()
-            await updateDoc(sessionRef, {
-              messages: [
-                ...(sessionData?.messages || []),
-                { role: 'assistant', content: reply, timestamp: new Date() },
-              ],
-              updatedAt: new Date(),
-            })
-          }
-        } catch {
-          // Silently continue - message saving is not critical
-        }
-
-        return NextResponse.json({
-          success: true,
-          reply,
-        }, { headers: corsHeaders })
       } catch {
-        // Fall through to default response generation
+        // Continue without knowledge documents - not critical
       }
+
+      // Generate response (with or without knowledge documents)
+      const reply = await chatWithCustomer(message, {
+        businessProfile,
+        faqs: businessProfile.faqs,
+        instructions,
+        conversationHistory: history,
+        knowledgeDocuments: knowledgeDocuments.length > 0 ? knowledgeDocuments : undefined,
+      })
+
+      // Save assistant response
+      try {
+        const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+        const sessionDoc = await getDoc(sessionRef)
+
+        if (sessionDoc.exists()) {
+          const sessionData = sessionDoc.data()
+          await updateDoc(sessionRef, {
+            messages: [
+              ...(sessionData?.messages || []),
+              { role: 'assistant', content: reply, timestamp: new Date() },
+            ],
+            updatedAt: new Date(),
+          })
+        }
+      } catch {
+        // Silently continue - message saving is not critical
+      }
+
+      return NextResponse.json({
+        success: true,
+        reply,
+      }, { headers: corsHeaders })
     }
 
-    // Generate response (for demo mode or fallback)
+    // Generate response (for demo mode only)
     const reply = await chatWithCustomer(message, {
       businessProfile,
       faqs: businessProfile.faqs,

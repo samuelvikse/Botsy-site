@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { LogOut, Settings, User, Edit, ChevronDown } from 'lucide-react'
+import { LogOut, Settings, Edit, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/contexts/PermissionContext'
 import { ProfileEditModal } from './ProfileEditModal'
@@ -11,16 +11,22 @@ interface ProfileDropdownProps {
 }
 
 export function ProfileDropdown({ onNavigateToSettings }: ProfileDropdownProps) {
-  const { user, signOut } = useAuth()
+  const { user, userData, signOut } = useAuth()
   const { isOwner, membership } = usePermissions()
   const [isOpen, setIsOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Get display name from Firestore userData first, fallback to Firebase Auth
+  const displayName = userData?.displayName || user?.displayName
+
   // Get user initials
-  const userInitials = user?.displayName
-    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
+  const userInitials = displayName
+    ? displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.email?.substring(0, 2).toUpperCase() || 'U'
+
+  // Use our own avatarUrl from Firestore, not Firebase Auth photoURL
+  const avatarUrl = userData?.avatarUrl
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -68,10 +74,10 @@ export function ProfileDropdown({ onNavigateToSettings }: ProfileDropdownProps) 
           className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] cursor-pointer transition-colors group w-full"
         >
           <div className="h-9 w-9 rounded-full bg-botsy-lime/20 flex items-center justify-center text-botsy-lime font-medium text-sm overflow-hidden">
-            {user?.photoURL ? (
+            {avatarUrl ? (
               <img
-                src={user.photoURL}
-                alt={user.displayName || 'Profile'}
+                src={avatarUrl}
+                alt={displayName || 'Profile'}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -79,7 +85,7 @@ export function ProfileDropdown({ onNavigateToSettings }: ProfileDropdownProps) 
             )}
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-white text-sm font-medium truncate">{user?.displayName || 'Bruker'}</p>
+            <p className="text-white text-sm font-medium truncate">{displayName || 'Bruker'}</p>
             <p className="text-[#6B7A94] text-xs truncate">{getRoleName(membership?.role)}</p>
           </div>
           <ChevronDown className={`h-4 w-4 text-[#6B7A94] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -90,7 +96,7 @@ export function ProfileDropdown({ onNavigateToSettings }: ProfileDropdownProps) 
           <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#1a1a2e] border border-white/[0.08] rounded-xl shadow-xl overflow-hidden z-50">
             {/* User Info */}
             <div className="px-4 py-3 border-b border-white/[0.06]">
-              <p className="text-white text-sm font-medium truncate">{user?.displayName || 'Bruker'}</p>
+              <p className="text-white text-sm font-medium truncate">{displayName || 'Bruker'}</p>
               <p className="text-[#6B7A94] text-xs truncate">{user?.email}</p>
             </div>
 

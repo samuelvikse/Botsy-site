@@ -156,6 +156,7 @@ export async function saveToneConfig(
     greeting?: string
     useEmojis?: boolean
     humorLevel?: 'none' | 'subtle' | 'moderate' | 'playful'
+    responseLength?: 'short' | 'balanced' | 'detailed'
     language?: string
     languageName?: string
   }

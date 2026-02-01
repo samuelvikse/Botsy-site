@@ -16,11 +16,12 @@ import {
   Loader2,
   Check,
   Smile,
+  AlignLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { saveToneConfig, getBusinessProfile } from '@/lib/firestore'
-import type { ToneConfig, BusinessProfile, HumorLevel } from '@/types'
+import type { ToneConfig, BusinessProfile, HumorLevel, ResponseLength } from '@/types'
 
 interface ToneConfigViewProps {
   companyId: string
@@ -70,6 +71,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   const [greeting, setGreeting] = useState('Hei! 👋 Hvordan kan jeg hjelpe deg?')
   const [useEmojis, setUseEmojis] = useState(true)
   const [humorLevel, setHumorLevel] = useState<HumorLevel>('subtle')
+  const [responseLength, setResponseLength] = useState<ResponseLength>('balanced')
 
   // Load existing config
   useEffect(() => {
@@ -85,6 +87,9 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
           }
           if (initialProfile.toneConfig.humorLevel) {
             setHumorLevel(initialProfile.toneConfig.humorLevel)
+          }
+          if (initialProfile.toneConfig.responseLength) {
+            setResponseLength(initialProfile.toneConfig.responseLength)
           }
         }
         if (initialProfile?.tone) {
@@ -113,6 +118,9 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
           if (profile.toneConfig.humorLevel) {
             setHumorLevel(profile.toneConfig.humorLevel)
           }
+          if (profile.toneConfig.responseLength) {
+            setResponseLength(profile.toneConfig.responseLength)
+          }
         }
         if (profile?.tone) {
           setCurrentTone(profile.tone)
@@ -132,6 +140,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         greeting,
         useEmojis,
         humorLevel,
+        responseLength,
       })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -312,6 +321,39 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
             </div>
             <p className="text-[#6B7A94] text-xs mt-2">
               Bestemmer hvor mye humor og lette kommentarer Botsy bruker i svarene
+            </p>
+          </div>
+
+          {/* Response Length */}
+          <div>
+            <label className="text-white text-sm font-medium flex items-center gap-2 mb-3">
+              <AlignLeft className="h-4 w-4 text-botsy-lime" />
+              Svarlengde
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: 'short' as const, label: 'Kort', desc: 'Rett på sak, 1-2 setninger' },
+                { value: 'balanced' as const, label: 'Balansert', desc: 'Passe detaljert, 2-3 setninger' },
+                { value: 'detailed' as const, label: 'Detaljert', desc: 'Grundig og utfyllende' },
+              ].map((length) => (
+                <button
+                  key={length.value}
+                  onClick={() => setResponseLength(length.value)}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    responseLength === length.value
+                      ? 'border-botsy-lime bg-botsy-lime/10'
+                      : 'border-white/[0.06] hover:border-white/[0.12]'
+                  }`}
+                >
+                  <p className={`font-medium ${responseLength === length.value ? 'text-botsy-lime' : 'text-white'}`}>
+                    {length.label}
+                  </p>
+                  <p className="text-[#6B7A94] text-xs mt-1">{length.desc}</p>
+                </button>
+              ))}
+            </div>
+            <p className="text-[#6B7A94] text-xs mt-2">
+              Bestemmer hvor lange og detaljerte svarene til Botsy skal være
             </p>
           </div>
         </div>

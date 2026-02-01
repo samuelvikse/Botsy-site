@@ -14,14 +14,15 @@ interface ProfileEditModalProps {
 }
 
 export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
-  const { user } = useAuth()
+  const { user, userData } = useAuth()
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [displayName, setDisplayName] = useState(user?.displayName || '')
+  const [displayName, setDisplayName] = useState(userData?.displayName || user?.displayName || '')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [removeAvatar, setRemoveAvatar] = useState(false)
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -53,6 +54,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const handleRemoveAvatar = () => {
     setAvatarFile(null)
     setAvatarPreview(null)
+    setRemoveAvatar(true)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -63,20 +65,23 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
     setIsLoading(true)
     try {
-      let avatarUrl: string | undefined
+      let newAvatarUrl: string | undefined
 
       // Upload avatar if a new one was selected
       if (avatarFile) {
-        avatarUrl = await uploadUserAvatar(user.uid, avatarFile)
+        newAvatarUrl = await uploadUserAvatar(user.uid, avatarFile)
       }
 
       // Update profile
-      const updates: Record<string, string> = {}
-      if (displayName !== user.displayName) {
+      const updates: Record<string, string | null> = {}
+      const currentDisplayName = userData?.displayName || user.displayName
+      if (displayName !== currentDisplayName) {
         updates.displayName = displayName
       }
-      if (avatarUrl) {
-        updates.avatarUrl = avatarUrl
+      if (newAvatarUrl) {
+        updates.avatarUrl = newAvatarUrl
+      } else if (removeAvatar && userData?.avatarUrl) {
+        updates.avatarUrl = null
       }
 
       if (Object.keys(updates).length > 0) {
@@ -107,18 +112,20 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   }
 
   const handleClose = () => {
-    setDisplayName(user?.displayName || '')
+    setDisplayName(userData?.displayName || user?.displayName || '')
     setAvatarFile(null)
     setAvatarPreview(null)
+    setRemoveAvatar(false)
     onClose()
   }
 
   // Get user initials
   const userInitials = displayName
-    ? displayName.split(' ').map(n => n[0]).join('').toUpperCase()
+    ? displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.email?.substring(0, 2).toUpperCase() || 'U'
 
-  const currentAvatar = avatarPreview || user?.photoURL
+  // Use our own avatarUrl from Firestore, not Firebase Auth photoURL
+  const currentAvatar = removeAvatar ? null : (avatarPreview || userData?.avatarUrl)
 
   return (
     <Modal
@@ -150,7 +157,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               <Camera className="h-4 w-4" />
             </button>
 
-            {(avatarPreview || user?.photoURL) && (
+            {currentAvatar && (
               <button
                 onClick={handleRemoveAvatar}
                 className="absolute top-0 right-0 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"

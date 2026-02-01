@@ -10,6 +10,8 @@ export interface FAQ {
 // Tone configuration for precise control over Botsy's communication style
 export type HumorLevel = 'none' | 'subtle' | 'moderate' | 'playful'
 
+export type ResponseLength = 'short' | 'balanced' | 'detailed'
+
 export interface ToneConfig {
   customInstructions?: string // User's detailed description of how Botsy should communicate
   personality?: string // Specific personality traits (e.g., "entusiastisk", "rolig og tillitsfull")
@@ -20,6 +22,7 @@ export interface ToneConfig {
   greeting?: string // Welcome message for chat widget
   useEmojis?: boolean // Whether Botsy should use emojis
   humorLevel?: HumorLevel // How much humor Botsy should use
+  responseLength?: ResponseLength // How detailed responses should be
 }
 
 // Contact information extracted from website

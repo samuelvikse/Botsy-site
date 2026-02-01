@@ -545,6 +545,28 @@ function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): string {
 
   // Add custom tone configuration if available
   if (toneConfig) {
+    // Response length configuration
+    if (toneConfig.responseLength) {
+      const lengthGuide = toneConfig.responseLength === 'short'
+        ? '\n\nSVARLENGDE: Hold svarene KORTE og konsise - maks 1-2 setninger. Rett på sak, ingen unødvendig informasjon.'
+        : toneConfig.responseLength === 'detailed'
+        ? '\n\nSVARLENGDE: Gi DETALJERTE og grundige svar. Forklar godt og inkluder relevant tilleggsinformasjon. 4-6 setninger er passende.'
+        : '\n\nSVARLENGDE: Hold svarene BALANSERT - 2-3 setninger er ideelt. Gi nok informasjon uten å være for ordrik.'
+      toneGuide += lengthGuide
+    }
+
+    // Humor level configuration
+    if (toneConfig.humorLevel) {
+      const humorGuide = toneConfig.humorLevel === 'none'
+        ? '\n\nHUMOR: Vær alltid seriøs og profesjonell. Ingen humor eller morsomheter.'
+        : toneConfig.humorLevel === 'subtle'
+        ? '\n\nHUMOR: Du kan være lett og vennlig, men hold det subtilt. Ingen åpenbare vitser.'
+        : toneConfig.humorLevel === 'moderate'
+        ? '\n\nHUMOR: Bruk moderat humor når det passer. En vennlig vits eller lett kommentar er ok.'
+        : '\n\nHUMOR: Vær leken og morsom! Bruk gjerne humor, emojis og morsomme kommentarer.'
+      toneGuide += humorGuide
+    }
+
     if (toneConfig.customInstructions) {
       toneGuide += `\n\nEKSTRA TONE-INSTRUKSJONER FRA EIER:\n${toneConfig.customInstructions}`
     }
@@ -701,7 +723,7 @@ SPRÅKHÅNDTERING:
 - Tilpass også tone og uttrykk til det aktuelle språket - ikke bare oversett ordrett
 
 REGLER:
-1. Hold svarene korte og konsise (maks 2-3 setninger med mindre kunden trenger mer info)
+1. Følg svarlengde-innstillingene i KOMMUNIKASJONSSTIL-seksjonen nøye
 2. Hvis du ikke vet svaret, si det ærlig og tilby å sette kunden i kontakt med en person
 3. Følg alltid instruksjonene fra bedriftseieren
 4. Vær hjelpsom og løsningsorientert
