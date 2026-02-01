@@ -47,7 +47,8 @@ import {
   FileUp,
   Layers,
   Shield,
-  Globe
+  Globe,
+  Copy
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -859,7 +860,18 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
   const [languageName, setLanguageName] = useState('Norsk')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [copiedId, setCopiedId] = useState(false)
   const toast = useToast()
+
+  const handleCopyCompanyId = async () => {
+    try {
+      await navigator.clipboard.writeText(companyId)
+      setCopiedId(true)
+      setTimeout(() => setCopiedId(false), 2000)
+    } catch {
+      toast.error('Kunne ikke kopiere', 'Prøv å markere teksten manuelt')
+    }
+  }
 
   // Load settings on mount
   useEffect(() => {
@@ -927,6 +939,33 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
         <h1 className="text-2xl font-bold text-white mb-1">Innstillinger</h1>
         <p className="text-[#6B7A94]">Konfigurer Botsy og kontoen din</p>
       </div>
+
+      {/* Company ID */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Code2 className="h-5 w-5 text-botsy-lime" />
+          <h2 className="text-lg font-semibold text-white">Bedrifts-ID</h2>
+        </div>
+        <p className="text-[#6B7A94] text-sm mb-4">
+          Denne ID-en brukes til å koble widgeten til nettsiden din og andre integrasjoner.
+        </p>
+        <div className="flex items-center gap-3">
+          <code className="flex-1 px-4 py-3 bg-black/30 rounded-xl text-botsy-lime font-mono text-sm border border-white/[0.06]">
+            {companyId}
+          </code>
+          <button
+            onClick={handleCopyCompanyId}
+            className={`p-3 rounded-xl border transition-all ${
+              copiedId
+                ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                : 'bg-white/[0.03] border-white/[0.06] text-[#6B7A94] hover:text-white hover:border-white/[0.12]'
+            }`}
+            title="Kopier"
+          >
+            {copiedId ? <CheckCheck className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+          </button>
+        </div>
+      </Card>
 
       {/* Bot Name */}
       <Card className="p-6">
