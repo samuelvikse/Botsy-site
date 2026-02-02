@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPendingEscalations, claimEscalation, resolveEscalation, resolveEscalationsByConversation, resolveAllPendingEscalations } from '@/lib/escalation-firestore'
+import { getPendingEscalations, claimEscalation, resolveEscalation, resolveEscalationsByConversation, resolveAllPendingEscalations, dismissEscalation } from '@/lib/escalation-firestore'
 import { incrementAnsweredCustomers } from '@/lib/leaderboard-firestore'
 import { clearWidgetChatManualMode } from '@/lib/firestore'
 import { clearMessengerChatManualMode } from '@/lib/messenger-firestore'
@@ -93,6 +93,32 @@ export async function PATCH(request: NextRequest) {
     console.error('Error updating escalation:', error)
     return NextResponse.json(
       { error: 'Failed to update escalation' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE - Dismiss/delete an escalation notification
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { escalationId, companyId } = await request.json()
+
+    if (!escalationId || !companyId) {
+      return NextResponse.json(
+        { error: 'Missing escalationId or companyId' },
+        { status: 400 }
+      )
+    }
+
+    await dismissEscalation(companyId, escalationId)
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error dismissing escalation:', error)
+    return NextResponse.json(
+      { error: 'Failed to dismiss escalation' },
       { status: 500 }
     )
   }

@@ -12,7 +12,9 @@ import {
   AlertTriangle,
   X,
   Key,
-  Smartphone
+  Smartphone,
+  Trash2,
+  Download
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,10 +24,13 @@ export default function SecuritySettingsView() {
 
   const [showSetupModal, setShowSetupModal] = useState(false)
   const [showDisableModal, setShowDisableModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
   const [setupStep, setSetupStep] = useState<'phone' | 'verify'>('phone')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [needsReauth, setNeedsReauth] = useState(false)
 
@@ -110,6 +115,73 @@ export default function SecuritySettingsView() {
       setTimeout(() => setSuccessMessage(null), 5000)
     } catch {
       // Error handled by context
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleExportData = async () => {
+    setIsExporting(true)
+    try {
+      const token = await user?.getIdToken()
+      const response = await fetch('/api/account/delete', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Kunne ikke eksportere data')
+      }
+
+      const data = await response.json()
+
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `botsy-data-export-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      setSuccessMessage('Data eksportert!')
+      setTimeout(() => setSuccessMessage(null), 5000)
+    } catch (err) {
+      console.error('Export error:', err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'SLETT KONTOEN MIN') return
+
+    clearError()
+    setIsProcessing(true)
+
+    try {
+      const token = await user?.getIdToken()
+      const response = await fetch('/api/account/delete', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Kunne ikke slette kontoen')
+      }
+
+      // Redirect to homepage after successful deletion
+      window.location.href = '/'
+    } catch (err) {
+      console.error('Delete account error:', err)
     } finally {
       setIsProcessing(false)
     }
@@ -260,6 +332,40 @@ export default function SecuritySettingsView() {
             Hold telefonnummeret ditt oppdatert for kontogjenoppretting
           </li>
         </ul>
+      </div>
+
+      {/* GDPR Data Management */}
+      <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6">
+        <h3 className="text-white font-medium mb-4 flex items-center gap-2">
+          <Shield className="h-5 w-5 text-botsy-lime" />
+          Personvern og data (GDPR)
+        </h3>
+        <p className="text-[#6B7A94] text-sm mb-4">
+          I henhold til GDPR har du rett til å eksportere og slette dataene dine.
+        </p>
+        <div className="space-y-3">
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={handleExportData}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            ) : (
+              <Download className="h-5 w-5 mr-2" />
+            )}
+            Eksporter mine data
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-red-400 border-red-500/20 hover:bg-red-500/10 hover:text-red-300"
+            onClick={() => setShowDeleteModal(true)}
+          >
+            <Trash2 className="h-5 w-5 mr-2" />
+            Slett kontoen min
+          </Button>
+        </div>
       </div>
 
       {/* Setup 2FA Modal */}
@@ -471,6 +577,91 @@ export default function SecuritySettingsView() {
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     'Ja, deaktiver'
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Account Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-botsy-dark-card border border-white/[0.06] rounded-2xl p-6 max-w-md w-full"
+            >
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }}
+                className="absolute top-4 right-4 text-[#6B7A94] hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <Trash2 className="h-6 w-6 text-red-500" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Slett kontoen din</h2>
+                </div>
+              </div>
+
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl mb-4">
+                <p className="text-red-400 text-sm font-medium mb-2">Advarsel: Denne handlingen kan ikke angres!</p>
+                <ul className="text-[#A8B4C8] text-sm space-y-1">
+                  <li>- Alle dine data vil bli permanent slettet</li>
+                  <li>- Du mister tilgang til alle samtaler og FAQs</li>
+                  <li>- Chatboten din vil slutte å fungere</li>
+                  <li>- Abonnementet ditt vil bli kansellert</li>
+                </ul>
+              </div>
+
+              <p className="text-[#A8B4C8] text-sm mb-4">
+                For å bekrefte, skriv <strong className="text-white">SLETT KONTOEN MIN</strong> i feltet under:
+              </p>
+
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="SLETT KONTOEN MIN"
+                className="w-full h-12 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-red-500/50 transition-colors mb-4"
+              />
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }}
+                >
+                  Avbryt
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white border-red-500 hover:border-red-600"
+                  onClick={handleDeleteAccount}
+                  disabled={isProcessing || deleteConfirmText !== 'SLETT KONTOEN MIN'}
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    'Slett permanent'
                   )}
                 </Button>
               </div>

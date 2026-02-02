@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/toast'
+import { CookieConsent } from '@/components/ui/cookie-consent'
 import { OrganizationJsonLd, WebsiteJsonLd, SoftwareApplicationJsonLd } from '@/components/seo/JsonLd'
 import { WidgetScript } from '@/components/WidgetScript'
 
@@ -146,6 +147,7 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             {children}
+            <CookieConsent />
           </ToastProvider>
         </AuthProvider>
         <WidgetScript companyId="RjR6IBzbd2YX2TLFoXwuHzY2N3O2" />

@@ -56,12 +56,31 @@ export default function TermsPage() {
               <p className="text-[#A8B4C8] leading-relaxed">
                 Botsy er en AI-drevet kundeservice-assistent som hjelper bedrifter med å svare på
                 kundehenvendelser. Tjenesten inkluderer en chatbot-widget for nettsider, SMS-integrasjon,
-                og et administrasjonspanel for å konfigurere og overvåke chatboten.
+                e-postintegrasjon, Messenger-integrasjon, og et administrasjonspanel for å konfigurere
+                og overvåke chatboten.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">3. Brukerkontoer</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">3. Nettside-analyse og synkronisering</h2>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
+                Ved å oppgi din bedrifts nettside-URL, gir du Botsy tillatelse til å:
+              </p>
+              <ul className="list-disc list-inside text-[#A8B4C8] space-y-2">
+                <li>Analysere offentlig tilgjengelig innhold på nettsiden</li>
+                <li>Ekstrahere informasjon som FAQs, produkter, tjenester og bedriftsinformasjon</li>
+                <li>Automatisk synkronisere kunnskapsbasen med oppdateringer på nettsiden</li>
+                <li>Bruke AI til å generere svar basert på nettsidens innhold</li>
+              </ul>
+              <p className="text-[#A8B4C8] leading-relaxed mt-4">
+                Denne analysen er begrenset til offentlig tilgjengelig informasjon og krever ingen
+                innlogging eller tilgang til beskyttede områder. Du kan når som helst deaktivere
+                automatisk synkronisering i administrasjonspanelet.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-white mb-4">4. Brukerkontoer</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 For å bruke Botsy må du opprette en konto. Du er ansvarlig for å holde kontoinformasjonen
                 din konfidensiell og for all aktivitet som skjer under kontoen din. Du må varsle oss
@@ -70,7 +89,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">4. Akseptabel bruk</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">5. Akseptabel bruk</h2>
               <p className="text-[#A8B4C8] leading-relaxed mb-4">
                 Du godtar å ikke bruke Botsy til:
               </p>
@@ -84,7 +103,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">5. Betaling og fakturering</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">6. Betaling og fakturering</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Betaling skjer på forhånd for hver faktureringsperiode. Priser kan endres med 30 dagers
                 varsel. Ved manglende betaling kan vi suspendere eller avslutte kontoen din.
@@ -92,7 +111,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">6. Oppsigelse</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">7. Oppsigelse</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Du kan når som helst si opp abonnementet ditt. Ved oppsigelse vil du ha tilgang til
                 tjenesten ut inneværende faktureringsperiode. Vi forbeholder oss retten til å avslutte
@@ -101,7 +120,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">7. Ansvarsfraskrivelse</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">8. Ansvarsfraskrivelse</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Botsy leveres &quot;som den er&quot; uten garantier av noe slag. Vi garanterer ikke at tjenesten
                 vil være feilfri eller uavbrutt. Vi er ikke ansvarlige for indirekte tap eller skader
@@ -110,7 +129,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">8. Endringer i vilkårene</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">9. Endringer i vilkårene</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Vi kan oppdatere disse vilkårene fra tid til annen. Ved vesentlige endringer vil vi
                 varsle deg via e-post eller gjennom tjenesten. Fortsatt bruk av tjenesten etter
@@ -119,7 +138,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">9. Kontakt</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">10. Kontakt</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Har du spørsmål om disse vilkårene? Ta kontakt med oss på{' '}
                 <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">

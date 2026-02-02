@@ -79,7 +79,25 @@ export default function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">4. GDPR og dine rettigheter</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">4. AI-behandling og automatisert beslutningstaking</h2>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
+                Botsy bruker kunstig intelligens (AI) til å:
+              </p>
+              <ul className="list-disc list-inside text-[#A8B4C8] space-y-2">
+                <li>Generere svar på kundehenvendelser basert på din kunnskapsbase</li>
+                <li>Analysere nettsidens innhold for å ekstrahere relevant informasjon</li>
+                <li>Kategorisere og prioritere samtaler</li>
+                <li>Foreslå forbedringer til kunnskapsbasen</li>
+              </ul>
+              <p className="text-[#A8B4C8] leading-relaxed mt-4">
+                AI-behandlingen innebærer at samtaledata sendes til våre AI-leverandører (se punkt 7).
+                Ingen data brukes til å trene AI-modeller. Du har rett til å be om manuell gjennomgang
+                av automatiserte beslutninger som påvirker deg vesentlig.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-white mb-4">5. GDPR og dine rettigheter</h2>
               <p className="text-[#A8B4C8] leading-relaxed mb-4">
                 Under GDPR har du følgende rettigheter:
               </p>
@@ -93,29 +111,46 @@ export default function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">5. Datalagring</h2>
-              <p className="text-[#A8B4C8] leading-relaxed">
+              <h2 className="text-2xl font-semibold text-white mb-4">6. Datalagring og oppbevaring</h2>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
                 Alle data lagres på servere innenfor EU/EØS. Vi bruker Firebase (Google Cloud Platform)
                 med datalagring i Europa. Data krypteres både under overføring og ved lagring.
               </p>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
+                <strong className="text-white">Oppbevaringstider:</strong>
+              </p>
+              <ul className="list-disc list-inside text-[#A8B4C8] space-y-2">
+                <li><strong className="text-white">Samtalelogger:</strong> Oppbevares så lenge kontoen er aktiv, slettes ved kontosletting</li>
+                <li><strong className="text-white">Kontoinformasjon:</strong> Oppbevares så lenge kontoen er aktiv</li>
+                <li><strong className="text-white">Betalingshistorikk:</strong> Oppbevares i 5 år etter transaksjonen (regnskapskrav)</li>
+                <li><strong className="text-white">Tekniske logger:</strong> Slettes automatisk etter 90 dager</li>
+              </ul>
+              <p className="text-[#A8B4C8] leading-relaxed mt-4">
+                Du kan når som helst eksportere eller slette dine data via kontoinnstillingene.
+              </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">6. Deling av data</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">7. Deling av data</h2>
               <p className="text-[#A8B4C8] leading-relaxed mb-4">
-                Vi deler kun data med:
+                Vi deler kun data med følgende underleverandører som har databehandleravtale med oss:
               </p>
               <ul className="list-disc list-inside text-[#A8B4C8] space-y-2">
-                <li><strong className="text-white">Tjenesteleverandører:</strong> Firebase, Groq (AI), betalingsleverandører</li>
+                <li><strong className="text-white">Firebase/Google Cloud:</strong> Database og autentisering (EU-lagring)</li>
+                <li><strong className="text-white">AI-leverandører:</strong> Groq, Anthropic, OpenAI - for tekstgenerering. Data brukes ikke til modelltrening.</li>
+                <li><strong className="text-white">Twilio:</strong> SMS-tjenester</li>
+                <li><strong className="text-white">SendGrid:</strong> E-posttjenester</li>
+                <li><strong className="text-white">Stripe:</strong> Betalingsbehandling</li>
                 <li><strong className="text-white">Myndigheter:</strong> Kun ved lovpålagt krav</li>
               </ul>
               <p className="text-[#A8B4C8] leading-relaxed mt-4">
-                Vi selger aldri personopplysninger til tredjeparter.
+                Vi selger aldri personopplysninger til tredjeparter. Alle underleverandører er
+                valgt basert på deres GDPR-etterlevelse og sikkerhetsstandarder.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">7. Informasjonskapsler (cookies)</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">8. Informasjonskapsler (cookies)</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Vi bruker nødvendige informasjonskapsler for å få tjenesten til å fungere.
                 Disse inkluderer sesjonskapsler for innlogging og preferansekapsler for
@@ -124,7 +159,7 @@ export default function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">8. Sikkerhet</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">9. Sikkerhet</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Vi tar sikkerheten på alvor og bruker bransjestandard sikkerhetstiltak,
                 inkludert kryptering (AES-256), sikker autentisering, og regelmessige
@@ -133,7 +168,7 @@ export default function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">9. Kontakt oss</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">10. Kontakt oss</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Har du spørsmål om personvern eller ønsker å utøve rettighetene dine?
                 Kontakt oss på{' '}

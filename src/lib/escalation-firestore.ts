@@ -255,6 +255,32 @@ export async function deleteEscalation(escalationId: string): Promise<void> {
 }
 
 /**
+ * Dismiss an escalation - marks it as dismissed so it won't show in notifications
+ * Different from resolve: dismissed means the user acknowledged it without action
+ */
+export async function dismissEscalation(
+  companyId: string,
+  escalationId: string
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const escalationRef = doc(db, 'escalations', escalationId)
+  const docSnap = await getDoc(escalationRef)
+
+  if (!docSnap.exists()) return
+
+  const data = docSnap.data()
+  if (data.companyId !== companyId) {
+    throw new Error('Unauthorized')
+  }
+
+  await updateDoc(escalationRef, {
+    status: 'dismissed',
+    dismissedAt: serverTimestamp(),
+  })
+}
+
+/**
  * Resolve all pending escalations for a company
  * Used for bulk cleanup of old escalations
  */

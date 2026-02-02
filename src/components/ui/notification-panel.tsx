@@ -520,24 +520,35 @@ export function SimpleNotificationBell({
             {escalations.length > 0 ? (
               <div className="max-h-80 overflow-y-auto">
                 {escalations.map((esc) => (
-                  <button
+                  <div
                     key={esc.id}
-                    onClick={() => {
-                      if (onViewConversation) {
-                        onViewConversation(esc.conversationId, esc.channel)
-                        // Remove from local state immediately so it disappears from bell
-                        setEscalations(prev => prev.filter(e => e.id !== esc.id))
-                        previousEscalationIds.current.delete(esc.id)
-                        setIsOpen(false)
-                      }
-                    }}
-                    className="w-full text-left px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
+                    className="w-full text-left px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors group"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          if (onViewConversation) {
+                            onViewConversation(esc.conversationId, esc.channel)
+                            setEscalations(prev => prev.filter(e => e.id !== esc.id))
+                            previousEscalationIds.current.delete(esc.id)
+                            setIsOpen(false)
+                          }
+                        }}
+                        className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 hover:bg-red-500/30 transition-colors"
+                      >
                         <User className="h-4 w-4 text-red-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (onViewConversation) {
+                            onViewConversation(esc.conversationId, esc.channel)
+                            setEscalations(prev => prev.filter(e => e.id !== esc.id))
+                            previousEscalationIds.current.delete(esc.id)
+                            setIsOpen(false)
+                          }
+                        }}
+                        className="flex-1 min-w-0 text-left"
+                      >
                         <p className="text-white text-sm font-medium truncate">
                           {esc.customerIdentifier}
                         </p>
@@ -547,9 +558,33 @@ export function SimpleNotificationBell({
                         <p className="text-[#4A5568] text-xs mt-1">
                           {formatTimeAgo(esc.createdAt)}
                         </p>
-                      </div>
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          // Dismiss this escalation
+                          try {
+                            await fetch('/api/escalations', {
+                              method: 'DELETE',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                escalationId: esc.id,
+                                companyId: companyId
+                              })
+                            })
+                            setEscalations(prev => prev.filter(e => e.id !== esc.id))
+                            previousEscalationIds.current.delete(esc.id)
+                          } catch (err) {
+                            console.error('Failed to dismiss escalation:', err)
+                          }
+                        }}
+                        className="p-1.5 text-[#4A5568] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        title="Fjern varsel"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : (
