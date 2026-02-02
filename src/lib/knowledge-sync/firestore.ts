@@ -327,15 +327,14 @@ export async function updateFAQSyncFields(
 ): Promise<void> {
   if (!db) throw new Error('Firestore not initialized')
 
-  // FAQs are stored in the faqs subcollection or as an array in company doc
-  // Let's check the existing structure
   const companyRef = doc(db, 'companies', companyId)
   const companySnap = await getDoc(companyRef)
 
   if (!companySnap.exists()) return
 
   const data = companySnap.data()
-  const faqs = data.faqs || []
+  // FAQs are stored in businessProfile.faqs
+  const faqs = data.businessProfile?.faqs || []
 
   const updatedFaqs = faqs.map((faq: ExtendedFAQ) => {
     if (faq.id === faqId) {
@@ -349,7 +348,7 @@ export async function updateFAQSyncFields(
     return faq
   })
 
-  await updateDoc(companyRef, { faqs: updatedFaqs })
+  await updateDoc(companyRef, { 'businessProfile.faqs': updatedFaqs })
 }
 
 export async function createFAQFromWebsite(
@@ -371,7 +370,8 @@ export async function createFAQFromWebsite(
   if (!companySnap.exists()) throw new Error('Company not found')
 
   const data = companySnap.data()
-  const faqs = data.faqs || []
+  // FAQs are stored in businessProfile.faqs, not at root level
+  const faqs = data.businessProfile?.faqs || []
 
   const newFaq: ExtendedFAQ = {
     id: faqId,
@@ -388,7 +388,7 @@ export async function createFAQFromWebsite(
   }
 
   await updateDoc(companyRef, {
-    faqs: [...faqs, newFaq],
+    'businessProfile.faqs': [...faqs, newFaq],
   })
 
   return faqId
@@ -403,7 +403,8 @@ export async function getFAQsWithSyncInfo(companyId: string): Promise<ExtendedFA
   if (!companySnap.exists()) return []
 
   const data = companySnap.data()
-  const faqs = data.faqs || []
+  // FAQs are stored in businessProfile.faqs
+  const faqs = data.businessProfile?.faqs || []
 
   return faqs.map((faq: Record<string, unknown>) => ({
     id: faq.id as string,
@@ -446,9 +447,10 @@ export async function confirmFAQDeletion(
   if (!companySnap.exists()) return
 
   const data = companySnap.data()
-  const faqs = data.faqs || []
+  // FAQs are stored in businessProfile.faqs
+  const faqs = data.businessProfile?.faqs || []
 
   const updatedFaqs = faqs.filter((faq: ExtendedFAQ) => faq.id !== faqId)
 
-  await updateDoc(companyRef, { faqs: updatedFaqs })
+  await updateDoc(companyRef, { 'businessProfile.faqs': updatedFaqs })
 }
