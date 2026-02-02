@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { usePermissions } from '@/contexts/PermissionContext'
 
 interface AnalyticsViewProps {
   companyId: string
@@ -34,6 +35,7 @@ interface AnalyticsData {
 
 export function AnalyticsView({ companyId }: AnalyticsViewProps) {
   const toast = useToast()
+  const { canManageTeam } = usePermissions()
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90'>('7')
   const [isExportingAnalytics, setIsExportingAnalytics] = useState(false)
   const [isExportingContacts, setIsExportingContacts] = useState(false)
@@ -197,34 +199,36 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
               <option value="90">Siste 90 dager</option>
             </select>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportAnalytics}
-              disabled={isExportingAnalytics}
-            >
-              {isExportingAnalytics ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4 mr-1.5" />
-              )}
-              Eksporter data
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportContacts}
-              disabled={isExportingContacts}
-            >
-              {isExportingContacts ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <Users className="h-4 w-4 mr-1.5" />
-              )}
-              Eksporter kontaktliste
-            </Button>
-          </div>
+          {canManageTeam && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportAnalytics}
+                disabled={isExportingAnalytics}
+              >
+                {isExportingAnalytics ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-1.5" />
+                )}
+                Eksporter data
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportContacts}
+                disabled={isExportingContacts}
+              >
+                {isExportingContacts ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Users className="h-4 w-4 mr-1.5" />
+                )}
+                Eksporter kontaktliste
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -137,6 +137,14 @@ async function processMessage(
       getKnowledgeDocuments(companyId),
     ])
 
+    // Debug: Log tone configuration
+    const bp = businessProfile as { toneConfig?: { useEmojis?: boolean } } | null
+    console.log('[Messenger] ToneConfig:', {
+      hasToneConfig: !!bp?.toneConfig,
+      useEmojis: bp?.toneConfig?.useEmojis,
+      toneConfigFull: bp?.toneConfig
+    })
+
     // Generate AI response
     const aiResponse = await generateAIResponse({
       userMessage: message.text,
@@ -209,12 +217,14 @@ async function generateAIResponse(context: {
   // Build tone guide using shared function
   const toneGuide = buildToneConfiguration(bp?.tone || 'friendly', bp?.toneConfig)
 
+  // Debug: Log tone guide
+  console.log('[Messenger] ToneGuide preview:', toneGuide.substring(0, 300))
+
   // Build system prompt
   let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på Facebook Messenger.
 
 MESSENGER-SPESIFIKKE REGLER:
 - Ikke bruk markdown-formatering (Messenger støtter det ikke godt)
-- Bruk emoji sparsomt og naturlig
 ${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE start med "Hei [Navn]!" eller lignende hilsen - gå rett på svar siden dette er en pågående samtale'}
 
 KOMMUNIKASJONSSTIL:
@@ -282,12 +292,6 @@ PRIORITERING AV INFORMASJON:
 - Som standard skal du svare på ${websiteLanguageName}
 - VIKTIG: Hvis kunden skriver på et ANNET språk, skal du automatisk bytte til kundens språk`
 
-    // Add useEmojis setting
-    if (bp.toneConfig?.useEmojis === false) {
-      systemPrompt += `\n\nEMOJI: Ikke bruk emojis i svarene.`
-    } else if (bp.toneConfig?.useEmojis === true) {
-      systemPrompt += `\n\nEMOJI: Du kan bruke emojis naturlig i svarene.`
-    }
   }
 
   if (instructions.length > 0) {
@@ -390,6 +394,13 @@ Tilgjengelig kunnskap:`
   // Use shared AI provider (Gemini primary, Groq fallback)
   const { generateAIResponse } = await import('@/lib/ai-providers')
   const result = await generateAIResponse(systemPrompt, messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, { maxTokens: 500, temperature: 0.7 })
+
+  // Debug: Log which AI provider was used
+  console.log('[Messenger] AI Response:', {
+    success: result.success,
+    provider: result.provider,
+    responsePreview: result.response?.substring(0, 100)
+  })
 
   if (result.success) {
     return result.response

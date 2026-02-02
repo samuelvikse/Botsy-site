@@ -242,7 +242,7 @@ export default function WidgetPage({
     return () => clearInterval(checkInactivity)
   }, [companyId, config?.greeting])
 
-  // Fetch widget config
+  // Fetch widget config (initial load)
   useEffect(() => {
     async function fetchConfig() {
       try {
@@ -270,6 +270,47 @@ export default function WidgetPage({
 
     fetchConfig()
   }, [companyId])
+
+  // Poll for config updates (every 30 seconds) - allows real-time visual updates
+  useEffect(() => {
+    if (!config) return // Don't poll until initial config is loaded
+
+    const pollConfig = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/widget-config/${companyId}?t=${Date.now()}`)
+        const data = await response.json()
+        if (data.success) {
+          // Update config but DON'T reset messages or greeting
+          setConfig(prev => {
+            if (!prev) return data.config
+            // Only update visual settings, not greeting (to avoid disrupting conversation)
+            return {
+              ...prev,
+              primaryColor: data.config.primaryColor,
+              position: data.config.position,
+              botName: data.config.botName,
+              businessName: data.config.businessName,
+              logoUrl: data.config.logoUrl,
+              widgetSize: data.config.widgetSize,
+              animationStyle: data.config.animationStyle,
+              isEnabled: data.config.isEnabled,
+            }
+          })
+        }
+      } catch {
+        // Silent fail - polling will retry
+      }
+    }, 30000) // Poll every 30 seconds
+
+    return () => clearInterval(pollConfig)
+  }, [companyId, config])
+
+  // Close chat if widget gets disabled
+  useEffect(() => {
+    if (config && !config.isEnabled && isOpen) {
+      setIsOpen(false)
+    }
+  }, [config?.isEnabled, isOpen])
 
   // Scroll to bottom when messages change
   useEffect(() => {

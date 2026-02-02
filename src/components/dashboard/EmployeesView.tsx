@@ -525,6 +525,12 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
                       {member.membership.userId === user?.uid && (
                         <Badge variant="outline" className="text-xs">Deg</Badge>
                       )}
+                      {member.membership.role === 'owner' && (
+                        <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-xs">
+                          <Crown className="h-3 w-3 mr-1" />
+                          Eier
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-[#6B7A94] text-sm">{member.user.email}</p>
                   </div>
@@ -578,7 +584,8 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
         )}
       </Card>
 
-      {/* Pending Invitations - Always show */}
+      {/* Pending Invitations - Only visible to owners and admins */}
+      {canManageTeam && (
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -656,6 +663,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
           </div>
         )}
       </Card>
+      )}
 
       {/* Modals */}
       <InviteModal

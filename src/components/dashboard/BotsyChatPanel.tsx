@@ -32,7 +32,7 @@ export function BotsyChatPanel({
   onInstructionCreated,
   onFAQCreated,
 }: BotsyChatPanelProps) {
-  const { hasAccess } = usePermissions()
+  const { hasAccess, canManageTeam } = usePermissions()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<OwnerChatMessage[]>([
     {
@@ -314,7 +314,9 @@ export function BotsyChatPanel({
                 {/* Quick Actions */}
                 <div className="relative px-4 pb-2">
                   <div className="flex gap-2 overflow-x-auto pb-2">
-                    {quickActions.map((action) => (
+                    {quickActions
+                      .filter((action) => action.label !== 'Eksporter' || canManageTeam)
+                      .map((action) => (
                       <button
                         key={action.label}
                         onClick={() => setInputValue(action.prompt)}
