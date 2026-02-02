@@ -15,6 +15,7 @@ import {
   CheckCheck,
   AlertCircle,
   ArrowLeft,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -751,12 +752,24 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
               </div>
             )}
 
-            {!manualMode && selectedConversation.channel === 'messenger' && (
+            {selectedConversation.channel === 'messenger' && (
               <div className="p-4 border-t border-white/[0.06] bg-[#1877F2]/5">
-                <p className="text-[#A8B4C8] text-sm text-center">
-                  <Facebook className="h-4 w-4 inline mr-1 text-[#1877F2]" />
-                  Messenger-samtaler håndteres automatisk gjennom Facebook
-                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <p className="text-[#A8B4C8] text-sm">
+                    <Facebook className="h-4 w-4 inline mr-1 text-[#1877F2]" />
+                    Svar kunden direkte i Messenger
+                  </p>
+                  <a
+                    href={`https://www.facebook.com/messages/t/${selectedConversation.phone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#1877F2] hover:bg-[#166FE5] text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Facebook className="h-4 w-4" />
+                    Åpne i Messenger
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
               </div>
             )}
 
