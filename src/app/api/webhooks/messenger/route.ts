@@ -220,12 +220,19 @@ async function generateAIResponse(context: {
   // Debug: Log tone guide
   console.log('[Messenger] ToneGuide preview:', toneGuide.substring(0, 300))
 
+  // Check if emojis should be disabled (add explicit instruction at the TOP of prompt)
+  const useEmojis = bp?.toneConfig?.useEmojis ?? false
+  const emojiTopInstruction = useEmojis
+    ? ''
+    : `⚠️ KRITISK REGEL - LES FØRST: Du skal ALDRI bruke emojis i svarene dine. INGEN emojis som 😊, 👋, 😀, 🙋‍♂️, eller lignende. Svar KUN med ren tekst uten noen emojis overhodet.\n\n`
+
   // Build system prompt
-  let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på Facebook Messenger.
+  let systemPrompt = `${emojiTopInstruction}Du er en hjelpsom kundeservice-assistent som svarer på Facebook Messenger.
 
 MESSENGER-SPESIFIKKE REGLER:
 - Ikke bruk markdown-formatering (Messenger støtter det ikke godt)
 ${isFirstMessage ? '- Du kan hilse med brukerens navn hvis du har det' : '- IKKE start med "Hei [Navn]!" eller lignende hilsen - gå rett på svar siden dette er en pågående samtale'}
+${!useEmojis ? '- ALDRI bruk emojis i svarene - dette er svært viktig' : ''}
 
 KOMMUNIKASJONSSTIL:
 ${toneGuide}
