@@ -882,9 +882,10 @@ REGLER:
    - Dokumenter merket med nyere dato overskriver eldre dokumenter
    - Nyere instruksjoner og regler overskriver eldre
    - Ved tvil, bruk informasjonen som er oppgitt senest
-12. E-POST OPPSUMMERING (tilpass språket til kundens språk):
-    - Hvis kunden spør om å få samtalen/chatten på e-post, svar NØYAKTIG: "[EMAIL_REQUEST]" etterfulgt av en melding på kundens språk som ber om e-postadresse
-    - ${userMessageCount >= 5 ? 'Hvis kunden sier "takk", "tusen takk", "takk for hjelpen", "det var alt", "ha det", "bye", "thanks", "thank you", eller lignende avsluttende fraser, avslutt svaret ditt med "[OFFER_EMAIL]" etterfulgt av et tilbud om e-postoppsummering på kundens språk' : 'IKKE tilby e-postoppsummering automatisk - samtalen er for kort. Du kan fortsatt svare hvis kunden eksplisitt ber om det.'}
+12. E-POST OPPSUMMERING:
+    - BARE hvis kunden EKSPLISITT spør om å få samtalen/chatten på e-post (f.eks. "kan jeg få dette på e-post?", "send meg oppsummering"), svar med "[EMAIL_REQUEST]" etterfulgt av en melding på kundens språk som ber om e-postadresse
+    - ALDRI tilby e-postoppsummering automatisk eller proaktivt - vent til kunden ber om det selv
+    - IKKE nevn e-postoppsummering som et alternativ med mindre kunden spør
 
 Svar nå på kundens melding.`
 

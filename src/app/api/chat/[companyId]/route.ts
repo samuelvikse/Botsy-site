@@ -425,13 +425,55 @@ export async function POST(
       }
 
       // Generate response (with or without knowledge documents)
-      const reply = await chatWithCustomer(message, {
+      let reply = await chatWithCustomer(message, {
         businessProfile,
         faqs: businessProfile.faqs,
         instructions,
         conversationHistory: history,
         knowledgeDocuments: knowledgeDocuments.length > 0 ? knowledgeDocuments : undefined,
       })
+
+      // Count user messages (including current one)
+      const userMessageCount = history.filter(m => m.role === 'user').length + 1
+
+      // Check if we should offer email summary (every 10th message)
+      let shouldOfferEmail = false
+      try {
+        const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+        const sessionDoc = await getDoc(sessionRef)
+
+        if (sessionDoc.exists()) {
+          const sessionData = sessionDoc.data()
+          const lastEmailOffer = sessionData?.lastEmailOfferAt?.toDate?.() || null
+          const emailOfferedCount = sessionData?.emailOfferedCount || 0
+
+          // Offer email every 10th message, but not if we offered in the last 5 messages
+          if (userMessageCount >= 10 && userMessageCount % 10 === 0) {
+            const messagesSinceLastOffer = userMessageCount - (emailOfferedCount * 10)
+            if (messagesSinceLastOffer >= 10 || emailOfferedCount === 0) {
+              shouldOfferEmail = true
+            }
+          }
+        }
+      } catch {
+        // Silently continue
+      }
+
+      // Append email offer to reply if conditions are met
+      if (shouldOfferEmail && !reply.includes('[EMAIL_REQUEST]')) {
+        reply += '\n\n---\n💡 Vil du ha en oppsummering av denne samtalen på e-post?'
+
+        // Track that we offered email
+        try {
+          const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+          await updateDoc(sessionRef, {
+            lastEmailOfferAt: new Date(),
+            emailOfferedCount: Math.floor(userMessageCount / 10),
+          })
+        } catch {
+          // Silently continue
+        }
+      }
 
       // Save assistant response
       try {
@@ -455,6 +497,7 @@ export async function POST(
       return NextResponse.json({
         success: true,
         reply,
+        shouldOfferEmail, // Let client know if email was offered
       }, { headers: corsHeaders })
     }
 
