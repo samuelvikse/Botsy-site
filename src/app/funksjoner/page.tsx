@@ -28,7 +28,9 @@ import {
   Bell,
   Code,
   Smartphone,
-  HeartHandshake
+  HeartHandshake,
+  Trophy,
+  RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -74,20 +76,60 @@ export default function FeaturesPage() {
         'Skanner nettsiden din automatisk',
         'Lærer bransje-spesifikk terminologi',
         'Forstår produkter og tjenester',
-        'Oppdateres når du endrer innhold'
+        'Oppdaterer seg automatisk hver time'
+      ]
+    },
+    {
+      id: 'sync',
+      icon: RefreshCw,
+      title: 'Automatisk oppdatering',
+      subtitle: 'Aldri utdatert informasjon',
+      description: 'Botsy sjekker nettsiden din automatisk hver time for å finne nye endringer. Nye priser, åpningstider, produkter eller kampanjer – alt oppdateres automatisk uten at du trenger å løfte en finger.',
+      features: [
+        'Automatisk synkronisering hver time',
+        'Finner nye FAQs fra nettsiden',
+        'Oppdager endringer i priser og info',
+        'Varsler deg om viktige endringer'
+      ]
+    },
+    {
+      id: 'team',
+      icon: Trophy,
+      title: 'Team-oversikt med ledertavle',
+      subtitle: 'Se hvem som presterer best',
+      description: 'Full oversikt over alle ansatte med roller og tilganger. Konkurransepallen viser hvem som svarer mest og best – perfekt for å motivere teamet og se hvem som fortjener en ekstra klapp på skulderen.',
+      features: [
+        'Ledertavle med poeng og rangering',
+        'Se hvem som svarer mest',
+        'Mål kundetilfredshet per ansatt',
+        'Roller og tilgangsstyring'
       ]
     },
     {
       id: 'channels',
       icon: Layers,
       title: 'Alle kanaler, ett sted',
-      subtitle: 'Messenger, Instagram, SMS, Widget',
+      subtitle: 'Widget, Instagram, SMS, Messenger',
       description: 'Kundene dine kan nå deg hvor som helst. Botsy svarer på alle kanaler fra ett samlet dashboard.',
       features: [
-        'Facebook Messenger',
+        'Nettside-widget',
         'Instagram DMs',
         'SMS-gateway',
-        'Nettside-widget'
+        'Facebook Messenger'
+      ]
+    },
+    {
+      id: 'customize',
+      icon: Palette,
+      title: 'Ekstrem tilpasning',
+      subtitle: 'Gjør Botsy helt til din egen',
+      description: 'Utrolig bra automatisk tilpasning til virksomhetens tone og fagfelt. Velg mellom formell og uformell, med eller uten emojis, kort eller detaljert – med et stort utvalg av egendefinerte innstillingsmuligheter.',
+      features: [
+        'Automatisk tone-tilpasning',
+        'Formalitetsnivå fra 1-5',
+        'Emoji-preferanser',
+        'Svar-lengde og detaljnivå',
+        'Egendefinerte instruksjoner'
       ]
     },
     {
@@ -98,22 +140,9 @@ export default function FeaturesPage() {
       description: 'Sanntidsanalyse av alle samtaler. Forstå trender, finn flaskehalser, og ta bedre beslutninger.',
       features: [
         'Sanntids-dashboard',
-        'Automatiske rapporter',
+        'Daglige oppsummeringer på e-post',
         'Sentimentanalyse',
         'Trendsporing'
-      ]
-    },
-    {
-      id: 'customize',
-      icon: Palette,
-      title: 'Fullt tilpassbar',
-      subtitle: 'Fra navn og logo til tone og personlighet',
-      description: 'Gjør Botsy helt til din egen. Endre navn, last opp egen logo, velg farger som matcher merkevaren din, og juster tonen fra formell til uformell. Alt er customizable.',
-      features: [
-        'Eget navn og egen logo',
-        'Merkevare-farger i widget',
-        'Tilpassbar tone og personlighet',
-        'Velkomstmelding og emoji-preferanser'
       ]
     }
   ]
@@ -458,10 +487,12 @@ export default function FeaturesPage() {
             {[
               { icon: Clock, title: '24/7 tilgjengelighet', desc: 'Aldri gå glipp av en kunde' },
               { icon: Zap, title: 'Lynrask respons', desc: 'Svar på under 10 sekunder' },
+              { icon: RefreshCw, title: 'Auto-synkronisering', desc: 'Oppdaterer fra nettside hver time' },
+              { icon: Trophy, title: 'Ansatt-ledertavle', desc: 'Se hvem som svarer best' },
+              { icon: Palette, title: 'Tone-tilpasning', desc: 'Full kontroll over stemme og stil' },
               { icon: Shield, title: 'GDPR-compliant', desc: 'Data trygt i EU' },
               { icon: Languages, title: 'Flerspråklig', desc: 'Tilpasser seg kundens språk' },
               { icon: Bell, title: 'Smarte varsler', desc: 'Bli varslet når det trengs' },
-              { icon: Users, title: 'Ubegrenset team', desc: 'Hele teamet inkludert' },
               { icon: Code, title: 'Enkel integrasjon', desc: 'Én kodelinje på siden' },
               { icon: Target, title: 'Instruksjoner', desc: 'Sanntids-oppdateringer' },
               { icon: FileText, title: 'Kunnskapsbase', desc: 'Ubegrenset FAQs' },

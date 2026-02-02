@@ -1414,6 +1414,13 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
   const [copiedId, setCopiedId] = useState(false)
   const [showCompanyId, setShowCompanyId] = useState(false)
   const [isSendingSummary, setIsSendingSummary] = useState(false)
+  const [syncConfig, setSyncConfig] = useState({
+    enabled: false,
+    websiteUrl: '',
+    autoApproveWebsiteFaqs: false,
+  })
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<string | null>(null)
   const { user } = useAuth()
   const toast = useToast()
 
@@ -1456,6 +1463,51 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
     }
   }
 
+  const handleSaveSyncConfig = async () => {
+    try {
+      const { saveSyncConfig } = await import('@/lib/knowledge-sync/firestore')
+      await saveSyncConfig(companyId, {
+        enabled: syncConfig.enabled,
+        websiteUrl: syncConfig.websiteUrl,
+        autoApproveWebsiteFaqs: syncConfig.autoApproveWebsiteFaqs,
+      })
+      toast.success('Synkronisering lagret', 'Innstillingene ble oppdatert')
+    } catch {
+      toast.error('Kunne ikke lagre', 'Prøv igjen senere')
+    }
+  }
+
+  const handleManualSync = async () => {
+    if (!syncConfig.websiteUrl) {
+      toast.error('Mangler URL', 'Legg til en nettside-URL først')
+      return
+    }
+
+    setIsSyncing(true)
+    setSyncStatus('Synkroniserer...')
+    try {
+      const response = await fetch('/api/sync/website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId }),
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        setSyncStatus(`Fullført: ${data.newFaqsCreated || 0} nye FAQs`)
+        toast.success('Synkronisering fullført', `${data.newFaqsCreated || 0} nye FAQs ble lagt til`)
+      } else {
+        setSyncStatus('Feilet')
+        toast.error('Synkronisering feilet', data.error || 'Kunne ikke synkronisere')
+      }
+    } catch {
+      setSyncStatus('Feilet')
+      toast.error('Feil', 'Nettverksfeil ved synkronisering')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
@@ -1480,6 +1532,17 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
         }
         if (profile?.languageName) {
           setLanguageName(profile.languageName)
+        }
+
+        // Load sync config
+        const { getSyncConfig } = await import('@/lib/knowledge-sync/firestore')
+        const savedSyncConfig = await getSyncConfig(companyId)
+        if (savedSyncConfig) {
+          setSyncConfig({
+            enabled: savedSyncConfig.enabled,
+            websiteUrl: savedSyncConfig.websiteUrl || '',
+            autoApproveWebsiteFaqs: savedSyncConfig.autoApproveWebsiteFaqs,
+          })
         }
       } catch {
         // Silent fail - will use defaults
@@ -1694,6 +1757,95 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
               </p>
             </div>
           </div>
+        </div>
+      </Card>
+
+      {/* Website Sync */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Globe className="h-5 w-5 text-botsy-lime" />
+          <h2 className="text-lg font-semibold text-white">Nettside-synkronisering</h2>
+        </div>
+        <p className="text-[#6B7A94] text-sm mb-6">
+          Automatisk hent FAQs og innhold fra nettsiden din for å holde kunnskapsbasen oppdatert.
+        </p>
+        <div className="space-y-5">
+          {/* Enable Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1 pr-4">
+              <p className="text-white text-sm font-medium">Aktiver synkronisering</p>
+              <p className="text-[#6B7A94] text-sm">Automatisk synkroniser FAQs fra nettsiden</p>
+            </div>
+            <button
+              onClick={() => setSyncConfig(prev => ({ ...prev, enabled: !prev.enabled }))}
+              className={`w-12 h-6 rounded-full relative transition-colors flex-shrink-0 ${syncConfig.enabled ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
+            >
+              <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${syncConfig.enabled ? 'right-1' : 'left-1 bg-white/50'}`} />
+            </button>
+          </div>
+
+          {/* Website URL */}
+          <div>
+            <label className="text-white text-sm font-medium block mb-2">Nettside-URL</label>
+            <input
+              type="url"
+              value={syncConfig.websiteUrl}
+              onChange={(e) => setSyncConfig(prev => ({ ...prev, websiteUrl: e.target.value }))}
+              placeholder="https://eksempel.no"
+              className="w-full h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 placeholder:text-[#6B7A94]"
+            />
+            <p className="text-[#6B7A94] text-xs mt-2">URL til nettsiden du vil hente FAQs fra</p>
+          </div>
+
+          {/* Auto-approve Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1 pr-4">
+              <p className="text-white text-sm font-medium">Automatisk godkjenning</p>
+              <p className="text-[#6B7A94] text-sm">Godkjenn nye FAQs automatisk uten manuell gjennomgang</p>
+            </div>
+            <button
+              onClick={() => setSyncConfig(prev => ({ ...prev, autoApproveWebsiteFaqs: !prev.autoApproveWebsiteFaqs }))}
+              className={`w-12 h-6 rounded-full relative transition-colors flex-shrink-0 ${syncConfig.autoApproveWebsiteFaqs ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
+            >
+              <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${syncConfig.autoApproveWebsiteFaqs ? 'right-1' : 'left-1 bg-white/50'}`} />
+            </button>
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-white/[0.06]">
+            <Button
+              variant="outline"
+              onClick={handleSaveSyncConfig}
+              className="flex-1"
+            >
+              Lagre konfigurasjon
+            </Button>
+            <Button
+              onClick={handleManualSync}
+              disabled={isSyncing || !syncConfig.websiteUrl}
+              className="flex-1"
+            >
+              {isSyncing ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1.5" />
+              )}
+              {isSyncing ? 'Synkroniserer...' : 'Synkroniser nå'}
+            </Button>
+          </div>
+
+          {/* Sync Status */}
+          {syncStatus && (
+            <div className={`p-3 rounded-lg text-sm ${
+              syncStatus.includes('Fullført')
+                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                : syncStatus.includes('Feilet')
+                  ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+            }`}>
+              {syncStatus}
+            </div>
+          )}
         </div>
       </Card>
 
