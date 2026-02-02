@@ -552,14 +552,31 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   return outputArray.buffer
 }
 
-function formatTimeAgo(date: Date): string {
+function formatTimeAgo(date: Date | string | unknown): string {
+  if (!date) return 'Ukjent tid'
+
   const now = new Date()
-  const diffMs = now.getTime() - new Date(date).getTime()
+  let dateObj: Date
+
+  if (date instanceof Date) {
+    dateObj = date
+  } else if (typeof date === 'string') {
+    dateObj = new Date(date)
+  } else if (typeof date === 'object' && date !== null && 'seconds' in date) {
+    // Firestore Timestamp
+    dateObj = new Date((date as { seconds: number }).seconds * 1000)
+  } else {
+    return 'Ukjent tid'
+  }
+
+  if (isNaN(dateObj.getTime())) return 'Ukjent tid'
+
+  const diffMs = now.getTime() - dateObj.getTime()
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMs / 3600000)
 
   if (diffMins < 1) return 'Akkurat nå'
   if (diffMins < 60) return `${diffMins} min siden`
   if (diffHours < 24) return `${diffHours} time${diffHours > 1 ? 'r' : ''} siden`
-  return new Date(date).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
+  return dateObj.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
 }
