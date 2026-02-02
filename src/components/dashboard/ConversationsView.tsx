@@ -80,7 +80,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
   }, [messages])
 
   // Handle selecting a conversation - also resolves escalation if needed
-  const handleSelectConversation = async (conv: Conversation) => {
+  const handleSelectConversation = useCallback(async (conv: Conversation) => {
     setSelectedConversation(conv)
 
     // If the conversation is escalated, resolve the escalation when employee opens it
@@ -108,7 +108,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
         console.error('Failed to resolve escalation:', error)
       }
     }
-  }
+  }, [companyId])
 
   // Fetch conversations (with optional silent mode for polling)
   const fetchConversations = useCallback(async (silent = false) => {
@@ -233,17 +233,24 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
     }
   }, [fetchConversations])
 
+  // Reset hasOpenedInitial when initialConversationId changes (user clicked a different notification)
+  useEffect(() => {
+    if (initialConversationId) {
+      setHasOpenedInitial(false)
+    }
+  }, [initialConversationId])
+
   // Open initial conversation if provided
   useEffect(() => {
     if (initialConversationId && conversations.length > 0 && !hasOpenedInitial) {
       const conv = conversations.find(c => c.id === initialConversationId)
       if (conv) {
-        setSelectedConversation(conv)
+        handleSelectConversation(conv)
         setHasOpenedInitial(true)
         onConversationOpened?.()
       }
     }
-  }, [initialConversationId, conversations, hasOpenedInitial, onConversationOpened])
+  }, [initialConversationId, conversations, hasOpenedInitial, onConversationOpened, handleSelectConversation])
 
   // Auto-refresh conversations
   useEffect(() => {
