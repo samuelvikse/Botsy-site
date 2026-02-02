@@ -115,6 +115,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<OwnerChat
     return NextResponse.json(response)
 
   } catch (error) {
+    console.error('[Owner Chat] Error:', error)
     const errorMessage = error instanceof Error ? error.message : 'En ukjent feil oppstod'
     return NextResponse.json(
       { error: errorMessage },

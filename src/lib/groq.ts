@@ -422,14 +422,28 @@ export async function chatWithOwner(
     content: message,
   })
 
-  const response = await groq.chat.completions.create({
-    model: MODEL,
-    messages,
-    temperature: 0.7,
-    max_tokens: 500,
-  })
+  let reply: string
 
-  let reply = response.choices[0]?.message?.content || 'Beklager, jeg kunne ikke behandle forespørselen.'
+  try {
+    // Use AI providers (Gemini primary, Groq fallback) for owner chat
+    const { generateAIResponse } = await import('./ai-providers')
+    const result = await generateAIResponse(
+      messages[0].content, // System prompt
+      messages.slice(1), // Conversation messages
+      { maxTokens: 500, temperature: 0.7 }
+    )
+
+    if (result.success) {
+      reply = result.response
+      console.log(`[Owner Chat] Response from ${result.provider}, length: ${reply.length}`)
+    } else {
+      console.error('[Owner Chat] All AI providers failed')
+      reply = 'Beklager, jeg kunne ikke behandle forespørselen akkurat nå. Prøv igjen om litt.'
+    }
+  } catch (error) {
+    console.error('[Owner Chat] Error calling AI:', error)
+    throw error // Re-throw to be handled by the API route
+  }
 
   // Parse response for action markers
   let shouldCreateFAQ = false
