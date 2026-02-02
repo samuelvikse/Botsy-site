@@ -5,12 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Phone,
   MessageCircle,
-  Mail,
   Check,
   Copy,
   AlertCircle,
   Loader2,
-  Settings,
   Key,
   X,
   ChevronRight,
@@ -26,8 +24,6 @@ import { db } from '@/lib/firebase'
 import type {
   ChannelType,
   SMSProvider,
-  WhatsAppProvider,
-  EmailProvider,
 } from '@/types'
 
 interface ChannelsViewProps {
@@ -43,13 +39,6 @@ interface ChannelState {
 
 const CHANNELS = [
   {
-    id: 'whatsapp' as const,
-    name: 'WhatsApp',
-    icon: MessageCircle,
-    color: '#25D366',
-    description: 'La Botsy svare kunder via WhatsApp Business',
-  },
-  {
     id: 'messenger' as const,
     name: 'Messenger',
     icon: MessageCircle,
@@ -57,42 +46,18 @@ const CHANNELS = [
     description: 'Koble til Facebook-siden din for Messenger-støtte',
   },
   {
+    id: 'instagram' as const,
+    name: 'Instagram',
+    icon: MessageCircle,
+    color: '#E4405F',
+    description: 'Svar på Instagram DMs automatisk',
+  },
+  {
     id: 'sms' as const,
     name: 'SMS',
     icon: Phone,
     color: '#CDFF4D',
     description: 'Svar på SMS fra kunder automatisk',
-  },
-  {
-    id: 'email' as const,
-    name: 'E-post',
-    icon: Mail,
-    color: '#EA4335',
-    description: 'Håndter kundehenvendelser via e-post',
-  },
-]
-
-const WHATSAPP_PROVIDERS = [
-  {
-    value: 'meta' as const,
-    name: 'Meta Business (Offisiell)',
-    description: 'Direkte integrasjon med WhatsApp Business API',
-    recommended: true,
-    fields: [
-      { key: 'accessToken', label: 'Access Token', type: 'password' },
-      { key: 'phoneNumberId', label: 'Phone Number ID', type: 'text' },
-      { key: 'businessAccountId', label: 'Business Account ID', type: 'text' },
-    ],
-  },
-  {
-    value: 'twilio' as const,
-    name: 'Twilio',
-    description: 'WhatsApp via Twilio-plattformen',
-    recommended: false,
-    fields: [
-      { key: 'accountSid', label: 'Account SID', type: 'text' },
-      { key: 'authToken', label: 'Auth Token', type: 'password' },
-    ],
   },
 ]
 
@@ -118,47 +83,14 @@ const SMS_PROVIDERS = [
   },
 ]
 
-const EMAIL_PROVIDERS = [
-  {
-    value: 'sendgrid' as const,
-    name: 'SendGrid',
-    description: 'Pålitelig e-postleverandør fra Twilio',
-    recommended: true,
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password' },
-    ],
-  },
-  {
-    value: 'mailgun' as const,
-    name: 'Mailgun',
-    description: 'Fleksibel e-postleverandør for utviklere',
-    recommended: false,
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password' },
-      { key: 'domain', label: 'Domain', type: 'text' },
-    ],
-  },
-  {
-    value: 'smtp' as const,
-    name: 'Egen SMTP',
-    description: 'Bruk din egen e-postserver',
-    recommended: false,
-    fields: [
-      { key: 'smtpHost', label: 'SMTP Host', type: 'text' },
-      { key: 'smtpPort', label: 'SMTP Port', type: 'text' },
-      { key: 'smtpUser', label: 'Brukernavn', type: 'text' },
-      { key: 'smtpPass', label: 'Passord', type: 'password' },
-    ],
-  },
-]
 
 export function ChannelsView({ companyId }: ChannelsViewProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [channels, setChannels] = useState<Record<ChannelType, ChannelState>>({
     sms: { isConfigured: false, isActive: false, isVerified: false },
-    whatsapp: { isConfigured: false, isActive: false, isVerified: false },
+    instagram: { isConfigured: false, isActive: false, isVerified: false },
     messenger: { isConfigured: false, isActive: false, isVerified: false },
-    email: { isConfigured: false, isActive: false, isVerified: false },
+    widget: { isConfigured: false, isActive: false, isVerified: false },
   })
 
   // Horizontal panel state
@@ -178,17 +110,13 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
   const [smsPhone, setSmsPhone] = useState('')
   const [smsCredentials, setSmsCredentials] = useState<Record<string, string>>({})
 
-  const [whatsappProvider, setWhatsappProvider] = useState<WhatsAppProvider>('meta')
-  const [whatsappPhone, setWhatsappPhone] = useState('')
-  const [whatsappCredentials, setWhatsappCredentials] = useState<Record<string, string>>({})
-
   const [messengerPageId, setMessengerPageId] = useState('')
   const [messengerPageName, setMessengerPageName] = useState('')
   const [messengerCredentials, setMessengerCredentials] = useState<Record<string, string>>({})
 
-  const [emailProvider, setEmailProvider] = useState<EmailProvider>('sendgrid')
-  const [emailAddress, setEmailAddress] = useState('')
-  const [emailCredentials, setEmailCredentials] = useState<Record<string, string>>({})
+  const [instagramPageId, setInstagramPageId] = useState('')
+  const [instagramUsername, setInstagramUsername] = useState('')
+  const [instagramCredentials, setInstagramCredentials] = useState<Record<string, string>>({})
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
 
@@ -203,9 +131,9 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
 
       const newChannels: Record<ChannelType, ChannelState> = {
         sms: { isConfigured: false, isActive: false, isVerified: false },
-        whatsapp: { isConfigured: false, isActive: false, isVerified: false },
+        instagram: { isConfigured: false, isActive: false, isVerified: false },
         messenger: { isConfigured: false, isActive: false, isVerified: false },
-        email: { isConfigured: false, isActive: false, isVerified: false },
+        widget: { isConfigured: false, isActive: false, isVerified: false },
       }
 
       if (channelsData.sms) {
@@ -219,17 +147,6 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
         setSmsPhone(channelsData.sms.phoneNumber)
       }
 
-      if (channelsData.whatsapp) {
-        newChannels.whatsapp = {
-          isConfigured: true,
-          isActive: channelsData.whatsapp.isActive,
-          isVerified: channelsData.whatsapp.isVerified,
-          details: { phoneNumber: channelsData.whatsapp.phoneNumber, provider: channelsData.whatsapp.provider },
-        }
-        setWhatsappProvider(channelsData.whatsapp.provider)
-        setWhatsappPhone(channelsData.whatsapp.phoneNumber)
-      }
-
       if (channelsData.messenger) {
         newChannels.messenger = {
           isConfigured: true,
@@ -241,15 +158,15 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
         setMessengerPageName(channelsData.messenger.pageName)
       }
 
-      if (channelsData.email) {
-        newChannels.email = {
+      if (channelsData.instagram) {
+        newChannels.instagram = {
           isConfigured: true,
-          isActive: channelsData.email.isActive,
-          isVerified: channelsData.email.isVerified,
-          details: { emailAddress: channelsData.email.emailAddress, provider: channelsData.email.provider },
+          isActive: channelsData.instagram.isActive,
+          isVerified: channelsData.instagram.isVerified,
+          details: { username: channelsData.instagram.username, pageId: channelsData.instagram.pageId },
         }
-        setEmailProvider(channelsData.email.provider)
-        setEmailAddress(channelsData.email.emailAddress)
+        setInstagramPageId(channelsData.instagram.pageId)
+        setInstagramUsername(channelsData.instagram.username)
       }
 
       setChannels(newChannels)
@@ -375,23 +292,17 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
         }
         break
 
-      case 'whatsapp':
-        if (!whatsappPhone) {
-          setError('Telefonnummer er påkrevd')
-          setIsSaving(false)
-          return
-        }
-        // Validate E.164 format
-        if (!/^\+[1-9]\d{6,14}$/.test(whatsappPhone.replace(/\s/g, ''))) {
-          setError('Ugyldig telefonnummer. Bruk E.164 format (f.eks. +4712345678)')
+      case 'instagram':
+        if (!instagramPageId || !instagramUsername) {
+          setError('Page ID og Instagram brukernavn er påkrevd')
           setIsSaving(false)
           return
         }
         payload = {
           ...payload,
-          provider: whatsappProvider,
-          phoneNumber: whatsappPhone.replace(/\s/g, ''),
-          credentials: whatsappCredentials,
+          pageId: instagramPageId,
+          username: instagramUsername,
+          credentials: instagramCredentials,
         }
         break
 
@@ -409,26 +320,7 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
         }
         break
 
-      case 'email':
-        if (!emailAddress) {
-          setError('E-postadresse er påkrevd')
-          setIsSaving(false)
-          return
-        }
-        // Validate email format
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress)) {
-          setError('Ugyldig e-postadresse')
-          setIsSaving(false)
-          return
-        }
-        payload = {
-          ...payload,
-          provider: emailProvider,
-          emailAddress: emailAddress.toLowerCase().trim(),
-          credentials: emailCredentials,
-        }
-        break
-    }
+      }
 
     try {
       if (!db) throw new Error('Database not initialized')
@@ -447,20 +339,15 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
           channelData.phoneNumber = smsPhone.replace(/\s/g, '')
           channelData.credentials = smsCredentials
           break
-        case 'whatsapp':
-          channelData.provider = whatsappProvider
-          channelData.phoneNumber = whatsappPhone.replace(/\s/g, '')
-          channelData.credentials = whatsappCredentials
-          break
         case 'messenger':
           channelData.pageId = messengerPageId
           channelData.pageName = messengerPageName
           channelData.credentials = messengerCredentials
           break
-        case 'email':
-          channelData.provider = emailProvider
-          channelData.emailAddress = emailAddress.toLowerCase().trim()
-          channelData.credentials = emailCredentials
+        case 'instagram':
+          channelData.pageId = instagramPageId
+          channelData.username = instagramUsername
+          channelData.credentials = instagramCredentials
           break
       }
 
@@ -498,12 +385,10 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
     switch (channel) {
       case 'sms':
         return `${baseUrl}/api/webhooks/sms?provider=${smsProvider}`
-      case 'whatsapp':
-        return `${baseUrl}/api/webhooks/whatsapp`
       case 'messenger':
         return `${baseUrl}/api/webhooks/messenger`
-      case 'email':
-        return `${baseUrl}/api/webhooks/email`
+      case 'instagram':
+        return `${baseUrl}/api/webhooks/messenger` // Instagram uses same webhook as Messenger
       default:
         return ''
     }
@@ -569,59 +454,52 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
           </div>
         )
 
-      case 'whatsapp':
+      case 'instagram':
         return (
           <div className="space-y-5">
-            <div>
-              <label className="text-white text-sm font-medium block mb-3">Velg leverandør</label>
-              <div className="flex flex-wrap gap-2">
-                {WHATSAPP_PROVIDERS.map((provider) => (
-                  <button
-                    key={provider.value}
-                    onClick={() => {
-                      setWhatsappProvider(provider.value)
-                      setWhatsappCredentials({})
-                    }}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      whatsappProvider === provider.value
-                        ? 'bg-botsy-lime text-gray-900'
-                        : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    {provider.name}
-                    {provider.recommended && ' ✓'}
-                  </button>
-                ))}
-              </div>
+            <div className="p-3 bg-[#E4405F]/10 border border-[#E4405F]/20 rounded-xl">
+              <p className="text-[#A8B4C8] text-sm">
+                Instagram bruker samme API som Messenger. Sørg for at Instagram-kontoen er koblet til Facebook-siden din i Meta Business Suite.
+              </p>
             </div>
 
             <div>
-              <label className="text-white text-sm font-medium block mb-2">
-                WhatsApp-nummer (E.164 format)
-              </label>
+              <label className="text-white text-sm font-medium block mb-2">Instagram brukernavn</label>
               <input
-                type="tel"
-                value={whatsappPhone}
-                onChange={(e) => setWhatsappPhone(e.target.value)}
-                placeholder="+4712345678"
+                type="text"
+                value={instagramUsername}
+                onChange={(e) => setInstagramUsername(e.target.value)}
+                placeholder="@dinbedrift"
                 className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
               />
             </div>
 
-            {WHATSAPP_PROVIDERS.find(p => p.value === whatsappProvider)?.fields.map((field) => (
-              <div key={field.key}>
-                <label className="text-white text-sm font-medium block mb-2">
-                  {field.label}
-                </label>
-                <input
-                  type={field.type}
-                  value={whatsappCredentials[field.key] || ''}
-                  onChange={(e) => setWhatsappCredentials(prev => ({ ...prev, [field.key]: e.target.value }))}
-                  placeholder={`Skriv inn ${field.label.toLowerCase()}...`}
-                  className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-                />
-              </div>
-            ))}
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">Instagram Page ID</label>
+              <input
+                type="text"
+                value={instagramPageId}
+                onChange={(e) => setInstagramPageId(e.target.value)}
+                placeholder="123456789012345"
+                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+              />
+              <p className="text-[#6B7A94] text-xs mt-1.5">
+                Finn dette i Meta Business Suite under Instagram-innstillinger
+              </p>
+            </div>
+
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">
+                Page Access Token
+              </label>
+              <input
+                type="password"
+                value={instagramCredentials.pageAccessToken || ''}
+                onChange={(e) => setInstagramCredentials(prev => ({ ...prev, pageAccessToken: e.target.value }))}
+                placeholder="Bruk samme token som Messenger..."
+                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+              />
+            </div>
           </div>
         )
 
@@ -684,102 +562,7 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
           </div>
         )
 
-      case 'email':
-        return (
-          <div className="space-y-5">
-            {/* Setup instructions */}
-            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-              <h4 className="text-white text-sm font-medium mb-2">Slik fungerer e-post med Botsy</h4>
-              <ol className="text-[#A8B4C8] text-xs space-y-1 list-decimal list-inside">
-                <li>Velg en e-postleverandør (SendGrid anbefales)</li>
-                <li>Opprett konto hos leverandøren og hent API-nøkkel</li>
-                <li>Fyll inn e-postadresse og API-nøkkel under</li>
-                <li>Konfigurer <strong>Inbound Parse</strong> hos leverandøren</li>
-                <li>Bruk webhook-URL-en nederst til å motta e-post</li>
-              </ol>
-            </div>
-
-            <div>
-              <label className="text-white text-sm font-medium block mb-3">Velg leverandør</label>
-              <div className="flex flex-wrap gap-2">
-                {EMAIL_PROVIDERS.map((provider) => (
-                  <button
-                    key={provider.value}
-                    onClick={() => {
-                      setEmailProvider(provider.value)
-                      setEmailCredentials({})
-                    }}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      emailProvider === provider.value
-                        ? 'bg-botsy-lime text-gray-900'
-                        : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    {provider.name}
-                    {provider.recommended && ' ✓'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Provider-specific instructions */}
-            {emailProvider === 'sendgrid' && (
-              <div className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl">
-                <p className="text-[#A8B4C8] text-xs">
-                  <strong className="text-white">SendGrid oppsett:</strong> Gå til Settings → Inbound Parse → Add Host & URL.
-                  Legg inn domenet ditt og webhook-URL fra bunnen av denne siden.
-                </p>
-              </div>
-            )}
-            {emailProvider === 'mailgun' && (
-              <div className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl">
-                <p className="text-[#A8B4C8] text-xs">
-                  <strong className="text-white">Mailgun oppsett:</strong> Gå til Receiving → Create Route.
-                  Velg &quot;Match Recipient&quot; og legg inn e-postadressen. Sett &quot;Forward&quot; til webhook-URL.
-                </p>
-              </div>
-            )}
-            {emailProvider === 'smtp' && (
-              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
-                <p className="text-yellow-400 text-xs">
-                  <strong>Merk:</strong> SMTP støtter kun utgående e-post. For å motta e-post må du bruke SendGrid eller Mailgun.
-                </p>
-              </div>
-            )}
-
-            <div>
-              <label className="text-white text-sm font-medium block mb-2">
-                E-postadresse for kundeservice
-              </label>
-              <input
-                type="email"
-                value={emailAddress}
-                onChange={(e) => setEmailAddress(e.target.value)}
-                placeholder="support@dinbedrift.no"
-                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-              />
-              <p className="text-[#6B7A94] text-xs mt-1.5">
-                Kunder som sender e-post til denne adressen får automatisk svar fra Botsy
-              </p>
-            </div>
-
-            {EMAIL_PROVIDERS.find(p => p.value === emailProvider)?.fields.map((field) => (
-              <div key={field.key}>
-                <label className="text-white text-sm font-medium block mb-2">
-                  {field.label}
-                </label>
-                <input
-                  type={field.type}
-                  value={emailCredentials[field.key] || ''}
-                  onChange={(e) => setEmailCredentials(prev => ({ ...prev, [field.key]: e.target.value }))}
-                  placeholder={`Skriv inn ${field.label.toLowerCase()}...`}
-                  className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-                />
-              </div>
-            ))}
-          </div>
-        )
-    }
+      }
   }
 
   if (isLoading) {

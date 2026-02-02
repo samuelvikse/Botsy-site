@@ -660,8 +660,7 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
           <ChannelStat channel="SMS" count={stats?.smsCount || 0} percentage={smsPercentage} color="#CDFF4D" />
           <ChannelStat channel="Widget" count={stats?.widgetCount || 0} percentage={widgetPercentage} color="#3B82F6" />
           <ChannelStat channel="Messenger" count={stats?.messengerCount || 0} percentage={messengerPercentage} color="#0084FF" />
-          <ChannelStat channel="WhatsApp" count={0} percentage={0} color="#25D366" />
-          <ChannelStat channel="E-post" count={stats?.emailCount || 0} percentage={emailPercentage} color="#EA4335" />
+          <ChannelStat channel="Instagram" count={0} percentage={0} color="#E4405F" />
         </div>
       </Card>
     </div>
@@ -1598,7 +1597,7 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
           </Button>
         </div>
         <p className="text-[#6B7A94] text-sm">
-          Koble til WhatsApp, Messenger, SMS og E-post for å la Botsy svare kunder på alle plattformer.
+          Koble til Messenger, Instagram, SMS og Widget for å la Botsy svare kunder på alle plattformer.
         </p>
       </Card>
 
@@ -1685,15 +1684,14 @@ function ConversationPreview({ name, message, time, channel, status, onClick }: 
   name: string
   message: string
   time: string
-  channel: 'whatsapp' | 'messenger' | 'sms' | 'email' | 'widget'
+  channel: 'instagram' | 'messenger' | 'sms' | 'widget'
   status: 'resolved' | 'pending' | 'escalated'
   onClick?: () => void
 }) {
   const channelColors = {
-    whatsapp: '#25D366',
+    instagram: '#E4405F',
     messenger: '#0084FF',
     sms: '#CDFF4D',
-    email: '#EA4335',
     widget: '#3B82F6'
   }
 

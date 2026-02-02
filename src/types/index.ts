@@ -162,7 +162,7 @@ export interface OwnerChatDoc {
 // Channel Types (All messaging channels)
 // ============================================
 
-export type ChannelType = 'sms' | 'whatsapp' | 'messenger' | 'email'
+export type ChannelType = 'sms' | 'instagram' | 'messenger' | 'widget'
 
 // SMS Types
 export type SMSProvider = 'twilio' | 'messagebird' | 'none'
