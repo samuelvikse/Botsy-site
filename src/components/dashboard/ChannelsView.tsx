@@ -13,6 +13,7 @@ import {
   X,
   ChevronRight,
   ArrowRight,
+  Mail,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -59,6 +60,13 @@ const CHANNELS = [
     color: '#CDFF4D',
     description: 'Svar på SMS fra kunder automatisk',
   },
+  {
+    id: 'email' as const,
+    name: 'E-post',
+    icon: Mail,
+    color: '#EA4335',
+    description: 'Svar på e-post fra kunder automatisk',
+  },
 ]
 
 const SMS_PROVIDERS = [
@@ -91,6 +99,7 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
     instagram: { isConfigured: false, isActive: false, isVerified: false },
     messenger: { isConfigured: false, isActive: false, isVerified: false },
     widget: { isConfigured: false, isActive: false, isVerified: false },
+    email: { isConfigured: false, isActive: false, isVerified: false },
   })
 
   // Horizontal panel state
@@ -118,6 +127,9 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
   const [instagramUsername, setInstagramUsername] = useState('')
   const [instagramCredentials, setInstagramCredentials] = useState<Record<string, string>>({})
 
+  const [emailAddress, setEmailAddress] = useState('')
+  const [emailCredentials, setEmailCredentials] = useState<Record<string, string>>({})
+
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
 
   const fetchChannels = useCallback(async () => {
@@ -134,6 +146,7 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
         instagram: { isConfigured: false, isActive: false, isVerified: false },
         messenger: { isConfigured: false, isActive: false, isVerified: false },
         widget: { isConfigured: false, isActive: false, isVerified: false },
+        email: { isConfigured: false, isActive: false, isVerified: false },
       }
 
       if (channelsData.sms) {
@@ -167,6 +180,16 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
         }
         setInstagramPageId(channelsData.instagram.pageId)
         setInstagramUsername(channelsData.instagram.username)
+      }
+
+      if (channelsData.email) {
+        newChannels.email = {
+          isConfigured: true,
+          isActive: channelsData.email.isActive,
+          isVerified: channelsData.email.isVerified,
+          details: { emailAddress: channelsData.email.emailAddress },
+        }
+        setEmailAddress(channelsData.email.emailAddress)
       }
 
       setChannels(newChannels)
@@ -320,6 +343,23 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
         }
         break
 
+      case 'email':
+        if (!emailAddress) {
+          setError('E-postadresse er påkrevd')
+          setIsSaving(false)
+          return
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress)) {
+          setError('Ugyldig e-postadresse')
+          setIsSaving(false)
+          return
+        }
+        payload = {
+          ...payload,
+          emailAddress,
+          credentials: emailCredentials,
+        }
+        break
       }
 
     try {
@@ -348,6 +388,10 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
           channelData.pageId = instagramPageId
           channelData.username = instagramUsername
           channelData.credentials = instagramCredentials
+          break
+        case 'email':
+          channelData.emailAddress = emailAddress
+          channelData.credentials = emailCredentials
           break
       }
 
@@ -389,6 +433,8 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
         return `${baseUrl}/api/webhooks/messenger`
       case 'instagram':
         return `${baseUrl}/api/webhooks/messenger` // Instagram uses same webhook as Messenger
+      case 'email':
+        return `${baseUrl}/api/webhooks/email`
       default:
         return ''
     }
@@ -558,6 +604,64 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
                 placeholder="Skriv inn app secret..."
                 className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
               />
+            </div>
+          </div>
+        )
+
+      case 'email':
+        return (
+          <div className="space-y-5">
+            <div className="p-3 bg-[#EA4335]/10 border border-[#EA4335]/20 rounded-xl">
+              <p className="text-[#A8B4C8] text-sm">
+                Koble til en e-postadresse for å la Botsy svare på kundehenvendelser via e-post. Vi støtter IMAP/SMTP-tilkobling.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">E-postadresse</label>
+              <input
+                type="email"
+                value={emailAddress}
+                onChange={(e) => setEmailAddress(e.target.value)}
+                placeholder="support@dinbedrift.no"
+                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">IMAP Server</label>
+              <input
+                type="text"
+                value={emailCredentials.imapServer || ''}
+                onChange={(e) => setEmailCredentials(prev => ({ ...prev, imapServer: e.target.value }))}
+                placeholder="imap.gmail.com"
+                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">SMTP Server</label>
+              <input
+                type="text"
+                value={emailCredentials.smtpServer || ''}
+                onChange={(e) => setEmailCredentials(prev => ({ ...prev, smtpServer: e.target.value }))}
+                placeholder="smtp.gmail.com"
+                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">Passord / App-passord</label>
+              <input
+                type="password"
+                value={emailCredentials.password || ''}
+                onChange={(e) => setEmailCredentials(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Skriv inn passord..."
+                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+              />
+              <p className="text-[#6B7A94] text-xs mt-1.5">
+                For Gmail/Google Workspace, bruk et app-passord fra Google-kontoen din
+              </p>
             </div>
           </div>
         )

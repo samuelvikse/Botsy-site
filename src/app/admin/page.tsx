@@ -15,6 +15,7 @@ import {
   Plus,
   Filter,
   Clock,
+  Check,
   CheckCheck,
   TrendingUp,
   TrendingDown,
@@ -390,7 +391,7 @@ function AdminContent() {
           )}
           {activeTab === 'employees' && companyId && <EmployeesView companyId={companyId} />}
           {activeTab === 'security' && <SecuritySettingsView />}
-          {activeTab === 'settings' && companyId && <SettingsView companyId={companyId} userId={user?.uid} onNavigateToChannels={() => setActiveTab('channels')} />}
+          {activeTab === 'settings' && companyId && <SettingsView companyId={companyId} userId={user?.uid} onNavigateToChannels={() => setActiveTab('channels')} onNavigateToKnowledge={() => setActiveTab('knowledge')} />}
         </main>
       </div>
 
@@ -1128,8 +1129,8 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
                 <AlertCircle className="h-5 w-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-white font-medium">{unconfirmedCount} FAQ{unconfirmedCount !== 1 ? 's' : ''} venter på bekreftelse</p>
-                <p className="text-[#A8B4C8] text-sm">Gjennomgå og bekreft FAQs fra dokumenter før de blir aktive</p>
+                <p className="text-white font-medium">{unconfirmedCount} FAQ{unconfirmedCount !== 1 ? 's' : ''} venter på godkjenning</p>
+                <p className="text-[#A8B4C8] text-sm">Gjennomgå og godkjenn eller avvis FAQs før de blir aktive for kunder</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1147,7 +1148,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
                 className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
               >
                 <CheckCheck className="h-4 w-4 mr-1.5" />
-                Bekreft alle
+                Godkjenn alle
               </Button>
             </div>
           </div>
@@ -1173,45 +1174,66 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="secondary" className={faq.source === 'extracted' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : ''}>
-                      {faq.source === 'user' ? 'Manuell' : faq.source === 'generated' ? 'Generert' : 'Fra dokument'}
+                    <Badge variant="secondary" className={
+                      faq.source === 'extracted' || faq.source === 'website_auto' || faq.source === 'website'
+                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        : ''
+                    }>
+                      {faq.source === 'user' || faq.source === 'manual' ? 'Manuell' : faq.source === 'generated' ? 'Generert' : faq.source === 'website_auto' || faq.source === 'website' ? 'Fra nettside' : 'Fra dokument'}
                     </Badge>
                     {faq.confirmed ? (
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Bekreftet</Badge>
                     ) : (
-                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Venter på bekreftelse</Badge>
+                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Venter på godkjenning</Badge>
                     )}
                   </div>
                   <h3 className="text-white font-medium mb-2">{faq.question}</h3>
                   <p className="text-[#A8B4C8] text-sm">{faq.answer}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                  {!faq.confirmed && (
-                    <button
-                      onClick={() => handleConfirmFaq(faq.id)}
-                      className="p-2 text-[#6B7A94] hover:text-green-400 hover:bg-green-500/10 rounded-lg"
-                      title="Bekreft FAQ"
-                      disabled={isSaving}
-                    >
-                      <CheckCheck className="h-4 w-4" />
-                    </button>
+                  {!faq.confirmed ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleConfirmFaq(faq.id)}
+                        className="text-green-400 border-green-500/30 hover:bg-green-500/10"
+                        disabled={isSaving}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Godkjenn
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteFaq(faq.id)}
+                        className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+                        disabled={isSaving}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Avvis
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleEditFaq(faq.id)}
+                        className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg"
+                        title="Rediger"
+                        disabled={isSaving}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFaq(faq.id)}
+                        className="p-2 text-[#6B7A94] hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                        title="Slett"
+                        disabled={isSaving}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
                   )}
-                  <button
-                    onClick={() => handleEditFaq(faq.id)}
-                    className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg"
-                    title="Rediger"
-                    disabled={isSaving}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteFaq(faq.id)}
-                    className="p-2 text-[#6B7A94] hover:text-red-400 hover:bg-red-500/10 rounded-lg"
-                    title="Slett"
-                    disabled={isSaving}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
             </Card>
@@ -1399,7 +1421,7 @@ const LANGUAGE_OPTIONS = [
   { code: 'fi', name: 'Suomi', flag: '🇫🇮' },
 ]
 
-function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: string; userId?: string; onNavigateToChannels: () => void }) {
+function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKnowledge }: { companyId: string; userId?: string; onNavigateToChannels: () => void; onNavigateToKnowledge: () => void }) {
   const [settings, setSettings] = useState({
     botName: 'Botsy',
   })
@@ -1421,6 +1443,7 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
   })
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncStatus, setSyncStatus] = useState<string | null>(null)
+  const [pendingFaqCount, setPendingFaqCount] = useState<number>(0)
   const { user } = useAuth()
   const toast = useToast()
 
@@ -1485,6 +1508,7 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
 
     setIsSyncing(true)
     setSyncStatus('Synkroniserer...')
+    setPendingFaqCount(0)
     try {
       const response = await fetch('/api/sync/website', {
         method: 'POST',
@@ -1494,8 +1518,18 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
       const data = await response.json()
 
       if (data.success) {
-        setSyncStatus(`Fullført: ${data.newFaqsCreated || 0} nye FAQs`)
-        toast.success('Synkronisering fullført', `${data.newFaqsCreated || 0} nye FAQs ble lagt til`)
+        const newCount = data.newFaqsCreated || 0
+        if (newCount > 0 && !syncConfig.autoApproveWebsiteFaqs) {
+          setPendingFaqCount(newCount)
+          setSyncStatus(`Fullført: ${newCount} nye FAQs venter på godkjenning`)
+          toast.success('Synkronisering fullført', `${newCount} nye FAQs venter på godkjenning i kunnskapsbasen`)
+        } else if (newCount > 0) {
+          setSyncStatus(`Fullført: ${newCount} nye FAQs lagt til`)
+          toast.success('Synkronisering fullført', `${newCount} nye FAQs ble automatisk godkjent`)
+        } else {
+          setSyncStatus('Fullført: Ingen nye FAQs funnet')
+          toast.success('Synkronisering fullført', 'Ingen nye FAQs ble funnet')
+        }
       } else {
         setSyncStatus('Feilet')
         toast.error('Synkronisering feilet', data.error || 'Kunne ikke synkronisere')
@@ -1843,7 +1877,20 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
                   ? 'bg-red-500/10 text-red-400 border border-red-500/20'
                   : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
             }`}>
-              {syncStatus}
+              <div className="flex items-center justify-between gap-3">
+                <span>{syncStatus}</span>
+                {pendingFaqCount > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onNavigateToKnowledge}
+                    className="text-green-400 border-green-500/30 hover:bg-green-500/10 flex-shrink-0"
+                  >
+                    <BookOpen className="h-4 w-4 mr-1.5" />
+                    Gå til kunnskapsbasen
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </div>
