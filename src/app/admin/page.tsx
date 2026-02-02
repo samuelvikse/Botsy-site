@@ -1374,7 +1374,7 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
       <Card className="p-6">
         <h2 className="text-lg font-semibold text-white mb-2">Varsler</h2>
         <p className="text-[#6B7A94] text-sm mb-6">
-          Disse innstillingene synces med varselsbjellen. Varslene sendes til din e-postadresse.
+          Varslene sendes til din e-postadresse.
         </p>
         <div className="space-y-5">
           <div className="flex items-center justify-between">

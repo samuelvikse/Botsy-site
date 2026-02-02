@@ -15,7 +15,6 @@ import {
   CheckCheck,
   AlertCircle,
   ArrowLeft,
-  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -373,14 +372,19 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
 
     const newMode = !manualMode
     try {
-      const response = await fetch('/api/chat/manual', {
+      // Use different API endpoint based on channel
+      const apiUrl = selectedConversation.channel === 'messenger'
+        ? '/api/messenger/manual'
+        : '/api/chat/manual'
+
+      const bodyData = selectedConversation.channel === 'messenger'
+        ? { companyId, senderId: selectedConversation.phone, isManual: newMode }
+        : { companyId, sessionId: selectedConversation.phone, isManual: newMode }
+
+      const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId,
-          sessionId: selectedConversation.phone,
-          isManual: newMode,
-        }),
+        body: JSON.stringify(bodyData),
       })
 
       const data = await response.json()
@@ -815,28 +819,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
               </div>
             )}
 
-            {!manualMode && selectedConversation.channel === 'messenger' && (
-              <div className="p-4 border-t border-white/[0.06] bg-[#1877F2]/5">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <p className="text-[#A8B4C8] text-sm">
-                    <Facebook className="h-4 w-4 inline mr-1 text-[#1877F2]" />
-                    Svar kunden direkte herfra eller i Messenger
-                  </p>
-                  <a
-                    href={`https://www.facebook.com/messages/t/${selectedConversation.phone}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#1877F2] hover:bg-[#166FE5] text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    <Facebook className="h-4 w-4" />
-                    Åpne i Messenger
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {!manualMode && selectedConversation.channel !== 'messenger' && (
+            {!manualMode && (
               <div className="p-4 border-t border-white/[0.06] bg-botsy-lime/5">
                 <p className="text-[#A8B4C8] text-sm text-center">
                   <Bot className="h-4 w-4 inline mr-1" />
