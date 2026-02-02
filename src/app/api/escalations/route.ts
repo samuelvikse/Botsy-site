@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPendingEscalations, claimEscalation, resolveEscalation } from '@/lib/escalation-firestore'
+import { getPendingEscalations, claimEscalation, resolveEscalation, resolveEscalationsByConversation } from '@/lib/escalation-firestore'
 import { incrementAnsweredCustomers } from '@/lib/leaderboard-firestore'
+import { clearWidgetChatManualMode } from '@/lib/firestore'
+import { clearMessengerChatManualMode } from '@/lib/messenger-firestore'
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +34,24 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { escalationId, action, userId } = await request.json()
+    const { escalationId, action, userId, companyId, conversationId } = await request.json()
+
+    // Support resolving by conversationId (when employee opens a conversation)
+    if (action === 'resolveByConversation' && companyId && conversationId) {
+      const resolvedCount = await resolveEscalationsByConversation(companyId, conversationId)
+
+      // Also clear the isManualMode flag on the chat document
+      // conversationId format: "widget-{sessionId}" or "messenger-{senderId}"
+      if (conversationId.startsWith('widget-')) {
+        const sessionId = conversationId.replace('widget-', '')
+        await clearWidgetChatManualMode(companyId, sessionId)
+      } else if (conversationId.startsWith('messenger-')) {
+        const senderId = conversationId.replace('messenger-', '')
+        await clearMessengerChatManualMode(companyId, senderId)
+      }
+
+      return NextResponse.json({ success: true, resolvedCount })
+    }
 
     if (!escalationId || !action) {
       return NextResponse.json(

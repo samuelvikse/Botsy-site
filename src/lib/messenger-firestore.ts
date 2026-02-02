@@ -393,6 +393,31 @@ export async function getAllMessengerChats(
 }
 
 /**
+ * Clear the manual mode flag on a Messenger chat
+ * Called when an employee handles the conversation
+ */
+export async function clearMessengerChatManualMode(
+  companyId: string,
+  senderId: string
+): Promise<void> {
+  try {
+    const docPath = `${FIRESTORE_BASE_URL}/companies/${companyId}/messengerChats/${senderId}`
+
+    await fetch(`${docPath}?updateMask.fieldPaths=isManualMode`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          isManualMode: { booleanValue: false }
+        }
+      })
+    })
+  } catch (error) {
+    console.error('[Messenger Firestore] Error clearing manual mode:', error)
+  }
+}
+
+/**
  * Get business profile for AI context
  */
 export async function getBusinessProfile(companyId: string): Promise<Record<string, unknown> | null> {

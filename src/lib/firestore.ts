@@ -830,6 +830,27 @@ export async function addManualMessage(
   })
 }
 
+/**
+ * Clear the manual mode flag on a widget chat session
+ * Called when an employee handles the conversation
+ */
+export async function clearWidgetChatManualMode(
+  companyId: string,
+  sessionId: string
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+  const sessionSnap = await getDoc(sessionRef)
+
+  if (sessionSnap.exists()) {
+    await updateDoc(sessionRef, {
+      isManualMode: false,
+      updatedAt: serverTimestamp(),
+    })
+  }
+}
+
 // ============================================
 // General Settings Functions
 // ============================================

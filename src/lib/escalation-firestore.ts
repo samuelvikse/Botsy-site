@@ -253,3 +253,35 @@ export async function deleteEscalation(escalationId: string): Promise<void> {
   const escalationRef = doc(db, 'escalations', escalationId)
   await deleteDoc(escalationRef)
 }
+
+/**
+ * Resolve all pending escalations for a specific conversation
+ * Used when an employee opens/views an escalated conversation
+ */
+export async function resolveEscalationsByConversation(
+  companyId: string,
+  conversationId: string
+): Promise<number> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const escalationsRef = collection(db, 'escalations')
+  const q = query(
+    escalationsRef,
+    where('companyId', '==', companyId),
+    where('conversationId', '==', conversationId),
+    where('status', '==', 'pending')
+  )
+
+  const snapshot = await getDocs(q)
+  let resolvedCount = 0
+
+  for (const docSnap of snapshot.docs) {
+    await updateDoc(doc(db, 'escalations', docSnap.id), {
+      status: 'resolved',
+      resolvedAt: serverTimestamp(),
+    })
+    resolvedCount++
+  }
+
+  return resolvedCount
+}

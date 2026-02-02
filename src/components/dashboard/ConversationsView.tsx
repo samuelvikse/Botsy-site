@@ -79,6 +79,37 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Handle selecting a conversation - also resolves escalation if needed
+  const handleSelectConversation = async (conv: Conversation) => {
+    setSelectedConversation(conv)
+
+    // If the conversation is escalated, resolve the escalation when employee opens it
+    if (conv.isManualMode) {
+      try {
+        await fetch('/api/escalations', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'resolveByConversation',
+            companyId,
+            conversationId: conv.id,
+          }),
+        })
+
+        // Update local state to remove the red indicator
+        setConversations(prev =>
+          prev.map(c => c.id === conv.id ? { ...c, isManualMode: false } : c)
+        )
+        // Also update the selected conversation
+        setSelectedConversation(prev =>
+          prev ? { ...prev, isManualMode: false } : null
+        )
+      } catch (error) {
+        console.error('Failed to resolve escalation:', error)
+      }
+    }
+  }
+
   // Fetch conversations (with optional silent mode for polling)
   const fetchConversations = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true)
@@ -525,7 +556,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
               return (
                 <button
                   key={conv.id}
-                  onClick={() => setSelectedConversation(conv)}
+                  onClick={() => handleSelectConversation(conv)}
                   className={`w-full p-4 text-left border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors ${
                     selectedConversation?.id === conv.id ? 'bg-white/[0.05]' : ''
                   } ${conv.isManualMode ? 'bg-red-500/[0.08] border-l-2 border-l-red-500' : ''}`}
