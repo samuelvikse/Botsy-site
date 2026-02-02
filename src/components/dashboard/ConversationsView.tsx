@@ -14,6 +14,7 @@ import {
   RefreshCw,
   CheckCheck,
   AlertCircle,
+  ArrowLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -497,9 +498,9 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
   }
 
   return (
-    <div className="h-[calc(100vh-7rem)] flex gap-4">
+    <div className="h-[calc(100vh-7rem)] flex flex-col lg:flex-row gap-4">
       {/* Conversation List */}
-      <Card className="w-80 flex-shrink-0 flex flex-col overflow-hidden">
+      <Card className={`w-full lg:w-80 flex-shrink-0 flex flex-col overflow-hidden ${selectedConversation ? 'hidden lg:flex' : 'flex'}`}>
         {/* Search and Filter */}
         <div className="p-4 border-b border-white/[0.06] space-y-3">
           <div className="relative">
@@ -609,14 +610,21 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
       </Card>
 
       {/* Chat View */}
-      <Card className="flex-1 flex flex-col overflow-hidden">
+      <Card className={`flex-1 flex flex-col overflow-hidden ${selectedConversation ? 'flex' : 'hidden lg:flex'}`}>
         {selectedConversation ? (
           <>
             {/* Chat Header */}
             <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
               <div className="flex items-center gap-3">
+                {/* Mobile back button */}
+                <button
+                  onClick={() => setSelectedConversation(null)}
+                  className="lg:hidden p-2 -ml-2 text-[#A8B4C8] hover:text-white hover:bg-white/[0.05] rounded-lg"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
                 <div
-                  className="h-10 w-10 rounded-full flex items-center justify-center"
+                  className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{
                     backgroundColor: `${channelConfig[selectedConversation.channel].color}20`,
                   }}
@@ -643,12 +651,12 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                     />
                   )}
                 </div>
-                <div>
-                  <p className="text-white font-medium">{selectedConversation.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white font-medium truncate">{selectedConversation.name}</p>
                   <p className="text-[#6B7A94] text-sm flex items-center gap-2">
                     <Badge
                       variant="outline"
-                      className="text-xs"
+                      className="text-xs flex-shrink-0"
                       style={{
                         borderColor: channelConfig[selectedConversation.channel].color,
                         color: channelConfig[selectedConversation.channel].color,
@@ -656,11 +664,11 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                     >
                       {channelConfig[selectedConversation.channel].label}
                     </Badge>
-                    <span>{selectedConversation.messageCount} meldinger</span>
+                    <span className="hidden sm:inline">{selectedConversation.messageCount} meldinger</span>
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {selectedConversation.channel !== 'messenger' && (
                   <Button
                     variant={manualMode ? 'default' : 'outline'}
@@ -670,13 +678,13 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                   >
                     {manualMode ? (
                       <>
-                        <User className="h-4 w-4 mr-1" />
-                        Manuell modus
+                        <User className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Manuell modus</span>
                       </>
                     ) : (
                       <>
-                        <Bot className="h-4 w-4 mr-1" />
-                        Ta over manuelt
+                        <Bot className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Ta over manuelt</span>
                       </>
                     )}
                   </Button>

@@ -138,7 +138,7 @@ export function NotificationPanel({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden z-50"
+            className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden z-50"
           >
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
@@ -465,7 +465,7 @@ export function SimpleNotificationBell({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="absolute right-0 top-full mt-2 w-80 bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden z-50"
+            className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden z-50"
           >
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
               <h3 className="text-white font-semibold">Varsler</h3>

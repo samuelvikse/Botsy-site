@@ -548,14 +548,14 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
 
       {/* Pending Escalations */}
       {escalations.length > 0 && (
-        <Card className="p-6 border-red-500/30 bg-red-500/5">
+        <Card className="p-4 sm:p-6 border-red-500/30 bg-red-500/5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
               <HandHelping className="h-5 w-5 text-red-400" />
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Trenger oppmerksomhet</h2>
-              <p className="text-red-400 text-sm">{escalations.length} kunde{escalations.length !== 1 ? 'r' : ''} ønsker å snakke med en ansatt</p>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-white">Trenger oppmerksomhet</h2>
+              <p className="text-red-400 text-xs sm:text-sm">{escalations.length} kunde{escalations.length !== 1 ? 'r' : ''} ønsker å snakke med en ansatt</p>
             </div>
           </div>
           <div className="space-y-3">
@@ -563,14 +563,14 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
               <div
                 key={esc.id}
                 onClick={() => onViewConversation(esc.conversationId)}
-                className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition-colors"
+                className="flex items-center gap-3 sm:gap-4 p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition-colors"
               >
-                <div className="h-10 w-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 font-medium text-sm">
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 font-medium text-xs sm:text-sm flex-shrink-0">
                   {esc.customerIdentifier.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm">{esc.customerIdentifier}</p>
-                  <p className="text-[#6B7A94] text-sm truncate">"{esc.customerMessage}"</p>
+                  <p className="text-white font-medium text-sm truncate">{esc.customerIdentifier}</p>
+                  <p className="text-[#6B7A94] text-xs sm:text-sm truncate">"{esc.customerMessage}"</p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-[#6B7A94] text-xs">{formatTimeAgo(esc.createdAt)}</p>
@@ -1444,16 +1444,16 @@ function ConversationPreview({ name, message, time, channel, status, onClick }: 
   }
 
   return (
-    <div onClick={onClick} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.03] transition-colors cursor-pointer">
-      <div className="h-10 w-10 rounded-full bg-white/[0.1] flex items-center justify-center text-white font-medium text-sm">
+    <div onClick={onClick} className="flex items-center gap-3 sm:gap-4 p-3 rounded-xl hover:bg-white/[0.03] transition-colors cursor-pointer">
+      <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-white/[0.1] flex items-center justify-center text-white font-medium text-xs sm:text-sm flex-shrink-0">
         {name.split(' ').map(n => n[0]).join('')}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <p className="text-white font-medium text-sm">{name}</p>
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: channelColors[channel] }} />
+          <p className="text-white font-medium text-sm truncate">{name}</p>
+          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: channelColors[channel] }} />
         </div>
-        <p className="text-[#6B7A94] text-sm truncate">{message}</p>
+        <p className="text-[#6B7A94] text-xs sm:text-sm truncate">{message}</p>
       </div>
       <div className="flex flex-col items-end flex-shrink-0">
         <p className="text-[#6B7A94] text-xs mb-1">{time}</p>

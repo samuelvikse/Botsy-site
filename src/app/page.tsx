@@ -210,18 +210,18 @@ export default function LandingPage() {
                 Med din bedrifts personlighet. På norsk.
               </motion.p>
               
-              <motion.div 
+              <motion.div
                 variants={fadeInUp}
                 className="flex flex-col sm:flex-row gap-4"
               >
-                <Link href="/prov-gratis">
-                  <Button size="xl" className="w-full sm:w-auto group">
+                <Link href="/prov-gratis" className="w-full sm:w-auto">
+                  <Button size="xl" className="w-full sm:w-auto group whitespace-normal h-auto py-4 sm:whitespace-nowrap sm:h-16 sm:py-0">
                     Start gratis prøveperiode
-                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1 flex-shrink-0" />
                   </Button>
                 </Link>
-                <Link href="#how-it-works">
-                  <Button size="xl" variant="outline" className="w-full sm:w-auto">
+                <Link href="#how-it-works" className="w-full sm:w-auto">
+                  <Button size="xl" variant="outline" className="w-full sm:w-auto whitespace-normal h-auto py-4 sm:whitespace-nowrap sm:h-16 sm:py-0">
                     Se hvordan det fungerer
                   </Button>
                 </Link>
@@ -716,7 +716,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="max-w-5xl mx-auto"
           >
-            <Card glow className="p-8 lg:p-12 relative overflow-hidden">
+            <Card glow className="p-6 sm:p-8 lg:p-12 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-96 h-96 bg-botsy-lime/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
               <div className="absolute bottom-0 left-0 w-64 h-64 bg-botsy-lime/[0.03] rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2" />
 
@@ -726,23 +726,23 @@ export default function LandingPage() {
                   <Badge className="mb-4 bg-orange-500/20 text-orange-400 border-orange-500/30">INTRODUKSJONSTILBUD</Badge>
 
                   <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-6xl lg:text-7xl font-bold text-white font-display">699</span>
-                    <span className="text-xl text-[#6B7A94]">kr/mnd</span>
+                    <span className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white font-display">699</span>
+                    <span className="text-lg sm:text-xl text-[#6B7A94]">kr/mnd</span>
                   </div>
 
-                  <p className="text-[#6B7A94] text-sm mb-4 flex items-center gap-2">
+                  <div className="text-[#6B7A94] text-xs sm:text-sm mb-4 flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
                     <span className="line-through">Ordinær pris 1499 kr/mnd</span>
                     <span className="text-orange-400 font-semibold">Spar 800 kr!</span>
-                  </p>
+                  </div>
 
-                  <p className="text-[#A8B4C8] mb-6 lg:mb-8">
+                  <p className="text-[#A8B4C8] text-sm sm:text-base mb-6 lg:mb-8 px-2 sm:px-0">
                     Alt du trenger for å automatisere kundeservicen din
                   </p>
 
                   <Link href="/prov-gratis" className="w-full lg:w-auto">
-                    <Button size="xl" className="w-full shadow-lg shadow-botsy-lime/20">
+                    <Button size="xl" className="w-full shadow-lg shadow-botsy-lime/20 text-sm sm:text-base whitespace-normal h-auto py-3 sm:py-4">
                       Start 14 dagers gratis prøveperiode
-                      <ArrowRight className="h-5 w-5" />
+                      <ArrowRight className="h-5 w-5 flex-shrink-0" />
                     </Button>
                   </Link>
 
@@ -937,15 +937,15 @@ export default function LandingPage() {
                 Kom i gang på under 5 minutter. Ingen teknisk kunnskap nødvendig. 
                 Botsy tar seg av resten.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center px-4 sm:px-0">
                 <Link href="/prov-gratis">
-                  <Button size="xl" className="group">
+                  <Button size="xl" className="group w-full sm:w-auto whitespace-normal h-auto py-4">
                     Prøv Botsy gratis i 14 dager
-                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1 flex-shrink-0" />
                   </Button>
                 </Link>
                 <Link href="/kontakt">
-                  <Button size="xl" variant="outline">
+                  <Button size="xl" variant="outline" className="w-full sm:w-auto">
                     Snakk med oss
                   </Button>
                 </Link>
