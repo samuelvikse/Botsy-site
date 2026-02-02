@@ -688,7 +688,7 @@ export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): s
   return toneGuide
 }
 
-function buildCustomerSystemPrompt(context: CustomerChatContext): string {
+function buildCustomerSystemPrompt(context: CustomerChatContext, userMessageCount: number): string {
   const { businessProfile, faqs, instructions, knowledgeDocuments } = context
 
   const toneGuide = buildToneConfiguration(businessProfile.tone, businessProfile.toneConfig)
@@ -862,7 +862,7 @@ REGLER:
    - Ved tvil, bruk informasjonen som er oppgitt senest
 12. E-POST OPPSUMMERING (tilpass språket til kundens språk):
     - Hvis kunden spør om å få samtalen/chatten på e-post, svar NØYAKTIG: "[EMAIL_REQUEST]" etterfulgt av en melding på kundens språk som ber om e-postadresse
-    - Hvis kunden sier "takk", "tusen takk", "takk for hjelpen", "det var alt", "ha det", "bye", "thanks", "thank you", eller lignende avsluttende fraser, avslutt svaret ditt med "[OFFER_EMAIL]" etterfulgt av et tilbud om e-postoppsummering på kundens språk
+    - ${userMessageCount >= 5 ? 'Hvis kunden sier "takk", "tusen takk", "takk for hjelpen", "det var alt", "ha det", "bye", "thanks", "thank you", eller lignende avsluttende fraser, avslutt svaret ditt med "[OFFER_EMAIL]" etterfulgt av et tilbud om e-postoppsummering på kundens språk' : 'IKKE tilby e-postoppsummering automatisk - samtalen er for kort. Du kan fortsatt svare hvis kunden eksplisitt ber om det.'}
 
 Svar nå på kundens melding.`
 
@@ -873,7 +873,10 @@ export async function chatWithCustomer(
   message: string,
   context: CustomerChatContext
 ): Promise<string> {
-  const systemPrompt = buildCustomerSystemPrompt(context)
+  // Count user messages in conversation history (including current message)
+  const userMessageCount = context.conversationHistory.filter(msg => msg.role === 'user').length + 1
+
+  const systemPrompt = buildCustomerSystemPrompt(context, userMessageCount)
 
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = []
 
