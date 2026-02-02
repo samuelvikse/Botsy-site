@@ -765,7 +765,7 @@ export default function LandingPage() {
                       'Ubegrenset FAQs',
                       'Sanntids-dashboard',
                       'Statistikk og rapporter',
-                      'Teamtilgang (5 brukere)',
+                      'Teamtilgang (20 brukere)',
                       'E-poststøtte',
                       'GDPR-compliant',
                     ].map((feature) => (

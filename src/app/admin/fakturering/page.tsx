@@ -258,7 +258,7 @@ function BillingContent() {
           <div>
             <p className="text-yellow-400 font-medium">Du nærmer deg teamgrensen</p>
             <p className="text-yellow-400/80 text-sm">
-              Du har 4 av 10 teammedlemmer. Trenger du flere? Kontakt oss for en tilpasset plan.
+              Du har 4 av 20 teammedlemmer. Trenger du flere? Kontakt oss for en tilpasset plan.
             </p>
           </div>
         </div>

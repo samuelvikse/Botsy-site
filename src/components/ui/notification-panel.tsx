@@ -283,9 +283,12 @@ export function SimpleNotificationBell({
   const panelRef = useRef<HTMLDivElement>(null)
   const previousEscalationIds = useRef<Set<string>>(new Set())
 
-  // Check push notification status on mount
+  // Check push notification status on mount and after a delay
   useEffect(() => {
     checkPushStatus()
+    // Re-check after service worker might be ready
+    const timeout = setTimeout(checkPushStatus, 1000)
+    return () => clearTimeout(timeout)
   }, [])
 
   // Fetch escalations when companyId is available
@@ -380,6 +383,7 @@ export function SimpleNotificationBell({
           }
         }
         setPushEnabled(false)
+        toast.success('Varsler av', 'Push-varsler er nå deaktivert')
       } else {
         // Subscribe
         const permission = await Notification.requestPermission()
@@ -421,9 +425,11 @@ export function SimpleNotificationBell({
         })
 
         setPushEnabled(true)
+        toast.success('Varsler på', 'Du vil nå motta push-varsler når kunder trenger hjelp')
       }
     } catch (error) {
       console.error('Error toggling push notifications:', error)
+      toast.error('Feil', 'Kunne ikke endre varsel-innstillinger')
     } finally {
       setIsLoading(false)
     }
@@ -447,26 +453,42 @@ export function SimpleNotificationBell({
     <div ref={panelRef} className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-[#A8B4C8] hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors"
-        title="Varsler"
+        className={`relative p-2 rounded-lg transition-colors ${
+          pushEnabled
+            ? 'text-botsy-lime bg-botsy-lime/10 hover:bg-botsy-lime/20'
+            : 'text-[#A8B4C8] hover:text-white hover:bg-white/[0.05]'
+        }`}
+        title={pushEnabled ? 'Varsler aktivert' : 'Varsler deaktivert'}
       >
-        <Bell className={`h-5 w-5 ${pushEnabled ? 'text-botsy-lime' : ''}`} />
+        <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
+        {pushEnabled && unreadCount === 0 && (
+          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-botsy-dark-deep" />
+        )}
       </button>
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden z-50"
-          >
+          <>
+            {/* Mobile backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40 sm:hidden"
+              onClick={() => setIsOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed left-4 right-4 top-20 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden z-50"
+            >
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
               <h3 className="text-white font-semibold">Varsler</h3>
               <button
@@ -545,6 +567,7 @@ export function SimpleNotificationBell({
               </p>
             </div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPendingEscalations, claimEscalation, resolveEscalation, resolveEscalationsByConversation } from '@/lib/escalation-firestore'
+import { getPendingEscalations, claimEscalation, resolveEscalation, resolveEscalationsByConversation, resolveAllPendingEscalations } from '@/lib/escalation-firestore'
 import { incrementAnsweredCustomers } from '@/lib/leaderboard-firestore'
 import { clearWidgetChatManualMode } from '@/lib/firestore'
 import { clearMessengerChatManualMode } from '@/lib/messenger-firestore'
@@ -35,6 +35,12 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const { escalationId, action, userId, companyId, conversationId } = await request.json()
+
+    // Support resolving all pending escalations for a company (bulk cleanup)
+    if (action === 'resolveAll' && companyId) {
+      const resolvedCount = await resolveAllPendingEscalations(companyId)
+      return NextResponse.json({ success: true, resolvedCount })
+    }
 
     // Support resolving by conversationId (when employee opens a conversation)
     if (action === 'resolveByConversation' && companyId && conversationId) {
