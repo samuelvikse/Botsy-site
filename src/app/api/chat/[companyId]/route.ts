@@ -140,7 +140,7 @@ const DEMO_PROFILE: BusinessProfile = {
 const DEMO_CONFIG = {
   businessName: 'Demo Bedrift',
   botName: 'Botsy',
-  greeting: 'Hei! 👋 Jeg er Botsy. Hvordan kan jeg hjelpe deg i dag?',
+  greeting: 'Hei! Jeg er Botsy. Hvordan kan jeg hjelpe deg i dag?',
   primaryColor: '#CCFF00',
   position: 'bottom-right',
   isEnabled: true,
@@ -386,7 +386,7 @@ export async function POST(
                 ...(sessionData?.messages || []),
                 {
                   role: 'assistant',
-                  content: 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig. 🙋‍♂️',
+                  content: 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig.',
                   timestamp: new Date(),
                 },
               ],
@@ -396,7 +396,7 @@ export async function POST(
 
           return NextResponse.json({
             success: true,
-            reply: 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig. 🙋‍♂️',
+            reply: 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig.',
             isManualMode: true,
             escalated: true,
           }, { headers: corsHeaders })

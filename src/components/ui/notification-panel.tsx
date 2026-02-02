@@ -261,7 +261,7 @@ export function NotificationPanel({
 }
 
 // Simple notification bell with push notification toggle
-export function SimpleNotificationBell() {
+export function SimpleNotificationBell({ companyId }: { companyId?: string }) {
   const toast = useToast()
   const [isOpen, setIsOpen] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
@@ -275,16 +275,23 @@ export function SimpleNotificationBell() {
     conversationId: string
   }>>([])
   const panelRef = useRef<HTMLDivElement>(null)
+  const previousEscalationIds = useRef<Set<string>>(new Set())
 
   // Check push notification status on mount
   useEffect(() => {
     checkPushStatus()
+  }, [])
+
+  // Fetch escalations when companyId is available
+  useEffect(() => {
+    if (!companyId) return
+
     fetchEscalations()
 
-    // Poll for escalations every 30 seconds
-    const interval = setInterval(fetchEscalations, 30000)
+    // Poll for escalations every 10 seconds (faster for real-time feel)
+    const interval = setInterval(fetchEscalations, 10000)
     return () => clearInterval(interval)
-  }, [])
+  }, [companyId])
 
   const checkPushStatus = async () => {
     try {
@@ -306,11 +313,37 @@ export function SimpleNotificationBell() {
   }
 
   const fetchEscalations = async () => {
+    if (!companyId) return
+
     try {
-      const response = await fetch('/api/escalations')
+      const response = await fetch(`/api/escalations?companyId=${companyId}`)
       if (response.ok) {
         const data = await response.json()
-        setEscalations(data.escalations || [])
+        const newEscalations = data.escalations || [] as Array<{
+          id: string
+          customerIdentifier: string
+          customerMessage: string
+          channel: string
+          createdAt: Date
+          conversationId: string
+        }>
+
+        // Check for new escalations and show toast
+        const currentIds = new Set<string>(newEscalations.map((e: { id: string }) => e.id))
+        const newIds = newEscalations.filter((e: { id: string }) => !previousEscalationIds.current.has(e.id))
+
+        // Only show toast if we had previous data (not on initial load)
+        if (previousEscalationIds.current.size > 0 && newIds.length > 0) {
+          for (const esc of newIds) {
+            toast.warning(
+              'Kunde trenger hjelp',
+              `${esc.customerIdentifier}: "${esc.customerMessage.slice(0, 50)}${esc.customerMessage.length > 50 ? '...' : ''}"`
+            )
+          }
+        }
+
+        previousEscalationIds.current = currentIds
+        setEscalations(newEscalations)
       }
     } catch {
       // Silent fail

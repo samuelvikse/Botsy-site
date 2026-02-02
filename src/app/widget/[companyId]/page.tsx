@@ -446,10 +446,11 @@ export default function WidgetPage({
 
       if (data.success) {
         // Check if chat is in manual mode
-        if (data.isManualMode) {
+        // If escalated is true, this is the first escalation response - show it
+        // If isManualMode is true but escalated is false, user is already in manual mode - skip
+        if (data.isManualMode && !data.escalated) {
           // Don't add the automated "waiting" message - just skip
           // The customer will see the human's response when they send it
-          // Optionally, we could add polling here to check for new messages
         } else {
           const { cleanContent, showEmailPrompt } = processMessage(data.reply)
 

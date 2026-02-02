@@ -94,7 +94,7 @@ function AdminContent() {
   const [widgetSettings, setWidgetSettings] = useState({
     primaryColor: '#CCFF00',
     position: 'bottom-right',
-    greeting: 'Hei! 👋 Hvordan kan jeg hjelpe deg?',
+    greeting: 'Hei! Hvordan kan jeg hjelpe deg?',
     isEnabled: true,
     logoUrl: null as string | null,
     widgetSize: 'medium' as 'small' | 'medium' | 'large',
@@ -120,7 +120,7 @@ function AdminContent() {
           setWidgetSettings({
             primaryColor: data.widgetSettings.primaryColor || '#CCFF00',
             position: data.widgetSettings.position || 'bottom-right',
-            greeting: data.widgetSettings.greeting || 'Hei! 👋 Hvordan kan jeg hjelpe deg?',
+            greeting: data.widgetSettings.greeting || 'Hei! Hvordan kan jeg hjelpe deg?',
             isEnabled: data.widgetSettings.isEnabled ?? true,
             logoUrl: data.widgetSettings.logoUrl || null,
             widgetSize: data.widgetSettings.widgetSize || 'medium',
@@ -325,7 +325,7 @@ function AdminContent() {
           </div>
 
           <div className="flex items-center gap-3">
-            <SimpleNotificationBell />
+            <SimpleNotificationBell companyId={companyId} />
             <Button size="sm" onClick={() => setActiveTab('knowledge')}>
               <Plus className="h-4 w-4 mr-1.5" />
               Ny FAQ

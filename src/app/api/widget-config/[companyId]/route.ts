@@ -27,7 +27,7 @@ function getFirebaseApp() {
 const DEMO_CONFIG = {
   businessName: 'Demo Bedrift',
   botName: 'Botsy',
-  greeting: 'Hei! 👋 Jeg er Botsy. Hvordan kan jeg hjelpe deg i dag?',
+  greeting: 'Hei! Jeg er Botsy. Hvordan kan jeg hjelpe deg i dag?',
   primaryColor: '#CCFF00',
   position: 'bottom-right',
   isEnabled: true,
