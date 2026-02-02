@@ -92,42 +92,32 @@ export function CookieConsent() {
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           className="fixed bottom-0 left-0 right-0 z-[100] p-4 sm:p-6"
         >
-          <div className="max-w-4xl mx-auto bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden">
+          <div className="max-w-2xl mx-auto bg-[#1a1a2e] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
             {!showSettings ? (
-              // Main Banner
-              <div className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-botsy-lime/10 flex items-center justify-center flex-shrink-0">
-                    <Cookie className="h-6 w-6 text-botsy-lime" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-semibold text-lg mb-2">Vi bruker informasjonskapsler</h3>
-                    <p className="text-[#A8B4C8] text-sm mb-4">
-                      Vi bruker informasjonskapsler for å forbedre opplevelsen din, analysere trafikk,
-                      og huske innstillingene dine. Les mer i vår{' '}
-                      <Link href="/personvern" className="text-botsy-lime hover:underline">
-                        personvernerklæring
-                      </Link>.
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      <Button onClick={acceptAll} size="sm">
-                        <Check className="h-4 w-4 mr-1" />
-                        Godta alle
-                      </Button>
-                      <Button onClick={acceptEssential} variant="outline" size="sm">
-                        Kun nødvendige
-                      </Button>
-                      <Button
-                        onClick={() => setShowSettings(true)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-[#6B7A94] hover:text-white"
-                      >
-                        <Settings className="h-4 w-4 mr-1" />
-                        Innstillinger
-                      </Button>
-                    </div>
-                  </div>
+              // Main Banner - Compact
+              <div className="px-4 py-3 flex items-center gap-3">
+                <Cookie className="h-5 w-5 text-botsy-lime flex-shrink-0" />
+                <p className="text-[#A8B4C8] text-sm flex-1">
+                  Vi bruker cookies.{' '}
+                  <Link href="/personvern" className="text-botsy-lime hover:underline">
+                    Les mer
+                  </Link>
+                </p>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button onClick={acceptEssential} variant="ghost" size="sm" className="text-xs px-2 h-7">
+                    Avvis
+                  </Button>
+                  <Button
+                    onClick={() => setShowSettings(true)}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs px-2 h-7 text-[#6B7A94]"
+                  >
+                    <Settings className="h-3 w-3" />
+                  </Button>
+                  <Button onClick={acceptAll} size="sm" className="text-xs px-3 h-7">
+                    Godta
+                  </Button>
                 </div>
               </div>
             ) : (

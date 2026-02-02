@@ -1011,18 +1011,14 @@ export async function getUsersWithDailySummaryEnabled(
 ): Promise<Array<{ userId: string; email: string; displayName: string }>> {
   if (!db) throw new Error('Firestore not initialized')
 
-  // Get all memberships for this company
-  const membershipsRef = collection(db, 'memberships')
-  const q = query(membershipsRef, where('companyId', '==', companyId))
-  const membershipsSnapshot = await getDocs(q)
-
   const usersWithDailySummary: Array<{ userId: string; email: string; displayName: string }> = []
+  const processedUserIds = new Set<string>()
 
-  for (const membershipDoc of membershipsSnapshot.docs) {
-    const membership = membershipDoc.data()
-    const userId = membership.userId
+  // Helper function to check user and add if daily summary enabled
+  const checkAndAddUser = async (userId: string) => {
+    if (!db || processedUserIds.has(userId)) return
+    processedUserIds.add(userId)
 
-    // Get user document
     const userDocRef = doc(db, 'users', userId)
     const userDoc = await getDoc(userDocRef)
 
@@ -1039,6 +1035,29 @@ export async function getUsersWithDailySummaryEnabled(
         })
       }
     }
+  }
+
+  // First, check the company owner (companyId is often the owner's userId)
+  await checkAndAddUser(companyId)
+
+  // Also check the company document for owner field
+  const companyDocRef = doc(db, 'companies', companyId)
+  const companyDoc = await getDoc(companyDocRef)
+  if (companyDoc.exists()) {
+    const companyData = companyDoc.data()
+    if (companyData.ownerId && companyData.ownerId !== companyId) {
+      await checkAndAddUser(companyData.ownerId)
+    }
+  }
+
+  // Get all memberships for this company
+  const membershipsRef = collection(db, 'memberships')
+  const q = query(membershipsRef, where('companyId', '==', companyId))
+  const membershipsSnapshot = await getDocs(q)
+
+  for (const membershipDoc of membershipsSnapshot.docs) {
+    const membership = membershipDoc.data()
+    await checkAndAddUser(membership.userId)
   }
 
   return usersWithDailySummary

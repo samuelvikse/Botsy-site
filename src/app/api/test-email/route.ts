@@ -1,23 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendTeamInvitationEmail } from '@/lib/botsy-emails'
 
+// Developer email for production testing
+const DEVELOPER_EMAIL = 'hei@botsy.no'
+
 /**
  * Test endpoint for email sending
  *
  * Usage: POST /api/test-email
  * Body: { "email": "your@email.com" }
- *
- * DELETE THIS FILE IN PRODUCTION or add authentication!
  */
 export async function POST(request: NextRequest) {
-  // Only allow in development
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json(
-      { error: 'Test endpoint disabled in production' },
-      { status: 403 }
-    )
-  }
-
   try {
     const body = await request.json()
     const { email } = body
@@ -26,6 +19,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Email is required. Send: { "email": "your@email.com" }' },
         { status: 400 }
+      )
+    }
+
+    // Only allow in development OR for developer email in production
+    if (process.env.NODE_ENV === 'production' && email !== DEVELOPER_EMAIL) {
+      return NextResponse.json(
+        { error: 'Test endpoint disabled in production' },
+        { status: 403 }
       )
     }
 

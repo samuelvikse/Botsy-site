@@ -50,6 +50,7 @@ function TestingContent() {
   const toast = useToast()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasRedirected, setHasRedirected] = useState(false)
 
   // Test states
   const [dailySummaryTest, setDailySummaryTest] = useState<TestResult>({ status: 'idle' })
@@ -66,17 +67,18 @@ function TestingContent() {
 
   // Check authorization
   useEffect(() => {
-    if (user) {
+    if (user && !hasRedirected) {
       const authorized = user.email === DEVELOPER_EMAIL
       setIsAuthorized(authorized)
       setIsLoading(false)
 
       if (!authorized) {
+        setHasRedirected(true)
         toast.error('Ingen tilgang', 'Denne siden er kun for utviklere')
         router.push('/admin')
       }
     }
-  }, [user, router, toast])
+  }, [user, router, hasRedirected])
 
   if (isLoading) {
     return (
@@ -223,32 +225,28 @@ function TestingContent() {
   const handleHealthCheck = async () => {
     setHealthCheck({ status: 'loading' })
 
-    const checks = {
-      firebase: false,
-      resend: false,
-      gemini: false,
-      groq: false,
-    }
-
     try {
-      // Check Firebase by fetching company data
-      if (companyId) {
-        const { doc, getDoc } = await import('firebase/firestore')
-        const { db } = await import('@/lib/firebase')
-        if (db) {
-          const companyDoc = await getDoc(doc(db, 'companies', companyId))
-          checks.firebase = companyDoc.exists()
-        }
+      const response = await fetch('/api/test/health-check')
+      const data = await response.json()
+
+      const checks = {
+        firebase: data.firebase,
+        resend: data.resend,
+        gemini: data.gemini,
+        groq: data.groq,
       }
 
-      // Check Resend API key existence
-      checks.resend = !!process.env.NEXT_PUBLIC_BASE_URL // Proxy check
+      const allGood = Object.values(checks).every(v => v === true)
 
       setHealthCheck({
-        status: 'success',
-        message: 'Helsekontroll fullført',
+        status: allGood ? 'success' : 'error',
+        message: allGood ? 'Helsekontroll fullført' : 'Noen tjenester feiler',
         data: checks,
       })
+
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        console.log('Health check errors:', data.errors)
+      }
     } catch (error) {
       setHealthCheck({
         status: 'error',

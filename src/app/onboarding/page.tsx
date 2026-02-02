@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   MessageSquare,
   Bot,
-  Sparkles,
   Check,
   Upload,
   Plus,
@@ -674,14 +673,10 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="max-w-4xl mx-auto"
+              className="max-w-5xl mx-auto"
             >
-              <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div className="grid lg:grid-cols-2 gap-8 items-center min-h-[60vh]">
                 <div className="text-center lg:text-left">
-                  <div className="h-20 w-20 rounded-full bg-botsy-lime/20 flex items-center justify-center mx-auto lg:mx-0 mb-8">
-                    <Sparkles className="h-10 w-10 text-botsy-lime" />
-                  </div>
-
                   <h1 className="text-4xl font-bold text-white mb-4">Du er klar!</h1>
                   <p className="text-[#A8B4C8] text-lg mb-10 max-w-md mx-auto lg:mx-0">
                     Botsy er nå satt opp og klar til å hjelpe kundene dine.
@@ -730,13 +725,14 @@ export default function OnboardingPage() {
                   </Button>
                 </div>
 
-                <div className="hidden lg:block">
+                <div className="hidden lg:flex items-center justify-center">
                   <Image
                     src="/images/klarskjerm.png"
                     alt="Botsy er klar"
-                    width={700}
-                    height={560}
-                    className="w-full h-auto max-w-2xl"
+                    width={500}
+                    height={500}
+                    className="w-full h-auto max-w-lg"
+                    priority
                   />
                 </div>
               </div>

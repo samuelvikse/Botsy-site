@@ -42,6 +42,8 @@ import {
   Loader2,
   RefreshCw,
   HandHelping,
+  Mail,
+  Send,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -1411,6 +1413,8 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
   const [isLoading, setIsLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(false)
   const [showCompanyId, setShowCompanyId] = useState(false)
+  const [isSendingSummary, setIsSendingSummary] = useState(false)
+  const { user } = useAuth()
   const toast = useToast()
 
   const handleCopyCompanyId = async () => {
@@ -1420,6 +1424,35 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
       setTimeout(() => setCopiedId(false), 2000)
     } catch {
       toast.error('Kunne ikke kopiere', 'Prøv å markere teksten manuelt')
+    }
+  }
+
+  const handleSendDailySummary = async () => {
+    const email = user?.email
+    if (!email) {
+      toast.error('Ingen e-post', 'Kunne ikke finne din e-postadresse')
+      return
+    }
+
+    setIsSendingSummary(true)
+    try {
+      const response = await fetch('/api/notifications/daily-summary/send-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, email }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Oppsummering sendt!', `E-post sendt til ${email}`)
+      } else {
+        toast.error('Kunne ikke sende', data.error || 'Prøv igjen senere')
+      }
+    } catch {
+      toast.error('Feil', 'Kunne ikke sende daglig oppsummering')
+    } finally {
+      setIsSendingSummary(false)
     }
   }
 
@@ -1641,6 +1674,25 @@ function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: 
                 </p>
               </div>
             )}
+            <div className="mt-4 pt-4 border-t border-white/[0.06]">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendDailySummary}
+                disabled={isSendingSummary}
+                className="w-full sm:w-auto"
+              >
+                {isSendingSummary ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4 mr-1.5" />
+                )}
+                {isSendingSummary ? 'Sender...' : 'Send oppsummering nå'}
+              </Button>
+              <p className="text-[#6B7A94] text-xs mt-2">
+                Sender dagens oppsummering til {user?.email || 'din e-post'} med én gang
+              </p>
+            </div>
           </div>
         </div>
       </Card>
