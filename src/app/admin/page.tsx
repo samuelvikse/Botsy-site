@@ -496,8 +496,8 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
     fetchStats()
     fetchEscalations()
 
-    // Poll for escalations every 30 seconds
-    const interval = setInterval(fetchEscalations, 30000)
+    // Poll for escalations every 10 seconds (same as notification bell)
+    const interval = setInterval(fetchEscalations, 10000)
     return () => clearInterval(interval)
   }, [companyId])
 
