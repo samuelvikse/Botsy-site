@@ -375,10 +375,12 @@ export interface EmployeePermissions {
   instructions: boolean
   analytics: boolean
   adminBot: boolean
+  employees: boolean
 }
 
 export interface AdminPermissions {
   channels: boolean
+  employees: boolean
 }
 
 export type MembershipPermissions = EmployeePermissions | AdminPermissions | Record<string, never>

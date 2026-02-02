@@ -32,7 +32,7 @@ const ACCESS_MATRIX: Record<PanelName, { owner: AccessValue; admin: AccessValue;
   analytics:     { owner: true, admin: true, employee: 'configurable' },
   security:      { owner: true, admin: true, employee: true },
   settings:      { owner: true, admin: false, employee: false },
-  employees:     { owner: true, admin: true, employee: false },
+  employees:     { owner: true, admin: 'configurable', employee: 'configurable' },
   adminBot:      { owner: true, admin: true, employee: 'configurable' },
 }
 
@@ -130,6 +130,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       if (role === 'admin') {
         const adminPerms = permissions as AdminPermissions
         if (panel === 'channels') return adminPerms.channels ?? true
+        if (panel === 'employees') return adminPerms.employees ?? true
       }
 
       if (role === 'employee') {
@@ -145,6 +146,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
             return employeePerms.analytics ?? false
           case 'adminBot':
             return employeePerms.adminBot ?? false
+          case 'employees':
+            return employeePerms.employees ?? false
           default:
             return false
         }

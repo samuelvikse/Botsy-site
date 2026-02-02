@@ -245,7 +245,9 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white mb-1">Ansatte</h1>
-          <p className="text-[#6B7A94]">Administrer teammedlemmer og tilganger</p>
+          <p className="text-[#6B7A94]">
+            {canManageTeam ? 'Administrer teammedlemmer og tilganger' : 'Se teammedlemmer og roller'}
+          </p>
         </div>
         <div className="flex gap-3">
           {isOwner && (

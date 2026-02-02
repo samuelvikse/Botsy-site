@@ -28,9 +28,11 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
     instructions: false,
     analytics: false,
     adminBot: false,
+    employees: false,
   })
   const [adminPermissions, setAdminPermissions] = useState<AdminPermissions>({
     channels: true,
+    employees: true,
   })
   const [isLoading, setIsLoading] = useState(false)
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
@@ -107,8 +109,9 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
       instructions: false,
       analytics: false,
       adminBot: false,
+      employees: false,
     })
-    setAdminPermissions({ channels: true })
+    setAdminPermissions({ channels: true, employees: true })
     setInviteUrl(null)
     setEmailSent(false)
     setCopied(false)
@@ -283,6 +286,7 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
                   { key: 'instructions' as const, label: 'Instruksjoner', desc: 'Opprett og rediger instruksjoner' },
                   { key: 'analytics' as const, label: 'Analyser', desc: 'Se statistikk og rapporter' },
                   { key: 'adminBot' as const, label: 'Admin Bot', desc: 'Tilgang til AI-assistenten' },
+                  { key: 'employees' as const, label: 'Ansatte', desc: 'Se teammedlemmer (kun lesetilgang)' },
                 ].map(({ key, label, desc }) => (
                   <button
                     key={key}
@@ -323,30 +327,38 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
               <p className="text-[#6B7A94] text-sm mb-3">
                 Administratorer har tilgang til alle paneler unntatt Innstillinger.
               </p>
-              <button
-                onClick={() => setAdminPermissions(prev => ({ channels: !prev.channels }))}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                  adminPermissions.channels
-                    ? 'border-blue-500/50 bg-blue-500/5'
-                    : 'border-white/[0.08] hover:border-white/[0.16]'
-                }`}
-              >
-                <div className="text-left">
-                  <p className="text-white text-sm font-medium">Kanaler</p>
-                  <p className="text-[#6B7A94] text-xs">Konfigurer SMS, WhatsApp, etc.</p>
-                </div>
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                  adminPermissions.channels
-                    ? 'bg-blue-500 border-blue-500'
-                    : 'border-white/20'
-                }`}>
-                  {adminPermissions.channels && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
-              </button>
+              <div className="space-y-2">
+                {[
+                  { key: 'channels' as const, label: 'Kanaler', desc: 'Konfigurer SMS, WhatsApp, etc.' },
+                  { key: 'employees' as const, label: 'Ansatte', desc: 'Administrer teammedlemmer' },
+                ].map(({ key, label, desc }) => (
+                  <button
+                    key={key}
+                    onClick={() => setAdminPermissions(prev => ({ ...prev, [key]: !prev[key] }))}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      adminPermissions[key]
+                        ? 'border-blue-500/50 bg-blue-500/5'
+                        : 'border-white/[0.08] hover:border-white/[0.16]'
+                    }`}
+                  >
+                    <div className="text-left">
+                      <p className="text-white text-sm font-medium">{label}</p>
+                      <p className="text-[#6B7A94] text-xs">{desc}</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                      adminPermissions[key]
+                        ? 'bg-blue-500 border-blue-500'
+                        : 'border-white/20'
+                    }`}>
+                      {adminPermissions[key] && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

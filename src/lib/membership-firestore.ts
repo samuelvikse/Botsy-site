@@ -484,7 +484,7 @@ async function completeOwnershipTransfer(transfer: OwnershipTransferDoc): Promis
     // Change old owner to admin
     await updateMembership(oldOwnerMembership.id, {
       role: 'admin',
-      permissions: { channels: true },
+      permissions: { channels: true, employees: true },
     })
   }
 
