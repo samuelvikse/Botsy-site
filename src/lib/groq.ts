@@ -647,45 +647,46 @@ function buildIndustryExpertise(industry: string | undefined): string {
 }
 
 export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): string {
-  // Base tone guide
+  // Debug logging
+  console.log('[buildToneConfiguration] Input:', { tone, toneConfig })
+
+  // Base tone guide - STRONG and explicit
   let toneGuide = tone === 'formal'
-    ? 'Bruk formelt språk, vær profesjonell og respektfull. Unngå slang og uformelle uttrykk.'
+    ? 'KOMMUNIKASJONSSTIL: Du skal være FORMELL og profesjonell. Bruk høflig, saklig språk. ALDRI bruk slang, uformelle uttrykk, eller overdrevent entusiastiske formuleringer som "Hallooo!", "Fantastisk!", etc. Vær respektfull og forretningslik.'
     : tone === 'casual'
-    ? 'Vær avslappet og uformell, bruk hverdagslig språk. Du kan være litt humoristisk.'
-    : 'Vær vennlig og imøtekommende, men fortsatt profesjonell. Bruk "du" og vær personlig.'
+    ? 'KOMMUNIKASJONSSTIL: Du skal være avslappet og uformell. Bruk hverdagslig språk og vær som en venn.'
+    : 'KOMMUNIKASJONSSTIL: Du skal være vennlig og imøtekommende, men fortsatt profesjonell. Bruk "du" og vær personlig uten å være for uformell.'
 
-  // Add custom tone configuration if available
+  // Response length - use defaults if not set
+  const responseLength = toneConfig?.responseLength || 'balanced'
+  const lengthGuide = responseLength === 'short'
+    ? '\n\nSVARLENGDE (KRITISK): Hold svarene KORTE - MAKS 1-2 setninger. Rett på sak. Ingen lange forklaringer.'
+    : responseLength === 'detailed'
+    ? '\n\nSVARLENGDE: Gi detaljerte og grundige svar. Forklar godt. 4-6 setninger er passende.'
+    : '\n\nSVARLENGDE: Hold svarene balansert - 2-3 setninger er ideelt.'
+  toneGuide += lengthGuide
+
+  // Emoji configuration - EXPLICIT and STRONG
+  const useEmojis = toneConfig?.useEmojis ?? false // Default to NO emojis
+  if (useEmojis) {
+    toneGuide += '\n\nEMOJIS: Du KAN bruke 1-2 emojis per svar for å være vennlig.'
+  } else {
+    toneGuide += '\n\nEMOJIS (KRITISK): Du skal ALDRI bruke emojis i svarene dine. Ingen 😀, 👋, 🎉, eller andre emojis. Hold kommunikasjonen ren tekst UTEN noen emojis.'
+  }
+
+  // Humor level - use defaults if not set
+  const humorLevel = toneConfig?.humorLevel || 'none'
+  const humorGuide = humorLevel === 'none'
+    ? '\n\nHUMOR (KRITISK): Vær ALLTID seriøs og profesjonell. INGEN humor, vitser, morsomheter, eller lekne kommentarer. Hold deg strikt til sak.'
+    : humorLevel === 'subtle'
+    ? '\n\nHUMOR: Du kan være lett og vennlig, men hold det subtilt. Ingen åpenbare vitser.'
+    : humorLevel === 'moderate'
+    ? '\n\nHUMOR: Bruk moderat humor når det passer.'
+    : '\n\nHUMOR: Vær leken og morsom! Bruk gjerne humor.'
+  toneGuide += humorGuide
+
+  // Additional custom configuration
   if (toneConfig) {
-    // Response length configuration
-    if (toneConfig.responseLength) {
-      const lengthGuide = toneConfig.responseLength === 'short'
-        ? '\n\nSVARLENGDE: Hold svarene KORTE og konsise - maks 1-2 setninger. Rett på sak, ingen unødvendig informasjon.'
-        : toneConfig.responseLength === 'detailed'
-        ? '\n\nSVARLENGDE: Gi DETALJERTE og grundige svar. Forklar godt og inkluder relevant tilleggsinformasjon. 4-6 setninger er passende.'
-        : '\n\nSVARLENGDE: Hold svarene BALANSERT - 2-3 setninger er ideelt. Gi nok informasjon uten å være for ordrik.'
-      toneGuide += lengthGuide
-    }
-
-    // Emoji configuration
-    if (toneConfig.useEmojis !== undefined) {
-      const emojiGuide = toneConfig.useEmojis
-        ? '\n\nEMOJIS: Du KAN bruke emojis i svarene dine for å gjøre dem mer vennlige og engasjerende. Ikke overdriv - 1-2 emojis per svar er passende.'
-        : '\n\nEMOJIS: IKKE bruk emojis i svarene dine. Hold kommunikasjonen ren og tekstbasert.'
-      toneGuide += emojiGuide
-    }
-
-    // Humor level configuration
-    if (toneConfig.humorLevel) {
-      const humorGuide = toneConfig.humorLevel === 'none'
-        ? '\n\nHUMOR: Vær alltid seriøs og profesjonell. Ingen humor eller morsomheter.'
-        : toneConfig.humorLevel === 'subtle'
-        ? '\n\nHUMOR: Du kan være lett og vennlig, men hold det subtilt. Ingen åpenbare vitser.'
-        : toneConfig.humorLevel === 'moderate'
-        ? '\n\nHUMOR: Bruk moderat humor når det passer. En vennlig vits eller lett kommentar er ok.'
-        : '\n\nHUMOR: Vær leken og morsom! Bruk gjerne humor og morsomme kommentarer.'
-      toneGuide += humorGuide
-    }
-
     if (toneConfig.customInstructions) {
       toneGuide += `\n\nEKSTRA TONE-INSTRUKSJONER FRA EIER:\n${toneConfig.customInstructions}`
     }
@@ -707,6 +708,7 @@ export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): s
     }
   }
 
+  console.log('[buildToneConfiguration] Final toneGuide preview:', toneGuide.substring(0, 300) + '...')
   return toneGuide
 }
 

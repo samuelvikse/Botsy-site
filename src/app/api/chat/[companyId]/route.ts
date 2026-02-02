@@ -236,6 +236,15 @@ export async function POST(
         faqs: companyData.businessProfile.faqs || [],
       }
 
+      // Debug: Log tone settings
+      console.log('[Chat API] Tone settings:', {
+        tone: businessProfile.tone,
+        toneConfig: businessProfile.toneConfig,
+        useEmojis: businessProfile.toneConfig?.useEmojis,
+        humorLevel: businessProfile.toneConfig?.humorLevel,
+        responseLength: businessProfile.toneConfig?.responseLength,
+      })
+
       // Get instructions
       try {
         const instructionsRef = collection(db, 'companies', companyId, 'instructions')
