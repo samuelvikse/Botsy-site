@@ -796,7 +796,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                       }
                     }}
                     placeholder="Skriv et svar..."
-                    className="flex-1 h-10 px-4 bg-white/[0.03] border border-amber-500/30 rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-amber-500/50"
+                    className="flex-1 h-10 px-4 bg-white/[0.03] border border-amber-500/30 rounded-xl text-white placeholder:text-[#6B7A94] text-base focus:outline-none focus:border-amber-500/50"
                     disabled={isSending}
                   />
                   <Button
