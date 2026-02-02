@@ -261,7 +261,13 @@ export function NotificationPanel({
 }
 
 // Simple notification bell with push notification toggle
-export function SimpleNotificationBell({ companyId }: { companyId?: string }) {
+export function SimpleNotificationBell({
+  companyId,
+  onViewConversation
+}: {
+  companyId?: string
+  onViewConversation?: (conversationId: string, channel: string) => void
+}) {
   const toast = useToast()
   const [isOpen, setIsOpen] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
@@ -492,10 +498,15 @@ export function SimpleNotificationBell({ companyId }: { companyId?: string }) {
             {escalations.length > 0 ? (
               <div className="max-h-80 overflow-y-auto">
                 {escalations.map((esc) => (
-                  <a
+                  <button
                     key={esc.id}
-                    href={`/admin?tab=conversations&id=${esc.conversationId}`}
-                    className="block px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
+                    onClick={() => {
+                      if (onViewConversation) {
+                        onViewConversation(esc.conversationId, esc.channel)
+                        setIsOpen(false)
+                      }
+                    }}
+                    className="w-full text-left px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
                   >
                     <div className="flex items-start gap-3">
                       <div className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
@@ -506,14 +517,14 @@ export function SimpleNotificationBell({ companyId }: { companyId?: string }) {
                           {esc.customerIdentifier}
                         </p>
                         <p className="text-[#6B7A94] text-xs truncate">
-                          {esc.customerMessage}
+                          {esc.customerMessage || 'Trenger assistanse'}
                         </p>
                         <p className="text-[#4A5568] text-xs mt-1">
                           {formatTimeAgo(esc.createdAt)}
                         </p>
                       </div>
                     </div>
-                  </a>
+                  </button>
                 ))}
               </div>
             ) : (

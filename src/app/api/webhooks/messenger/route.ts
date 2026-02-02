@@ -321,6 +321,7 @@ VIKTIGE REGLER:
 - ALDRI nevn andre kunder, brukere, eller bedrifter som Botsy samarbeider med - dette er konfidensielt
 - ALDRI del informasjon om andre brukere eller hvem andre som bruker tjenesten
 - KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er
+- Hvis kunden spør om noe urelatert til bedriften, svar høflig at du er her for å hjelpe med spørsmål om bedriften. ALDRI bruk ord som "nisje", "nisje-modus", "ekspertiseområde" eller lignende - bare fokuser på å hjelpe med bedriftens tjenester
 
 KRITISK - DU KAN BARE SENDE TEKSTMELDINGER:
 - Du kan IKKE sende bilder, filer, dokumenter, PDF-er, eller vedlegg
@@ -389,8 +390,10 @@ PRIORITERING AV INFORMASJON:
   }
 
   if (faqs.length > 0) {
-    systemPrompt += `\n\nKUNNSKAPSBASE:
-VIKTIG: ALDRI kopier svarene ordrett - bruk din egen formulering. Forstå innholdet og forklar det naturlig med egne ord. Tilpass til samtalen.
+    systemPrompt += `\n\n=== KUNNSKAPSBASE (HØYESTE PRIORITET) ===
+VIKTIG: KUNNSKAPSBASEN HAR ALLTID PRIORITET over dokumenter ved motstridende info.
+Hvis et dokument sier én pris/dato/info og kunnskapsbasen sier noe annet, BRUK KUNNSKAPSBASEN.
+ALDRI kopier svarene ordrett - bruk din egen formulering. Forstå innholdet og forklar det naturlig med egne ord.
 
 Tilgjengelig kunnskap:`
     for (const faq of faqs.slice(0, 10)) {
@@ -400,11 +403,14 @@ Tilgjengelig kunnskap:`
         systemPrompt += `\nTema: ${question}\nInfo: ${answer}`
       }
     }
+    systemPrompt += '\n=== SLUTT PÅ KUNNSKAPSBASE ==='
   }
 
-  // Add knowledge from uploaded documents (sorted by newest first)
+  // Add knowledge from uploaded documents (sorted by newest first, LOWER PRIORITY than knowledge base)
   if (knowledgeDocs && knowledgeDocs.length > 0) {
-    systemPrompt += '\n\n=== BEDRIFTSDOKUMENTER (omformuler alltid med egne ord) ==='
+    systemPrompt += `\n\n=== BEDRIFTSDOKUMENTER (LAVERE PRIORITET enn kunnskapsbase) ===
+VIKTIG: Hvis info her MOTSIER kunnskapsbasen, BRUK KUNNSKAPSBASEN.
+Dokumenter er kun tilleggskunnskap når kunnskapsbasen ikke har svaret.`
 
     // Process each document with date info for AI to understand priority
     for (const doc of knowledgeDocs) {

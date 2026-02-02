@@ -297,6 +297,7 @@ export async function getAllMessengerChats(
   lastMessage: MessengerChatMessage | null
   lastMessageAt: Date
   messageCount: number
+  isManualMode: boolean
 }>> {
   try {
     const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/messengerChats`)
@@ -315,6 +316,7 @@ export async function getAllMessengerChats(
       lastMessage: MessengerChatMessage | null
       lastMessageAt: Date
       messageCount: number
+      isManualMode: boolean
     }> = []
 
     for (const doc of data.documents) {
@@ -376,6 +378,7 @@ export async function getAllMessengerChats(
         } : null,
         lastMessageAt,
         messageCount: validMessages.length,
+        isManualMode: (chatData.isManualMode as boolean) || false,
       })
     }
 

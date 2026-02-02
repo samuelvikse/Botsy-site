@@ -136,6 +136,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
               lastMessage: { text: string } | null
               lastMessageAt: string
               messageCount: number
+              isManualMode?: boolean
             }) => {
               convos.push({
                 id: `messenger-${chat.senderId}`,
@@ -146,6 +147,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                 lastMessageAt: new Date(chat.lastMessageAt),
                 messageCount: chat.messageCount,
                 status: 'active' as const,
+                isManualMode: chat.isManualMode || false,
               })
             })
           }
@@ -536,6 +538,9 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                           style={{ color: channelConfig[conv.channel].color }}
                         />
                       </div>
+                      {conv.isManualMode && (
+                        <div className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-red-500 rounded-full border-2 border-[#0d1829]" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">

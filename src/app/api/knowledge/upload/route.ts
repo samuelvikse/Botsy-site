@@ -147,6 +147,13 @@ async function analyzeDocument(content: string): Promise<{
   importantInfo: string[]
   summary: string
 }> {
+  // Ensure content is not empty
+  if (!content || content.trim().length < 10) {
+    throw new Error('Dokumentet inneholder for lite tekst til analyse')
+  }
+
+  console.log(`[analyzeDocument] Starting analysis, content preview: ${content.slice(0, 200)}...`)
+
   const response = await groq.chat.completions.create({
     model: MODEL,
     messages: [
@@ -163,11 +170,20 @@ async function analyzeDocument(content: string): Promise<{
     max_tokens: 4000,
   })
 
-  const responseText = response.choices[0]?.message?.content || '{}'
+  const responseText = response.choices[0]?.message?.content || ''
+
+  if (!responseText) {
+    throw new Error('AI returnerte tom respons')
+  }
+
+  console.log(`[analyzeDocument] AI response preview: ${responseText.slice(0, 300)}...`)
 
   try {
     const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-    const jsonStr = jsonMatch ? jsonMatch[0] : responseText
+    if (!jsonMatch) {
+      throw new Error('Kunne ikke finne JSON i AI-respons')
+    }
+    const jsonStr = jsonMatch[0]
     const parsed = JSON.parse(jsonStr)
 
     return {
@@ -177,14 +193,10 @@ async function analyzeDocument(content: string): Promise<{
       importantInfo: parsed.importantInfo || [],
       summary: parsed.summary || 'Ingen oppsummering tilgjengelig',
     }
-  } catch {
-    return {
-      faqs: [],
-      rules: [],
-      policies: [],
-      importantInfo: [],
-      summary: 'Kunne ikke analysere dokumentet',
-    }
+  } catch (parseError) {
+    console.error('[analyzeDocument] JSON parse error:', parseError)
+    console.error('[analyzeDocument] Raw response:', responseText)
+    throw new Error(`Kunne ikke tolke AI-respons som JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
   }
 }
 
@@ -273,15 +285,20 @@ export async function POST(request: NextRequest) {
     // Extract text from file
     let extractedContent = ''
     try {
+      console.log(`[Knowledge Upload] Extracting text from: ${fileName} (${file.size} bytes)`)
       extractedContent = await extractTextFromFile(file)
+      console.log(`[Knowledge Upload] Extracted ${extractedContent.length} characters from ${fileName}`)
+      console.log(`[Knowledge Upload] Content preview: ${extractedContent.slice(0, 500)}...`)
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Kunne ikke lese filen'
+      console.error(`[Knowledge Upload] Text extraction failed for ${fileName}:`, errorMsg)
       await updateKnowledgeDocument(companyId, documentId, {
         status: 'error',
-        errorMessage: error instanceof Error ? error.message : 'Kunne ikke lese filen',
+        errorMessage: errorMsg,
       })
       return NextResponse.json({
         success: false,
-        error: error instanceof Error ? error.message : 'Kunne ikke lese innholdet i filen',
+        error: errorMsg,
         documentId,
       })
     }
@@ -301,16 +318,20 @@ export async function POST(request: NextRequest) {
     // Analyze content with AI
     let analyzedData
     try {
+      console.log(`[Knowledge Upload] Analyzing document: ${fileName}, content length: ${extractedContent.length}`)
       analyzedData = await analyzeDocument(extractedContent)
+      console.log(`[Knowledge Upload] Analysis complete: ${analyzedData.faqs.length} FAQs, ${analyzedData.rules.length} rules`)
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      console.error(`[Knowledge Upload] Analysis failed for ${fileName}:`, errorMsg)
       await updateKnowledgeDocument(companyId, documentId, {
         extractedContent,
         status: 'error',
-        errorMessage: 'Kunne ikke analysere dokumentet',
+        errorMessage: `AI-analyse feilet: ${errorMsg}`,
       })
       return NextResponse.json({
         success: false,
-        error: 'Kunne ikke analysere dokumentet',
+        error: `Kunne ikke analysere dokumentet: ${errorMsg}`,
         documentId,
       })
     }

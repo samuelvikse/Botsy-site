@@ -325,7 +325,13 @@ function AdminContent() {
           </div>
 
           <div className="flex items-center gap-3">
-            <SimpleNotificationBell companyId={companyId} />
+            <SimpleNotificationBell
+              companyId={companyId}
+              onViewConversation={(conversationId) => {
+                setSelectedConversationId(conversationId)
+                setActiveTab('conversations')
+              }}
+            />
             <Button size="sm" onClick={() => setActiveTab('knowledge')}>
               <Plus className="h-4 w-4 mr-1.5" />
               Ny FAQ

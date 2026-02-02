@@ -763,10 +763,12 @@ ${toneGuide}
 
 `
 
-  // Add FAQs as knowledge base
+  // Add FAQs as knowledge base (HIGHEST PRIORITY)
   if (faqs?.length > 0) {
-    prompt += `\nKUNNSKAPSBASE (Spørsmål og svar):
+    prompt += `\n=== KUNNSKAPSBASE (HØYESTE PRIORITET) ===
 VIKTIG OM BRUK AV KUNNSKAPSBASEN:
+- KUNNSKAPSBASEN HAR ALLTID PRIORITET over dokumenter ved motstridende info
+- Hvis et dokument sier én pris/dato/info og kunnskapsbasen sier noe annet, BRUK KUNNSKAPSBASEN
 - ALDRI kopier svarene ordrett - bruk din egen formulering
 - Forstå INNHOLDET og forklar det naturlig med egne ord
 - Tilpass svaret til samtalen og kundens spørsmål
@@ -778,6 +780,7 @@ Tilgjengelig kunnskap:\n`
     faqs.forEach((faq, i) => {
       prompt += `${i + 1}. Tema: ${faq.question}\n   Informasjon: ${faq.answer}\n\n`
     })
+    prompt += `=== SLUTT PÅ KUNNSKAPSBASE ===\n`
   }
 
   // Add knowledge from uploaded documents (sorted by newest first for priority)
@@ -789,7 +792,9 @@ Tilgjengelig kunnskap:\n`
       return dateB - dateA
     })
 
-    prompt += `\n=== BEDRIFTSDOKUMENTER (nyeste først - PRIORITER nyere info ved konflikt) ===\n`
+    prompt += `\n=== BEDRIFTSDOKUMENTER (LAVERE PRIORITET enn kunnskapsbase) ===
+VIKTIG: Hvis info her MOTSIER kunnskapsbasen, BRUK KUNNSKAPSBASEN.
+Dokumenter er kun tilleggskunnskap når kunnskapsbasen ikke har svaret.\n`
 
     for (const doc of sortedDocs) {
       const dateStr = doc.uploadedAt ? new Date(doc.uploadedAt).toISOString().split('T')[0] : 'ukjent dato'
@@ -866,7 +871,7 @@ REGLER:
    - Telefonnumre
    - URLer og nettsideadresser
    - Produktnavn og merkenavn
-8. VIKTIG - SPØRSMÅL UTENFOR NISJEN: Hvis kunden spør om noe som tydelig IKKE har med ${businessProfile.businessName}, ${businessProfile.industry}-bransjen, eller bedriftens tjenester/produkter å gjøre (f.eks. oppskrifter til en bilforhandler, politiske spørsmål, generelle trivia, personlige råd osv.), skal du vennlig si at det er ikke noe du er her for å svare på, men at du gjerne hjelper med spørsmål om ${businessProfile.businessName} og deres tjenester. Vær høflig og vennlig, ikke avvisende.
+8. URELATERTE SPØRSMÅL: Hvis kunden spør om noe som tydelig IKKE har med ${businessProfile.businessName} eller deres tjenester/produkter å gjøre (f.eks. oppskrifter til en bilforhandler, politiske spørsmål, generelle trivia, personlige råd osv.), svar naturlig og høflig at du er her for å hjelpe med spørsmål om ${businessProfile.businessName}. ALDRI nevn ord som "nisje", "nisje-modus", "ekspertiseområde" eller lignende intern terminologi - bare si at du fokuserer på å hjelpe med bedriftens tjenester.
 9. KRITISK - DU KAN BARE SENDE TEKSTMELDINGER:
    - Du kan IKKE sende bilder, filer, dokumenter, PDF-er, eller vedlegg
    - ALDRI si "jeg sender deg...", "her kommer...", "jeg legger ved...", "se vedlagt..."
