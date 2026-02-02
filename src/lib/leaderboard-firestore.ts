@@ -136,6 +136,7 @@ export async function incrementPositiveFeedback(
 }
 
 // Get top performers for a company in current month
+// Includes ALL team members, even those with 0 points
 export async function getLeaderboard(
   companyId: string,
   topCount: number = 3,
@@ -146,46 +147,76 @@ export async function getLeaderboard(
   const targetMonth = month || getCurrentMonth()
 
   try {
-    const performanceRef = collection(db, 'employeePerformance')
-    const q = query(
-      performanceRef,
+    // First, get ALL team members from memberships
+    const membershipsRef = collection(db, 'memberships')
+    const membershipsQuery = query(
+      membershipsRef,
       where('companyId', '==', companyId),
-      where('month', '==', targetMonth),
-      orderBy('totalScore', 'desc'),
-      limit(topCount)
+      where('status', '==', 'active')
     )
+    const membershipsSnapshot = await getDocs(membershipsQuery)
 
-    const snapshot = await getDocs(q)
-    const performances: EmployeePerformance[] = []
-
-    snapshot.forEach((doc) => {
-      performances.push(toEmployeePerformance(doc.id, doc.data() as EmployeePerformanceDoc))
+    // Get all member user IDs
+    const memberUserIds: string[] = []
+    membershipsSnapshot.forEach((doc) => {
+      memberUserIds.push(doc.data().userId)
     })
 
-    // Get user details for each performer
-    const leaderboard: LeaderboardEntry[] = []
-    let rank = 1
+    // Get performance data for this month
+    const performanceRef = collection(db, 'employeePerformance')
+    const perfQuery = query(
+      performanceRef,
+      where('companyId', '==', companyId),
+      where('month', '==', targetMonth)
+    )
+    const perfSnapshot = await getDocs(perfQuery)
 
-    for (const perf of performances) {
+    // Create a map of userId -> performance
+    const performanceMap = new Map<string, EmployeePerformance>()
+    perfSnapshot.forEach((docSnap) => {
+      const perf = toEmployeePerformance(docSnap.id, docSnap.data() as EmployeePerformanceDoc)
+      performanceMap.set(perf.userId, perf)
+    })
+
+    // Build leaderboard with ALL members
+    const leaderboard: LeaderboardEntry[] = []
+
+    for (const userId of memberUserIds) {
       // Fetch user data
-      const userRef = doc(db, 'users', perf.userId)
+      const userRef = doc(db, 'users', userId)
       const userSnap = await getDoc(userRef)
 
       if (userSnap.exists()) {
         const userData = userSnap.data()
+        const perf = performanceMap.get(userId)
+
         leaderboard.push({
-          userId: perf.userId,
+          userId,
           displayName: userData.displayName || userData.email || 'Ukjent',
           avatarUrl: userData.avatarUrl,
-          answeredCustomers: perf.answeredCustomers,
-          positiveFeedback: perf.positiveFeedback,
-          totalScore: perf.totalScore,
-          rank: rank++,
+          answeredCustomers: perf?.answeredCustomers || 0,
+          positiveFeedback: perf?.positiveFeedback || 0,
+          totalScore: perf?.totalScore || 0,
+          rank: 0, // Will be set after sorting
         })
       }
     }
 
-    return leaderboard
+    // Sort by totalScore descending, then by displayName for ties
+    leaderboard.sort((a, b) => {
+      if (b.totalScore !== a.totalScore) {
+        return b.totalScore - a.totalScore
+      }
+      return a.displayName.localeCompare(b.displayName)
+    })
+
+    // Assign ranks
+    leaderboard.forEach((entry, index) => {
+      entry.rank = index + 1
+    })
+
+    // Return top N (or all if topCount is 0 or greater than total)
+    return topCount > 0 ? leaderboard.slice(0, topCount) : leaderboard
   } catch (error) {
     console.error('Error getting leaderboard:', error)
     return []
