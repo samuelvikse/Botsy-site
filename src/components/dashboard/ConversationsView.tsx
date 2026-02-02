@@ -440,6 +440,33 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
             status: result.status,
           },
         ])
+      } else if (selectedConversation.channel === 'messenger') {
+        // Messenger - send via API
+        const response = await fetch('/api/messenger/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companyId,
+            senderId: selectedConversation.phone,
+            message: newMessage,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}`,
+              role: 'assistant',
+              content: newMessage,
+              timestamp: new Date(),
+              isManual: true,
+            },
+          ])
+        } else {
+          throw new Error(data.error)
+        }
       } else {
         // Widget chat - send via API
         const response = await fetch('/api/chat/manual', {
@@ -670,26 +697,24 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {selectedConversation.channel !== 'messenger' && (
-                  <Button
-                    variant={manualMode ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={handleToggleManualMode}
-                    className={manualMode ? 'bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90' : ''}
-                  >
-                    {manualMode ? (
-                      <>
-                        <User className="h-4 w-4 sm:mr-1" />
-                        <span className="hidden sm:inline">Manuell modus</span>
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="h-4 w-4 sm:mr-1" />
-                        <span className="hidden sm:inline">Ta over manuelt</span>
-                      </>
-                    )}
-                  </Button>
-                )}
+                <Button
+                  variant={manualMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={handleToggleManualMode}
+                  className={manualMode ? 'bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90' : ''}
+                >
+                  {manualMode ? (
+                    <>
+                      <User className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Manuell modus</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Ta over manuelt</span>
+                    </>
+                  )}
+                </Button>
                 <button className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg">
                   <MoreHorizontal className="h-5 w-5" />
                 </button>
@@ -752,12 +777,12 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
               </div>
             )}
 
-            {selectedConversation.channel === 'messenger' && (
+            {!manualMode && selectedConversation.channel === 'messenger' && (
               <div className="p-4 border-t border-white/[0.06] bg-[#1877F2]/5">
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <p className="text-[#A8B4C8] text-sm">
                     <Facebook className="h-4 w-4 inline mr-1 text-[#1877F2]" />
-                    Svar kunden direkte i Messenger
+                    Svar kunden direkte herfra eller i Messenger
                   </p>
                   <a
                     href={`https://www.facebook.com/messages/t/${selectedConversation.phone}`}

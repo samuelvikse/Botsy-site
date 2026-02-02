@@ -525,6 +525,9 @@ export function SimpleNotificationBell({
                     onClick={() => {
                       if (onViewConversation) {
                         onViewConversation(esc.conversationId, esc.channel)
+                        // Remove from local state immediately so it disappears from bell
+                        setEscalations(prev => prev.filter(e => e.id !== esc.id))
+                        previousEscalationIds.current.delete(esc.id)
                         setIsOpen(false)
                       }
                     }}
