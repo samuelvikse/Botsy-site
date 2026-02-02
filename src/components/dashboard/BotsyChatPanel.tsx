@@ -2,23 +2,27 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, Tag, Clock, FileText, Zap } from 'lucide-react'
+import { X, Send, Tag, Clock, FileText, Zap, BookOpen, RefreshCw, Download } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ChatBubble, ChatContainer } from '@/components/ui/chat-bubble'
-import type { OwnerChatMessage, BusinessProfile, Instruction } from '@/types'
+import { usePermissions } from '@/contexts/PermissionContext'
+import type { OwnerChatMessage, BusinessProfile, Instruction, PendingAction, FAQ } from '@/types'
 
 interface BotsyChatPanelProps {
   companyId?: string
   businessProfile?: BusinessProfile | null
   instructions?: Instruction[]
   onInstructionCreated?: (instruction: Instruction) => void
+  onFAQCreated?: (faq: FAQ) => void
 }
 
 const quickActions = [
+  { label: 'Ny FAQ', icon: BookOpen, prompt: 'Legg til en FAQ om ' },
   { label: 'Kampanje', icon: Tag, prompt: 'Vi har en ny kampanje: ' },
   { label: 'Åpningstider', icon: Clock, prompt: 'Endre åpningstidene til ' },
-  { label: 'Policy', icon: FileText, prompt: 'Ny policy: ' },
+  { label: 'Synk FAQs', icon: RefreshCw, prompt: 'Overfør FAQs fra dokumentene mine til kunnskapsbasen' },
+  { label: 'Eksporter', icon: Download, prompt: 'Last ned analyseskjema for siste 30 dager' },
 ]
 
 export function BotsyChatPanel({
@@ -26,20 +30,24 @@ export function BotsyChatPanel({
   businessProfile,
   instructions = [],
   onInstructionCreated,
+  onFAQCreated,
 }: BotsyChatPanelProps) {
+  const { hasAccess } = usePermissions()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<OwnerChatMessage[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Hei! Trenger du hjelp med noe? Gi meg instruksjoner om kampanjer, åpningstider, eller andre ting kundene bør vite.',
+      content: 'Hei! Trenger du hjelp med noe? Gi meg instruksjoner om kampanjer, åpningstider, eller andre ting kundene bør vite. Du kan også be meg legge til FAQs i kunnskapsbasen eller synkronisere FAQs fra dokumenter.',
       timestamp: new Date(),
     },
   ])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [newInstructionId, setNewInstructionId] = useState<string | null>(null)
+  const [newFAQId, setNewFAQId] = useState<string | null>(null)
   const [hasUnread, setHasUnread] = useState(false)
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -77,6 +85,8 @@ export function BotsyChatPanel({
           history: messages,
           businessProfile,
           activeInstructions: instructions,
+          pendingAction,
+          companyId,
         }),
       })
 
@@ -92,13 +102,58 @@ export function BotsyChatPanel({
         content: data.reply,
         timestamp: new Date(),
         instructionCreated: data.instructionCreated?.id,
+        faqCreated: data.faqCreated?.id,
       }
       setMessages(prev => [...prev, assistantMessage])
 
+      // Handle instruction created
       if (data.instructionCreated && onInstructionCreated) {
         setNewInstructionId(data.instructionCreated.id)
         onInstructionCreated(data.instructionCreated)
         setTimeout(() => setNewInstructionId(null), 4000)
+        setPendingAction(null)
+      }
+
+      // Handle FAQ created
+      if (data.faqCreated && onFAQCreated) {
+        setNewFAQId(data.faqCreated.id)
+        onFAQCreated(data.faqCreated)
+        setTimeout(() => setNewFAQId(null), 4000)
+        setPendingAction(null)
+      }
+
+      // Handle new pending action
+      if (data.pendingAction) {
+        setPendingAction(data.pendingAction)
+      } else if (!data.faqCreated && !data.instructionCreated) {
+        // Clear pending action if no new action and nothing was created
+        setPendingAction(null)
+      }
+
+      // Handle export action
+      if (data.exportType && companyId) {
+        try {
+          const exportUrl = data.exportType === 'analytics'
+            ? `/api/export/analytics?companyId=${companyId}&period=30`
+            : `/api/export/contacts?companyId=${companyId}`
+
+          const exportResponse = await fetch(exportUrl)
+          if (exportResponse.ok) {
+            const blob = await exportResponse.blob()
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = data.exportType === 'analytics'
+              ? `botsy-analyse-${new Date().toISOString().split('T')[0]}.xlsx`
+              : `botsy-kontakter-${new Date().toISOString().split('T')[0]}.xlsx`
+            document.body.appendChild(a)
+            a.click()
+            window.URL.revokeObjectURL(url)
+            document.body.removeChild(a)
+          }
+        } catch {
+          // Silent fail - the message already indicates export started
+        }
       }
 
     } catch (error) {
@@ -121,6 +176,11 @@ export function BotsyChatPanel({
       e.preventDefault()
       handleSend()
     }
+  }
+
+  // Check if user has access to Admin Bot
+  if (!hasAccess('adminBot')) {
+    return null
   }
 
   return (
@@ -191,7 +251,7 @@ export function BotsyChatPanel({
                       <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-400 rounded-full border-2 border-botsy-dark-deep" />
                     </div>
                     <div>
-                      <h3 className="text-white font-semibold">Botsy</h3>
+                      <h3 className="text-white font-semibold">Admin Bot</h3>
                       <p className="text-[#6B7A94] text-xs">Din digitale hjelper</p>
                     </div>
                   </div>
@@ -225,6 +285,20 @@ export function BotsyChatPanel({
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-botsy-lime/10 border border-botsy-lime/20 rounded-lg">
                               <Zap className="h-3.5 w-3.5 text-botsy-lime" />
                               <span className="text-botsy-lime text-sm">Instruks opprettet</span>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {/* FAQ Created Badge */}
+                        {msg.faqCreated && msg.faqCreated === newFAQId && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="ml-11 mt-2"
+                          >
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                              <BookOpen className="h-3.5 w-3.5 text-blue-400" />
+                              <span className="text-blue-400 text-sm">FAQ lagt til i kunnskapsbasen</span>
                             </div>
                           </motion.div>
                         )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import {
   Users,
   UserPlus,
@@ -16,6 +17,10 @@ import {
   CheckCircle,
   X,
   RefreshCw,
+  Trophy,
+  Medal,
+  MessageCircle,
+  ThumbsUp,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -27,7 +32,7 @@ import { usePermissions } from '@/contexts/PermissionContext'
 import { InviteModal } from './InviteModal'
 import { PermissionsModal } from './PermissionsModal'
 import { OwnershipTransferModal } from './OwnershipTransferModal'
-import type { TeamMember, Invitation, OwnershipTransfer } from '@/types'
+import type { TeamMember, Invitation, OwnershipTransfer, LeaderboardEntry } from '@/types'
 
 interface EmployeesViewProps {
   companyId: string
@@ -41,6 +46,8 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
   const [members, setMembers] = useState<TeamMember[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [pendingTransfer, setPendingTransfer] = useState<OwnershipTransfer | null>(null)
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [leaderboardMonth, setLeaderboardMonth] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -56,28 +63,42 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true)
+      console.log('[EmployeesView] Fetching data for company:', companyId)
 
       // Fetch team members
       const membersResponse = await fetch(`/api/memberships?companyId=${companyId}`)
       if (membersResponse.ok) {
         const membersData = await membersResponse.json()
+        console.log('[EmployeesView] Members response:', membersData)
         setMembers(membersData.members || [])
+      } else {
+        console.error('[EmployeesView] Failed to fetch members:', membersResponse.status)
       }
 
       // Fetch pending invitations
       const invitationsResponse = await fetch(`/api/invitations?companyId=${companyId}`)
-      if (invitationsResponse.ok) {
-        const invitationsData = await invitationsResponse.json()
-        setInvitations(invitationsData.invitations || [])
-      }
+      const invitationsData = await invitationsResponse.json()
+      console.log('[EmployeesView] Invitations response:', invitationsData)
+      setInvitations(invitationsData.invitations || [])
 
       // Fetch pending ownership transfer
       const transferResponse = await fetch(`/api/ownership-transfer?companyId=${companyId}`)
       if (transferResponse.ok) {
         const transferData = await transferResponse.json()
+        console.log('[EmployeesView] Transfer response:', transferData)
         setPendingTransfer(transferData.transfer || null)
       }
-    } catch {
+
+      // Fetch leaderboard
+      const leaderboardResponse = await fetch(`/api/leaderboard?companyId=${companyId}&topCount=3`)
+      if (leaderboardResponse.ok) {
+        const leaderboardData = await leaderboardResponse.json()
+        console.log('[EmployeesView] Leaderboard response:', leaderboardData)
+        setLeaderboard(leaderboardData.leaderboard || [])
+        setLeaderboardMonth(leaderboardData.monthName || '')
+      }
+    } catch (error) {
+      console.error('[EmployeesView] Error fetching data:', error)
       toast.error('Kunne ikke laste data', 'Prøv å laste siden på nytt')
     } finally {
       setIsLoading(false)
@@ -241,6 +262,178 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
           )}
         </div>
       </div>
+
+      {/* Competition Leaderboard */}
+      <Card className="p-6 bg-gradient-to-br from-yellow-500/5 via-transparent to-orange-500/5 border-yellow-500/10">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
+              <Trophy className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Konkurransepall</h2>
+              <p className="text-[#6B7A94] text-sm">{leaderboardMonth} - Nullstilles 1. hver mnd</p>
+            </div>
+          </div>
+        </div>
+
+        {leaderboard.length === 0 ? (
+          <div className="text-center py-8">
+            <Medal className="h-12 w-12 text-[#6B7A94] mx-auto mb-3" />
+            <p className="text-[#6B7A94]">Ingen aktivitet denne måneden ennå</p>
+            <p className="text-[#6B7A94] text-sm mt-1">
+              Svar kunder og få positive tilbakemeldinger for å komme på pallen!
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-end justify-center gap-4 py-6">
+            {/* 2nd Place - Left */}
+            {leaderboard.length >= 2 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="flex flex-col items-center"
+              >
+                <div className="relative mb-3">
+                  {leaderboard[1].avatarUrl ? (
+                    <img
+                      src={leaderboard[1].avatarUrl}
+                      alt={leaderboard[1].displayName}
+                      className="h-16 w-16 rounded-full object-cover border-2 border-gray-400"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-full bg-gray-500/20 flex items-center justify-center text-gray-300 font-bold text-lg border-2 border-gray-400">
+                      {leaderboard[1].displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-gray-400 flex items-center justify-center text-botsy-dark font-bold text-xs">
+                    2
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-medium text-sm truncate max-w-[100px]">
+                    {leaderboard[1].displayName.split(' ')[0]}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-[#6B7A94] mt-1">
+                    <span className="flex items-center gap-0.5">
+                      <MessageCircle className="h-3 w-3" />
+                      {leaderboard[1].answeredCustomers}
+                    </span>
+                    <span className="flex items-center gap-0.5">
+                      <ThumbsUp className="h-3 w-3" />
+                      {leaderboard[1].positiveFeedback}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-2 w-20 h-20 bg-gradient-to-t from-gray-500/30 to-gray-500/10 rounded-t-lg flex items-center justify-center">
+                  <span className="text-gray-400 text-2xl font-bold">2</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* 1st Place - Center */}
+            {leaderboard.length >= 1 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex flex-col items-center -mt-4"
+              >
+                <div className="relative mb-3">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <Crown className="h-6 w-6 text-yellow-400" />
+                  </div>
+                  {leaderboard[0].avatarUrl ? (
+                    <img
+                      src={leaderboard[0].avatarUrl}
+                      alt={leaderboard[0].displayName}
+                      className="h-20 w-20 rounded-full object-cover border-2 border-yellow-400"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-300 font-bold text-xl border-2 border-yellow-400">
+                      {leaderboard[0].displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-yellow-400 flex items-center justify-center text-botsy-dark font-bold text-sm">
+                    1
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-semibold truncate max-w-[120px]">
+                    {leaderboard[0].displayName.split(' ')[0]}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-[#6B7A94] mt-1">
+                    <span className="flex items-center gap-0.5">
+                      <MessageCircle className="h-3 w-3" />
+                      {leaderboard[0].answeredCustomers}
+                    </span>
+                    <span className="flex items-center gap-0.5">
+                      <ThumbsUp className="h-3 w-3" />
+                      {leaderboard[0].positiveFeedback}
+                    </span>
+                  </div>
+                  <p className="text-botsy-lime text-xs mt-1 font-medium">
+                    {leaderboard[0].totalScore} poeng
+                  </p>
+                </div>
+                <div className="mt-2 w-24 h-28 bg-gradient-to-t from-yellow-500/30 to-yellow-500/10 rounded-t-lg flex items-center justify-center">
+                  <span className="text-yellow-400 text-3xl font-bold">1</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* 3rd Place - Right */}
+            {leaderboard.length >= 3 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="flex flex-col items-center"
+              >
+                <div className="relative mb-3">
+                  {leaderboard[2].avatarUrl ? (
+                    <img
+                      src={leaderboard[2].avatarUrl}
+                      alt={leaderboard[2].displayName}
+                      className="h-14 w-14 rounded-full object-cover border-2 border-amber-700"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 rounded-full bg-amber-700/20 flex items-center justify-center text-amber-600 font-bold border-2 border-amber-700">
+                      {leaderboard[2].displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-amber-700 flex items-center justify-center text-white font-bold text-xs">
+                    3
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-medium text-sm truncate max-w-[100px]">
+                    {leaderboard[2].displayName.split(' ')[0]}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-[#6B7A94] mt-1">
+                    <span className="flex items-center gap-0.5">
+                      <MessageCircle className="h-3 w-3" />
+                      {leaderboard[2].answeredCustomers}
+                    </span>
+                    <span className="flex items-center gap-0.5">
+                      <ThumbsUp className="h-3 w-3" />
+                      {leaderboard[2].positiveFeedback}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-2 w-18 h-16 bg-gradient-to-t from-amber-700/30 to-amber-700/10 rounded-t-lg flex items-center justify-center" style={{ width: '72px' }}>
+                  <span className="text-amber-700 text-xl font-bold">3</span>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 text-center text-xs text-[#6B7A94]">
+          Poeng: 1 poeng per besvart kunde + 5 poeng per positiv tilbakemelding
+        </div>
+      </Card>
 
       {/* Pending Ownership Transfer Banner */}
       {pendingTransfer && (

@@ -73,43 +73,16 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
   const [useEmojis, setUseEmojis] = useState(true)
   const [humorLevel, setHumorLevel] = useState<HumorLevel>('subtle')
   const [responseLength, setResponseLength] = useState<ResponseLength>('balanced')
+  const [saveError, setSaveError] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const initialDataRef = useRef<string>('')
+  const hasUserChangedRef = useRef(false)
 
-  // Load existing config
+  // Always fetch fresh config on mount (ignore cached initialProfile)
   useEffect(() => {
-    async function loadConfig() {
+    async function fetchFreshConfig() {
       try {
-        if (initialProfile?.toneConfig) {
-          setConfig(initialProfile.toneConfig)
-          if (initialProfile.toneConfig.useEmojis !== undefined) {
-            setUseEmojis(initialProfile.toneConfig.useEmojis)
-          }
-          if (initialProfile.toneConfig.greeting) {
-            setGreeting(initialProfile.toneConfig.greeting)
-          }
-          if (initialProfile.toneConfig.humorLevel) {
-            setHumorLevel(initialProfile.toneConfig.humorLevel)
-          }
-          if (initialProfile.toneConfig.responseLength) {
-            setResponseLength(initialProfile.toneConfig.responseLength)
-          }
-        }
-        if (initialProfile?.tone) {
-          setCurrentTone(initialProfile.tone)
-        }
-      } catch {
-        // Silent fail - will use defaults
-      } finally {
-        setIsLoading(false)
-        setIsInitialized(true)
-      }
-    }
-
-    if (initialProfile) {
-      loadConfig()
-    } else {
-      // Fetch profile if not provided
-      getBusinessProfile(companyId).then((profile) => {
+        const profile = await getBusinessProfile(companyId)
         if (profile?.toneConfig) {
           setConfig(profile.toneConfig)
           if (profile.toneConfig.useEmojis !== undefined) {
@@ -124,17 +97,71 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
           if (profile.toneConfig.responseLength) {
             setResponseLength(profile.toneConfig.responseLength)
           }
+          // Store initial data for comparison
+          initialDataRef.current = JSON.stringify({
+            config: profile.toneConfig,
+            tone: profile.tone || 'friendly',
+            greeting: profile.toneConfig.greeting || 'Hei! 👋 Hvordan kan jeg hjelpe deg?',
+            useEmojis: profile.toneConfig.useEmojis ?? true,
+            humorLevel: profile.toneConfig.humorLevel || 'subtle',
+            responseLength: profile.toneConfig.responseLength || 'balanced',
+          })
         }
         if (profile?.tone) {
           setCurrentTone(profile.tone)
         }
+      } catch (error) {
+        console.error('Failed to fetch tone config:', error)
+      } finally {
         setIsLoading(false)
         setIsInitialized(true)
-      })
+      }
     }
-  }, [companyId, initialProfile])
 
-  // Auto-save when settings change (debounced)
+    fetchFreshConfig()
+  }, [companyId])
+
+  // Save function
+  const doSave = useCallback(async () => {
+    const dataToSave = {
+      ...config,
+      tone: currentTone,
+      greeting,
+      useEmojis,
+      humorLevel,
+      responseLength,
+    }
+
+    // Check if data actually changed
+    const currentData = JSON.stringify({
+      config,
+      tone: currentTone,
+      greeting,
+      useEmojis,
+      humorLevel,
+      responseLength,
+    })
+
+    if (currentData === initialDataRef.current) {
+      return // No changes, don't save
+    }
+
+    setIsSaving(true)
+    setSaveError(null)
+    try {
+      await saveToneConfig(companyId, dataToSave)
+      setSaveSuccess(true)
+      initialDataRef.current = currentData // Update reference after save
+      setTimeout(() => setSaveSuccess(false), 2000)
+    } catch (error) {
+      console.error('Failed to save tone config:', error)
+      setSaveError('Kunne ikke lagre endringer')
+    } finally {
+      setIsSaving(false)
+    }
+  }, [companyId, config, currentTone, greeting, useEmojis, humorLevel, responseLength])
+
+  // Debounced auto-save when settings change
   useEffect(() => {
     if (!isInitialized) return
 
@@ -144,24 +171,8 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
     }
 
     // Set a new timeout to save after 800ms of no changes
-    saveTimeoutRef.current = setTimeout(async () => {
-      setIsSaving(true)
-      try {
-        await saveToneConfig(companyId, {
-          ...config,
-          tone: currentTone,
-          greeting,
-          useEmojis,
-          humorLevel,
-          responseLength,
-        })
-        setSaveSuccess(true)
-        setTimeout(() => setSaveSuccess(false), 2000)
-      } catch {
-        // Silent fail
-      } finally {
-        setIsSaving(false)
-      }
+    saveTimeoutRef.current = setTimeout(() => {
+      doSave()
     }, 800)
 
     return () => {
@@ -169,7 +180,7 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [companyId, config, currentTone, greeting, useEmojis, humorLevel, responseLength, isInitialized])
+  }, [config, currentTone, greeting, useEmojis, humorLevel, responseLength, isInitialized, doSave])
 
   // Simple aliases for setters (auto-save handles the rest)
   const updateConfig = setConfig
@@ -276,6 +287,17 @@ export function ToneConfigView({ companyId, initialProfile }: ToneConfigViewProp
             >
               <Check className="h-3.5 w-3.5 text-green-400" />
               <span className="text-green-400 text-sm">Lagret</span>
+            </motion.div>
+          ) : saveError ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full"
+            >
+              <X className="h-3.5 w-3.5 text-red-400" />
+              <span className="text-red-400 text-sm">{saveError}</span>
             </motion.div>
           ) : (
             <motion.div

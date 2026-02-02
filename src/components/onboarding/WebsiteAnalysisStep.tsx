@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Globe, Check, Edit2, RefreshCw, Building2, Sparkles, Palette, MessageCircle, Plus, X, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ChatBubble, BotsyAvatar, ChatContainer } from '@/components/ui/chat-bubble'
+import { ChatBubble, ChatContainer } from '@/components/ui/chat-bubble'
 import type { BusinessProfile, FAQ } from '@/types'
 
 interface WebsiteAnalysisStepProps {
@@ -598,15 +598,6 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-12 relative"
       >
-        <motion.div
-          initial={{ scale: 0.9 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          className="relative mb-6"
-        >
-          <BotsyAvatar size="xl" animated={false} showGlow={false} />
-        </motion.div>
-
         <motion.h1
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

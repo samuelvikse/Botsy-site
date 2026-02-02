@@ -314,13 +314,14 @@ export interface DashboardStats {
   smsCount: number
   widgetCount: number
   emailCount: number
+  messengerCount: number
   totalMessages: number
   recentConversations: Array<{
     id: string
     name: string
     phone?: string
     email?: string
-    channel: 'sms' | 'widget' | 'email'
+    channel: 'sms' | 'widget' | 'email' | 'messenger'
     lastMessage: string
     lastMessageAt: Date
   }>
@@ -335,6 +336,7 @@ export async function getDashboardStats(companyId: string): Promise<DashboardSta
     smsCount: 0,
     widgetCount: 0,
     emailCount: 0,
+    messengerCount: 0,
     totalMessages: 0,
     recentConversations: [],
   }
@@ -436,6 +438,42 @@ export async function getDashboardStats(companyId: string): Promise<DashboardSta
       email: data.customerEmail || doc.id,
       channel: 'email',
       lastMessage: lastMsg?.body?.slice(0, 50) || data.lastSubject || 'Ingen meldinger',
+      lastMessageAt,
+    })
+  })
+
+  // Get Messenger chats
+  const messengerChatsRef = collection(db, 'companies', companyId, 'messengerChats')
+  const messengerChatsSnap = await getDocs(messengerChatsRef)
+
+  messengerChatsSnap.forEach((doc) => {
+    const data = doc.data()
+    const messages = data.messages || []
+    // Filter only valid messages
+    const validMessages = messages.filter((m: { text?: string }) => m.text && typeof m.text === 'string')
+    const messageCount = validMessages.length
+
+    stats.messengerCount++
+    stats.totalConversations++
+    stats.totalMessages += messageCount
+
+    const lastMessageAt = data.lastMessageAt
+      ? (data.lastMessageAt as Timestamp).toDate()
+      : data.updatedAt
+      ? (data.updatedAt as Timestamp).toDate()
+      : new Date()
+
+    if (lastMessageAt >= today) {
+      stats.conversationsToday++
+    }
+
+    const lastMsg = validMessages.length > 0 ? validMessages[validMessages.length - 1] : null
+
+    stats.recentConversations.push({
+      id: `messenger-${doc.id}`,
+      name: `Messenger ${doc.id.slice(0, 8)}`,
+      channel: 'messenger',
+      lastMessage: lastMsg?.text?.slice(0, 50) || 'Ingen meldinger',
       lastMessageAt,
     })
   })

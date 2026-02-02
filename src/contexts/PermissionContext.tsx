@@ -33,6 +33,7 @@ const ACCESS_MATRIX: Record<PanelName, { owner: AccessValue; admin: AccessValue;
   security:      { owner: true, admin: true, employee: true },
   settings:      { owner: true, admin: false, employee: false },
   employees:     { owner: true, admin: true, employee: false },
+  adminBot:      { owner: true, admin: true, employee: 'configurable' },
 }
 
 const PermissionContext = createContext<PermissionContextType | undefined>(undefined)
@@ -142,6 +143,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
             return employeePerms.instructions ?? false
           case 'analytics':
             return employeePerms.analytics ?? false
+          case 'adminBot':
+            return employeePerms.adminBot ?? false
           default:
             return false
         }

@@ -79,7 +79,7 @@ export async function GET(
       config: {
         businessName: companyData?.businessProfile?.businessName || companyData?.businessName || 'Bedrift',
         botName: companyData?.generalSettings?.botName || 'Botsy',
-        greeting: companyData?.widgetSettings?.greeting || 'Hei! Hvordan kan jeg hjelpe deg?',
+        greeting: companyData?.businessProfile?.toneConfig?.greeting || companyData?.widgetSettings?.greeting || 'Hei! Hvordan kan jeg hjelpe deg?',
         primaryColor: companyData?.widgetSettings?.primaryColor || '#CCFF00',
         position: companyData?.widgetSettings?.position || 'bottom-right',
         isEnabled: companyData?.widgetSettings?.isEnabled ?? true,

@@ -76,6 +76,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   clearError: () => void
+  refreshUserData: () => Promise<void>
   // 2FA Functions
   setupTwoFactor: (phoneNumber: string, recaptchaContainerId: string) => Promise<void>
   verifyTwoFactorSetup: (code: string) => Promise<void>
@@ -255,12 +256,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err: unknown) {
       // Check if this is an MFA challenge
-      const firebaseError = err as { code?: string }
+      const firebaseError = err as { code?: string; message?: string }
       if (firebaseError.code === 'auth/multi-factor-auth-required') {
         handleMfaError(err as MultiFactorError)
         throw new Error('MFA_REQUIRED')
       }
-      const errorMessage = getFirebaseErrorMessage(err)
+      // If it's a custom error message (no Firebase error code), preserve it
+      const errorMessage = firebaseError.code
+        ? getFirebaseErrorMessage(err)
+        : (firebaseError.message || 'En feil oppstod. Prøv igjen')
       setError(errorMessage)
       throw new Error(errorMessage)
     } finally {
@@ -730,6 +734,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = () => setError(null)
 
+  const refreshUserData = useCallback(async () => {
+    if (!user || !db) return
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      if (userDoc.exists()) {
+        setUserData(userDoc.data() as UserData)
+      }
+    } catch {
+      // Silent fail
+    }
+  }, [user])
+
   return (
     <AuthContext.Provider
       value={{
@@ -750,6 +767,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         resetPassword,
         clearError,
+        refreshUserData,
         setupTwoFactor,
         verifyTwoFactorSetup,
         disableTwoFactor,

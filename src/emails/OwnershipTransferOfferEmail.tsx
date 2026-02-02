@@ -45,8 +45,8 @@ export function OwnershipTransferOfferEmail({
             <Section style={styles.header}>
               <Img
                 src="https://botsy.no/email/botsy-logo.png"
-                width="120"
-                height="40"
+                width="140"
+                height="48"
                 alt="Botsy"
                 style={styles.logo}
               />

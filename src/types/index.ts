@@ -87,6 +87,7 @@ export interface OwnerChatMessage {
   content: string
   timestamp: Date
   instructionCreated?: string // ID of instruction if one was created
+  faqCreated?: string // ID of FAQ if one was created
 }
 
 // Scraped website content
@@ -120,9 +121,22 @@ export interface OwnerChatRequest {
   history: OwnerChatMessage[]
 }
 
+export interface PendingAction {
+  type: 'faq' | 'instruction' | 'sync_faqs'
+  data?: {
+    question?: string
+    answer?: string
+    content?: string
+    category?: InstructionCategory
+  }
+}
+
 export interface OwnerChatResponse {
   reply: string
   instructionCreated?: Instruction
+  faqCreated?: FAQ
+  pendingAction?: PendingAction
+  exportType?: 'analytics' | 'contacts'
 }
 
 // Firestore document types (use unknown for Timestamp compatibility)
@@ -360,6 +374,7 @@ export interface EmployeePermissions {
   documents: boolean
   instructions: boolean
   analytics: boolean
+  adminBot: boolean
 }
 
 export interface AdminPermissions {
@@ -459,6 +474,7 @@ export type PanelName =
   | 'security'
   | 'settings'
   | 'employees'
+  | 'adminBot'
 
 // Team member with user details for display
 export interface TeamMember {
@@ -468,4 +484,99 @@ export interface TeamMember {
     displayName: string
     avatarUrl?: string
   }
+}
+
+// ============================================
+// Push Notifications
+// ============================================
+
+export interface PushSubscription {
+  id: string
+  userId: string
+  companyId: string
+  endpoint: string
+  keys: {
+    p256dh: string
+    auth: string
+  }
+  createdAt: Date
+  isActive: boolean
+}
+
+export interface PushSubscriptionDoc {
+  userId: string
+  companyId: string
+  endpoint: string
+  keys: {
+    p256dh: string
+    auth: string
+  }
+  createdAt: unknown // Firestore Timestamp
+  isActive: boolean
+}
+
+// ============================================
+// Escalations / Human Handoff
+// ============================================
+
+export interface Escalation {
+  id: string
+  companyId: string
+  conversationId: string
+  channel: 'sms' | 'widget' | 'email' | 'messenger'
+  customerIdentifier: string // phone, email, or session ID
+  customerMessage: string
+  status: 'pending' | 'claimed' | 'resolved'
+  claimedBy?: string // userId
+  claimedAt?: Date
+  resolvedAt?: Date
+  createdAt: Date
+}
+
+export interface EscalationDoc {
+  companyId: string
+  conversationId: string
+  channel: 'sms' | 'widget' | 'email' | 'messenger'
+  customerIdentifier: string
+  customerMessage: string
+  status: 'pending' | 'claimed' | 'resolved'
+  claimedBy?: string
+  claimedAt?: unknown // Firestore Timestamp
+  resolvedAt?: unknown // Firestore Timestamp
+  createdAt: unknown // Firestore Timestamp
+}
+
+// ============================================
+// Employee Leaderboard / Competition
+// ============================================
+
+export interface EmployeePerformance {
+  id: string
+  userId: string
+  companyId: string
+  month: string // Format: YYYY-MM
+  answeredCustomers: number
+  positiveFeedback: number
+  totalScore: number
+  lastUpdated: Date
+}
+
+export interface EmployeePerformanceDoc {
+  userId: string
+  companyId: string
+  month: string
+  answeredCustomers: number
+  positiveFeedback: number
+  totalScore: number
+  lastUpdated: unknown // Firestore Timestamp
+}
+
+export interface LeaderboardEntry {
+  userId: string
+  displayName: string
+  avatarUrl?: string
+  answeredCustomers: number
+  positiveFeedback: number
+  totalScore: number
+  rank: number
 }

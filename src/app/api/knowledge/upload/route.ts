@@ -422,9 +422,25 @@ export async function DELETE(request: NextRequest) {
     const { deleteKnowledgeDocument } = await import('@/lib/firestore')
     await deleteKnowledgeDocument(companyId, documentId)
 
+    // Also remove FAQs that came from this document
+    // FAQs from documents have IDs that start with `doc-{documentId}-`
+    try {
+      const existingFAQs = await getFAQs(companyId)
+      const filteredFAQs = existingFAQs.filter(
+        (faq) => !faq.id.startsWith(`doc-${documentId}-`)
+      )
+
+      if (filteredFAQs.length !== existingFAQs.length) {
+        await saveFAQs(companyId, filteredFAQs)
+      }
+    } catch (error) {
+      console.error('Failed to remove associated FAQs:', error)
+      // Continue anyway - document is deleted
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Dokumentet ble slettet',
+      message: 'Dokumentet og tilhørende FAQs ble slettet',
     })
   } catch {
     return NextResponse.json(

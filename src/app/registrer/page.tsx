@@ -2,14 +2,24 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, Building2, User, Check, Loader2 } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, Building2, User, Check, Loader2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { auth, db } from '@/lib/firebase'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 
-export default function RegisterPage() {
+function RegisterContent() {
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get('redirect')
+  const inviteEmail = searchParams.get('email')
+
+  // Check if this is an invited user (coming from invite page)
+  const isInvitedUser = redirectUrl?.startsWith('/invite/')
+
   const [showPassword, setShowPassword] = useState(false)
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
@@ -17,7 +27,7 @@ export default function RegisterPage() {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    email: inviteEmail || '',
     password: '',
     companyName: '',
     industry: '',
@@ -27,14 +37,54 @@ export default function RegisterPage() {
   const { signUp, signInWithGoogle, error, clearError } = useAuth()
   const router = useRouter()
 
+  // Pre-fill email from invite
+  useEffect(() => {
+    if (inviteEmail) {
+      setFormData(prev => ({ ...prev, email: inviteEmail }))
+    }
+  }, [inviteEmail])
+
   const updateForm = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleStep1Submit = (e: React.FormEvent) => {
+  const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault()
     clearError()
     if (formData.name && formData.email && formData.password.length >= 6) {
+      // For invited users, register directly without company step
+      if (isInvitedUser) {
+        setIsLoading(true)
+        try {
+          if (!auth || !db) throw new Error('Firebase er ikke konfigurert')
+
+          // Create user in Firebase Auth
+          const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+          const user = userCredential.user
+
+          // Update display name
+          await updateProfile(user, { displayName: formData.name })
+
+          // Create user document WITHOUT company (they'll join via invite)
+          await setDoc(doc(db, 'users', user.uid), {
+            email: user.email,
+            displayName: formData.name,
+            role: 'employee', // Will be updated when accepting invite
+            companyId: '', // Will be set when accepting invite
+            createdAt: serverTimestamp(),
+          })
+
+          // Redirect back to invite page
+          router.push(redirectUrl || '/admin')
+        } catch (err) {
+          // Error will be shown via auth context
+          console.error('Registration error:', err)
+        } finally {
+          setIsLoading(false)
+        }
+        return
+      }
+
       setStep(2)
     }
   }
@@ -65,8 +115,9 @@ export default function RegisterPage() {
     setIsGoogleLoading(true)
 
     try {
-      await signInWithGoogle()
-      router.push('/onboarding')
+      // For invited users, don't allow new company creation
+      await signInWithGoogle(!isInvitedUser)
+      router.push(redirectUrl || '/onboarding')
     } catch {
       // Error is handled by the auth context
     } finally {
@@ -94,11 +145,13 @@ export default function RegisterPage() {
             />
           </Link>
 
-          {/* Progress */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`} />
-            <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`} />
-          </div>
+          {/* Progress - only show for non-invited users */}
+          {!isInvitedUser && (
+            <div className="flex items-center gap-2 mb-8">
+              <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`} />
+              <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`} />
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
@@ -108,8 +161,23 @@ export default function RegisterPage() {
 
           {step === 1 ? (
             <>
-              <h1 className="text-3xl font-bold text-white mb-2">Opprett konto</h1>
-              <p className="text-[#6B7A94] mb-8">Start din 14 dagers gratis prøveperiode</p>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                {isInvitedUser ? 'Bli med i teamet' : 'Opprett konto'}
+              </h1>
+              <p className="text-[#6B7A94] mb-8">
+                {isInvitedUser
+                  ? 'Opprett en konto for å akseptere invitasjonen'
+                  : 'Start din 14 dagers gratis prøveperiode'}
+              </p>
+
+              {isInvitedUser && (
+                <div className="mb-6 p-4 bg-botsy-lime/10 border border-botsy-lime/20 rounded-xl flex items-center gap-3">
+                  <Users className="h-5 w-5 text-botsy-lime flex-shrink-0" />
+                  <p className="text-[#A8B4C8] text-sm">
+                    Du er invitert til et team. Etter registrering blir du sendt tilbake for å akseptere invitasjonen.
+                  </p>
+                </div>
+              )}
 
               <form onSubmit={handleStep1Submit} className="space-y-5">
                 <div>
@@ -175,9 +243,43 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                <Button type="submit" size="xl" className="w-full">
-                  Fortsett
-                  <ArrowRight className="h-5 w-5" />
+                {/* Terms checkbox for invited users (they skip step 2) */}
+                {isInvitedUser && (
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="terms-invited"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      required
+                      className="h-4 w-4 mt-0.5 rounded border-white/[0.1] bg-white/[0.03] text-botsy-lime focus:ring-botsy-lime/50"
+                    />
+                    <label htmlFor="terms-invited" className="text-[#A8B4C8] text-sm">
+                      Jeg godtar{' '}
+                      <Link href="/vilkar" className="text-botsy-lime hover:underline">vilkårene</Link>
+                      {' '}og{' '}
+                      <Link href="/personvern" className="text-botsy-lime hover:underline">personvernerklæringen</Link>
+                    </label>
+                  </div>
+                )}
+
+                <Button type="submit" size="xl" className="w-full" disabled={isLoading || (isInvitedUser && !termsAccepted)}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Oppretter konto...
+                    </>
+                  ) : isInvitedUser ? (
+                    <>
+                      Opprett konto
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  ) : (
+                    <>
+                      Fortsett
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
                 </Button>
               </form>
 
@@ -356,5 +458,22 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Loading fallback for Suspense
+function RegisterLoading() {
+  return (
+    <div className="min-h-screen bg-botsy-dark flex items-center justify-center">
+      <div className="h-12 w-12 rounded-full border-2 border-white/10 border-t-botsy-lime animate-spin" />
+    </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<RegisterLoading />}>
+      <RegisterContent />
+    </Suspense>
   )
 }

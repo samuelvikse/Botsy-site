@@ -2,7 +2,70 @@ import { NextRequest, NextResponse } from 'next/server'
 import { chatWithCustomer } from '@/lib/groq'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore'
+import { createEscalation, getEscalation } from '@/lib/escalation-firestore'
+import { sendEscalationNotifications } from '@/lib/push-notifications'
+import { incrementPositiveFeedback } from '@/lib/leaderboard-firestore'
 import type { BusinessProfile, Instruction } from '@/types'
+
+// Phrases that indicate user wants human assistance
+const HUMAN_HANDOFF_PHRASES = [
+  'snakke med en ansatt',
+  'snakke med et menneske',
+  'snakke med en person',
+  'snakke med kundeservice',
+  'snakke med support',
+  'ekte person',
+  'ekte menneske',
+  'menneskelig hjelp',
+  'kontakte dere',
+  'ringe dere',
+  'få hjelp av en ansatt',
+  'talk to a human',
+  'talk to a person',
+  'real person',
+  'human agent',
+  'customer service',
+  'speak to someone',
+]
+
+function detectHumanHandoff(message: string): boolean {
+  const lowerMessage = message.toLowerCase()
+  return HUMAN_HANDOFF_PHRASES.some(phrase => lowerMessage.includes(phrase))
+}
+
+// Phrases that indicate positive feedback/thanks from customer
+const POSITIVE_FEEDBACK_PHRASES = [
+  'takk',
+  'tusen takk',
+  'mange takk',
+  'takk for hjelpen',
+  'takk for svar',
+  'flott',
+  'supert',
+  'perfekt',
+  'bra',
+  'veldig bra',
+  'kjempebra',
+  'fantastisk',
+  'utmerket',
+  'strålende',
+  'toppen',
+  'tipp topp',
+  'thank you',
+  'thanks',
+  'great',
+  'perfect',
+  'awesome',
+  'excellent',
+]
+
+function detectPositiveFeedback(message: string): boolean {
+  const lowerMessage = message.toLowerCase().trim()
+  // Check if the message is short and contains positive phrases
+  // Longer messages might just mention "takk" in passing
+  if (lowerMessage.length > 100) return false
+  return POSITIVE_FEEDBACK_PHRASES.some(phrase => lowerMessage.includes(phrase))
+}
 
 // Force dynamic rendering - never cache this route
 export const dynamic = 'force-dynamic'
@@ -243,13 +306,95 @@ export async function POST(
         // Silently continue - message saving is not critical
       }
 
-      // If in manual mode, return waiting message instead of AI response
+      // If in manual mode, check for positive feedback and return waiting message
       if (isManualMode) {
+        // Check if this is positive feedback for an employee
+        if (detectPositiveFeedback(message)) {
+          try {
+            const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+            const sessionDoc = await getDoc(sessionRef)
+
+            if (sessionDoc.exists()) {
+              const sessionData = sessionDoc.data()
+              const escalationId = sessionData?.escalationId
+
+              if (escalationId) {
+                const escalation = await getEscalation(escalationId)
+                if (escalation && escalation.claimedBy) {
+                  // Track positive feedback for the employee who helped
+                  await incrementPositiveFeedback(escalation.claimedBy, companyId)
+                }
+              }
+            }
+          } catch (feedbackError) {
+            console.error('Error tracking positive feedback:', feedbackError)
+          }
+        }
+
         return NextResponse.json({
           success: true,
           reply: 'En kundebehandler vil svare deg snart.',
           isManualMode: true,
         }, { headers: corsHeaders })
+      }
+
+      // Check for human handoff request
+      if (detectHumanHandoff(message)) {
+        try {
+          // Create escalation
+          const escalationId = await createEscalation({
+            companyId,
+            conversationId: sessionId,
+            channel: 'widget',
+            customerIdentifier: `Besøkende ${sessionId.slice(0, 8)}`,
+            customerMessage: message,
+            status: 'pending',
+          })
+
+          // Send push notifications to all subscribed employees
+          await sendEscalationNotifications(
+            companyId,
+            `Besøkende ${sessionId.slice(0, 8)}`,
+            message,
+            sessionId,
+            'widget'
+          )
+
+          // Set session to manual mode
+          const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+          await updateDoc(sessionRef, {
+            isManualMode: true,
+            escalationId,
+            updatedAt: new Date(),
+          })
+
+          // Save escalation response
+          const sessionDoc = await getDoc(sessionRef)
+          if (sessionDoc.exists()) {
+            const sessionData = sessionDoc.data()
+            await updateDoc(sessionRef, {
+              messages: [
+                ...(sessionData?.messages || []),
+                {
+                  role: 'assistant',
+                  content: 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig. 🙋‍♂️',
+                  timestamp: new Date(),
+                },
+              ],
+              updatedAt: new Date(),
+            })
+          }
+
+          return NextResponse.json({
+            success: true,
+            reply: 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig. 🙋‍♂️',
+            isManualMode: true,
+            escalated: true,
+          }, { headers: corsHeaders })
+        } catch (escalationError) {
+          console.error('Error creating escalation:', escalationError)
+          // Continue with normal AI response if escalation fails
+        }
       }
 
       // Fetch knowledge documents (include uploadedAt and fileName for prioritization)

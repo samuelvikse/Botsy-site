@@ -9,8 +9,13 @@ import {
   Clock,
   Zap,
   Calendar,
+  Download,
+  Users,
+  Loader2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
@@ -28,7 +33,10 @@ interface AnalyticsData {
 }
 
 export function AnalyticsView({ companyId }: AnalyticsViewProps) {
+  const toast = useToast()
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90'>('7')
+  const [isExportingAnalytics, setIsExportingAnalytics] = useState(false)
+  const [isExportingContacts, setIsExportingContacts] = useState(false)
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalConversations: 0,
     totalMessages: 0,
@@ -37,6 +45,54 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
     conversationsPerDay: [],
     isLoading: true,
   })
+
+  const handleExportAnalytics = async () => {
+    setIsExportingAnalytics(true)
+    try {
+      const response = await fetch(`/api/export/analytics?companyId=${companyId}&period=${timeRange}`)
+      if (!response.ok) throw new Error('Failed to export')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `botsy-analyse-${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Eksport fullført', 'Analysedataene ble lastet ned')
+    } catch {
+      toast.error('Eksport feilet', 'Kunne ikke eksportere analysedata')
+    } finally {
+      setIsExportingAnalytics(false)
+    }
+  }
+
+  const handleExportContacts = async () => {
+    setIsExportingContacts(true)
+    try {
+      const response = await fetch(`/api/export/contacts?companyId=${companyId}`)
+      if (!response.ok) throw new Error('Failed to export')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `botsy-kontakter-${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('Eksport fullført', 'Kontaktlisten ble lastet ned')
+    } catch {
+      toast.error('Eksport feilet', 'Kunne ikke eksportere kontaktliste')
+    } finally {
+      setIsExportingContacts(false)
+    }
+  }
 
   useEffect(() => {
     async function fetchAnalytics() {
@@ -123,22 +179,52 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white mb-1">Analyser</h1>
           <p className="text-[#6B7A94]">Innsikt i Botsy sin aktivitet og ytelse</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-[#6B7A94]" />
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as '7' | '30' | '90')}
-            className="h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
-          >
-            <option value="7">Siste 7 dager</option>
-            <option value="30">Siste 30 dager</option>
-            <option value="90">Siste 90 dager</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-[#6B7A94]" />
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as '7' | '30' | '90')}
+              className="h-10 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
+            >
+              <option value="7">Siste 7 dager</option>
+              <option value="30">Siste 30 dager</option>
+              <option value="90">Siste 90 dager</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportAnalytics}
+              disabled={isExportingAnalytics}
+            >
+              {isExportingAnalytics ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-1.5" />
+              )}
+              Eksporter data
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportContacts}
+              disabled={isExportingContacts}
+            >
+              {isExportingContacts ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Users className="h-4 w-4 mr-1.5" />
+              )}
+              Eksporter kontaktliste
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // First, try the simple query without orderBy to avoid composite index requirement
     const queryBody = {
       structuredQuery: {
         from: [{ collectionId: 'invitations' }],
@@ -48,11 +49,10 @@ export async function GET(request: NextRequest) {
             ],
           },
         },
-        orderBy: [
-          { field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' },
-        ],
       },
     }
+
+    console.log('[Invitations API] Fetching invitations for company:', companyId)
 
     const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
@@ -61,10 +61,13 @@ export async function GET(request: NextRequest) {
     })
 
     if (!response.ok) {
-      return NextResponse.json({ invitations: [] })
+      const errorText = await response.text()
+      console.error('[Invitations API] Firestore query failed:', response.status, errorText)
+      return NextResponse.json({ invitations: [], error: 'Query failed' })
     }
 
     const data = await response.json()
+    console.log('[Invitations API] Query response:', JSON.stringify(data).substring(0, 500))
 
     const invitations: Invitation[] = data
       .filter((item: { document?: unknown }) => item.document)
@@ -88,11 +91,16 @@ export async function GET(request: NextRequest) {
           token: parsed.token as string,
         }
       })
+      // Sort by createdAt client-side since we removed orderBy from query
+      .sort((a: Invitation, b: Invitation) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    console.log('[Invitations API] Found', invitations.length, 'pending invitations')
 
     return NextResponse.json({ invitations })
-  } catch {
+  } catch (error) {
+    console.error('[Invitations API] Error:', error)
     return NextResponse.json(
-      { error: 'Kunne ikke hente invitasjoner' },
+      { error: 'Kunne ikke hente invitasjoner', invitations: [] },
       { status: 500 }
     )
   }
@@ -103,6 +111,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { companyId, email, role, permissions, invitedBy, inviterName, companyName } = body
+
+    console.log('[Invitations API] Creating invitation:', { companyId, email, role, invitedBy })
 
     if (!companyId || !email || !role) {
       return NextResponse.json(
@@ -192,6 +202,7 @@ export async function POST(request: NextRequest) {
 
     const createdDoc = await response.json()
     const docId = createdDoc.name.split('/').pop()
+    console.log('[Invitations API] Created invitation with ID:', docId)
 
     // Get the base URL for the invitation link
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://botsy.no'

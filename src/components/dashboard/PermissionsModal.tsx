@@ -27,6 +27,7 @@ export function PermissionsModal({ isOpen, onClose, member, onSuccess, isOwner }
     documents: (member.membership.permissions as EmployeePermissions)?.documents ?? true,
     instructions: (member.membership.permissions as EmployeePermissions)?.instructions ?? false,
     analytics: (member.membership.permissions as EmployeePermissions)?.analytics ?? false,
+    adminBot: (member.membership.permissions as EmployeePermissions)?.adminBot ?? false,
   })
   const [adminPermissions, setAdminPermissions] = useState<AdminPermissions>({
     channels: (member.membership.permissions as AdminPermissions)?.channels ?? true,
@@ -166,6 +167,7 @@ export function PermissionsModal({ isOpen, onClose, member, onSuccess, isOwner }
                 { key: 'documents' as const, label: 'Dokumenter', desc: 'Last opp og administrer dokumenter' },
                 { key: 'instructions' as const, label: 'Instruksjoner', desc: 'Opprett og rediger instruksjoner' },
                 { key: 'analytics' as const, label: 'Analyser', desc: 'Se statistikk og rapporter' },
+                { key: 'adminBot' as const, label: 'Admin Bot', desc: 'Tilgang til AI-assistenten' },
               ].map(({ key, label, desc }) => (
                 <button
                   key={key}

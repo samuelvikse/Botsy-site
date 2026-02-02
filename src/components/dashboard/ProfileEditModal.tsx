@@ -14,7 +14,7 @@ interface ProfileEditModalProps {
 }
 
 export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
-  const { user, userData } = useAuth()
+  const { user, userData, refreshUserData } = useAuth()
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -100,10 +100,10 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       }
 
       toast.success('Profil oppdatert', 'Endringene dine ble lagret')
-      onClose()
 
-      // Reload the page to reflect changes
-      window.location.reload()
+      // Refresh user data without page reload
+      await refreshUserData()
+      onClose()
     } catch (error) {
       toast.error('Kunne ikke oppdatere profil', error instanceof Error ? error.message : 'Prøv igjen senere')
     } finally {

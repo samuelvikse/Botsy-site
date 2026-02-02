@@ -6,7 +6,7 @@ import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upl
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { updateWidgetSettings } from '@/lib/firestore'
+import { updateWidgetSettings, getCompany } from '@/lib/firestore'
 import { uploadCompanyLogo, deleteCompanyLogo } from '@/lib/storage'
 
 interface WidgetSettingsViewProps {
@@ -21,6 +21,7 @@ interface WidgetSettingsViewProps {
     animationStyle?: 'scale' | 'slide' | 'fade' | 'bounce' | 'flip'
   }
   businessName?: string
+  greeting?: string
 }
 
 const SIZE_OPTIONS = [
@@ -86,11 +87,11 @@ export function WidgetSettingsView({
   companyId,
   initialSettings,
   businessName,
+  greeting: greetingProp,
 }: WidgetSettingsViewProps) {
   const [settings, setSettings] = useState({
     primaryColor: initialSettings?.primaryColor || '#CCFF00',
     position: initialSettings?.position || 'bottom-right',
-    greeting: initialSettings?.greeting || 'Hei! 👋 Hvordan kan jeg hjelpe deg?',
     isEnabled: initialSettings?.isEnabled ?? true,
     logoUrl: initialSettings?.logoUrl || null,
     widgetSize: initialSettings?.widgetSize || 'medium' as 'small' | 'medium' | 'large',
@@ -104,51 +105,106 @@ export function WidgetSettingsView({
   const [logoError, setLogoError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const [animationPreview, setAnimationPreview] = useState<string | null>(null)
-  const [isInitialized, setIsInitialized] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const initialSettingsRef = useRef(JSON.stringify(settings))
+  const hasChangedRef = useRef(false)
+  const isInitializedRef = useRef(false)
+
+  // Fetch fresh data on mount
+  useEffect(() => {
+    async function fetchFreshData() {
+      try {
+        const company = await getCompany(companyId)
+        if (company?.widgetSettings) {
+          const freshSettings = {
+            primaryColor: company.widgetSettings.primaryColor || '#CCFF00',
+            position: company.widgetSettings.position || 'bottom-right',
+            isEnabled: company.widgetSettings.isEnabled ?? true,
+            logoUrl: company.widgetSettings.logoUrl || null,
+            widgetSize: (company.widgetSettings.widgetSize || 'medium') as 'small' | 'medium' | 'large',
+            animationStyle: (company.widgetSettings.animationStyle || 'scale') as 'scale' | 'slide' | 'fade' | 'bounce' | 'flip',
+          }
+          setSettings(freshSettings)
+          initialSettingsRef.current = JSON.stringify(freshSettings)
+        }
+      } catch (error) {
+        console.error('Failed to fetch widget settings:', error)
+      } finally {
+        setIsLoading(false)
+        isInitializedRef.current = true
+      }
+    }
+
+    fetchFreshData()
+  }, [companyId])
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
 
   const embedCode = `<script src="${baseUrl}/widget.js" data-company-id="${companyId}"></script>`
 
-  // Mark as initialized after first render
-  useEffect(() => {
-    setIsInitialized(true)
-  }, [])
-
-  // Auto-save when settings change (debounced)
-  useEffect(() => {
-    if (!isInitialized) return
-
-    // Clear any existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
+  // Save function
+  const doSave = async (settingsToSave: typeof settings) => {
+    if (!companyId) {
+      setSaveError('Mangler bedrifts-ID')
+      return
     }
 
-    // Set a new timeout to save after 800ms of no changes
-    saveTimeoutRef.current = setTimeout(async () => {
-      setIsSaving(true)
-      try {
-        await updateWidgetSettings(companyId, settings)
-        setSaveSuccess(true)
-        setTimeout(() => setSaveSuccess(false), 2000)
-      } catch {
-        // Silent fail
-      } finally {
-        setIsSaving(false)
-      }
-    }, 800)
+    setIsSaving(true)
+    setSaveError(null)
+    try {
+      await updateWidgetSettings(companyId, settingsToSave)
+      setSaveSuccess(true)
+      hasChangedRef.current = false
+      initialSettingsRef.current = JSON.stringify(settingsToSave)
+      setTimeout(() => setSaveSuccess(false), 2000)
+    } catch (error) {
+      console.error('Failed to save widget settings:', error)
+      setSaveError('Kunne ikke lagre endringer')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
+  // Wrapper that triggers auto-save
+  const updateSettings = (updater: (prev: typeof settings) => typeof settings) => {
+    setSettings(prev => {
+      const newSettings = updater(prev)
+
+      // Don't auto-save during initial load
+      if (!isInitializedRef.current) {
+        return newSettings
+      }
+
+      // Check if settings actually changed from initial
+      const hasChanged = JSON.stringify(newSettings) !== initialSettingsRef.current
+      hasChangedRef.current = hasChanged
+
+      // Debounced save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+
+      if (hasChanged) {
+        saveTimeoutRef.current = setTimeout(() => {
+          doSave(newSettings)
+        }, 800)
+      }
+
+      return newSettings
+    })
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [companyId, settings, isInitialized])
-
-  // Simple alias for setter (auto-save handles the rest)
-  const updateSettings = setSettings
+  }, [])
 
   const handleCopy = async () => {
     try {
@@ -243,6 +299,14 @@ export function WidgetSettingsView({
 
   const currentAnimation = ANIMATION_VARIANTS[settings.animationStyle as keyof typeof ANIMATION_VARIANTS]
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 text-botsy-lime animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-start justify-between">
@@ -272,6 +336,17 @@ export function WidgetSettingsView({
             >
               <Check className="h-3.5 w-3.5 text-green-400" />
               <span className="text-green-400 text-sm">Lagret</span>
+            </motion.div>
+          ) : saveError ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full"
+            >
+              <X className="h-3.5 w-3.5 text-red-400" />
+              <span className="text-red-400 text-sm">{saveError}</span>
             </motion.div>
           ) : (
             <motion.div
@@ -420,7 +495,7 @@ export function WidgetSettingsView({
                       </div>
                       <div className="p-3">
                         <div className="bg-white/10 rounded-lg rounded-bl-none p-2 text-white text-xs">
-                          {settings.greeting}
+                          {greetingProp || 'Hei! 👋 Hvordan kan jeg hjelpe deg?'}
                         </div>
                       </div>
                     </motion.div>
@@ -680,20 +755,6 @@ export function WidgetSettingsView({
             )}
           </Card>
 
-          {/* Greeting */}
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <MessageCircle className="h-5 w-5 text-botsy-lime" />
-              <h3 className="text-white font-medium">Velkomstmelding</h3>
-            </div>
-            <textarea
-              value={settings.greeting}
-              onChange={(e) => updateSettings(s => ({ ...s, greeting: e.target.value }))}
-              rows={2}
-              className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
-              placeholder="Skriv velkomstmeldingen..."
-            />
-          </Card>
         </div>
       </div>
 

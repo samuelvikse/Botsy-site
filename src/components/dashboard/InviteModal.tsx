@@ -27,6 +27,7 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
     documents: true,
     instructions: false,
     analytics: false,
+    adminBot: false,
   })
   const [adminPermissions, setAdminPermissions] = useState<AdminPermissions>({
     channels: true,
@@ -105,6 +106,7 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
       documents: true,
       instructions: false,
       analytics: false,
+      adminBot: false,
     })
     setAdminPermissions({ channels: true })
     setInviteUrl(null)
@@ -280,6 +282,7 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
                   { key: 'documents' as const, label: 'Dokumenter', desc: 'Last opp og administrer dokumenter' },
                   { key: 'instructions' as const, label: 'Instruksjoner', desc: 'Opprett og rediger instruksjoner' },
                   { key: 'analytics' as const, label: 'Analyser', desc: 'Se statistikk og rapporter' },
+                  { key: 'adminBot' as const, label: 'Admin Bot', desc: 'Tilgang til AI-assistenten' },
                 ].map(({ key, label, desc }) => (
                   <button
                     key={key}

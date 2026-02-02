@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Button } from './button'
+import { useToast } from './toast'
 
 export interface Notification {
   id: string
@@ -259,10 +260,134 @@ export function NotificationPanel({
   )
 }
 
-// Simple notification bell with empty state
+// Simple notification bell with push notification toggle
 export function SimpleNotificationBell() {
+  const toast = useToast()
   const [isOpen, setIsOpen] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [escalations, setEscalations] = useState<Array<{
+    id: string
+    customerIdentifier: string
+    customerMessage: string
+    channel: string
+    createdAt: Date
+    conversationId: string
+  }>>([])
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // Check push notification status on mount
+  useEffect(() => {
+    checkPushStatus()
+    fetchEscalations()
+
+    // Poll for escalations every 30 seconds
+    const interval = setInterval(fetchEscalations, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const checkPushStatus = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setIsLoading(false)
+        return
+      }
+
+      const registration = await navigator.serviceWorker.getRegistration()
+      if (registration) {
+        const subscription = await registration.pushManager.getSubscription()
+        setPushEnabled(!!subscription)
+      }
+    } catch (error) {
+      console.error('Error checking push status:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const fetchEscalations = async () => {
+    try {
+      const response = await fetch('/api/escalations')
+      if (response.ok) {
+        const data = await response.json()
+        setEscalations(data.escalations || [])
+      }
+    } catch {
+      // Silent fail
+    }
+  }
+
+  const togglePushNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast.warning('Ikke støttet', 'Push-varsler støttes ikke i denne nettleseren')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      if (pushEnabled) {
+        // Unsubscribe
+        const registration = await navigator.serviceWorker.getRegistration()
+        if (registration) {
+          const subscription = await registration.pushManager.getSubscription()
+          if (subscription) {
+            await subscription.unsubscribe()
+            await fetch('/api/push/subscribe', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: 'current' }), // Will be replaced with actual userId
+            })
+          }
+        }
+        setPushEnabled(false)
+      } else {
+        // Subscribe
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          toast.warning('Tillatelse kreves', 'Du må gi tillatelse til varsler i nettleseren for å aktivere push-varsler')
+          setIsLoading(false)
+          return
+        }
+
+        // Register service worker if not already registered
+        let registration = await navigator.serviceWorker.getRegistration()
+        if (!registration) {
+          registration = await navigator.serviceWorker.register('/sw.js')
+        }
+
+        // Get VAPID public key
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        if (!vapidKey) {
+          console.error('VAPID public key not configured')
+          setIsLoading(false)
+          return
+        }
+
+        // Subscribe to push
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        })
+
+        // Send subscription to server
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: 'current', // Will be replaced with actual userId
+            companyId: 'current', // Will be replaced with actual companyId
+            subscription: subscription.toJSON(),
+          }),
+        })
+
+        setPushEnabled(true)
+      }
+    } catch (error) {
+      console.error('Error toggling push notifications:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -276,6 +401,8 @@ export function SimpleNotificationBell() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
+  const unreadCount = escalations.length
+
   return (
     <div ref={panelRef} className="relative">
       <button
@@ -283,7 +410,12 @@ export function SimpleNotificationBell() {
         className="relative p-2 text-[#A8B4C8] hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors"
         title="Varsler"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className={`h-5 w-5 ${pushEnabled ? 'text-botsy-lime' : ''}`} />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
       </button>
 
       <AnimatePresence>
@@ -295,19 +427,76 @@ export function SimpleNotificationBell() {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="absolute right-0 top-full mt-2 w-80 bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden z-50"
           >
-            <div className="px-4 py-3 border-b border-white/[0.06]">
+            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
               <h3 className="text-white font-semibold">Varsler</h3>
+              <button
+                onClick={togglePushNotifications}
+                disabled={isLoading}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  pushEnabled
+                    ? 'bg-botsy-lime/20 text-botsy-lime'
+                    : 'bg-white/[0.05] text-[#6B7A94] hover:text-white'
+                }`}
+                title={pushEnabled ? 'Push-varsler på' : 'Push-varsler av'}
+              >
+                {isLoading ? (
+                  <div className="h-3 w-3 border border-current border-t-transparent rounded-full animate-spin" />
+                ) : pushEnabled ? (
+                  <>
+                    <Bell className="h-3 w-3" />
+                    På
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-3 w-3" />
+                    Av
+                  </>
+                )}
+              </button>
             </div>
-            <div className="py-10 text-center">
-              <div className="h-14 w-14 mx-auto rounded-full bg-gradient-to-br from-botsy-lime/20 to-botsy-lime/5 flex items-center justify-center mb-4">
-                <CheckCircle className="h-7 w-7 text-botsy-lime" />
+
+            {escalations.length > 0 ? (
+              <div className="max-h-80 overflow-y-auto">
+                {escalations.map((esc) => (
+                  <a
+                    key={esc.id}
+                    href={`/admin?tab=conversations&id=${esc.conversationId}`}
+                    className="block px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4 text-red-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">
+                          {esc.customerIdentifier}
+                        </p>
+                        <p className="text-[#6B7A94] text-xs truncate">
+                          {esc.customerMessage}
+                        </p>
+                        <p className="text-[#4A5568] text-xs mt-1">
+                          {formatTimeAgo(esc.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </a>
+                ))}
               </div>
-              <p className="text-white font-medium">Alt er oppdatert!</p>
-              <p className="text-[#6B7A94] text-sm mt-1">Ingen nye varsler akkurat nå</p>
-            </div>
+            ) : (
+              <div className="py-10 text-center">
+                <div className="h-14 w-14 mx-auto rounded-full bg-gradient-to-br from-botsy-lime/20 to-botsy-lime/5 flex items-center justify-center mb-4">
+                  <CheckCircle className="h-7 w-7 text-botsy-lime" />
+                </div>
+                <p className="text-white font-medium">Alt er oppdatert!</p>
+                <p className="text-[#6B7A94] text-sm mt-1">Ingen ventende henvendelser</p>
+              </div>
+            )}
+
             <div className="px-4 py-3 border-t border-white/[0.06] bg-white/[0.01]">
               <p className="text-[#4A5568] text-xs text-center">
-                Varsler om nye meldinger og oppdateringer vises her
+                {pushEnabled
+                  ? 'Du mottar push-varsler når kunder trenger hjelp'
+                  : 'Aktiver push-varsler for å bli varslet på mobilen'}
               </p>
             </div>
           </motion.div>
@@ -315,4 +504,28 @@ export function SimpleNotificationBell() {
       </AnimatePresence>
     </div>
   )
+}
+
+// Helper function to convert VAPID key
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray.buffer
+}
+
+function formatTimeAgo(date: Date): string {
+  const now = new Date()
+  const diffMs = now.getTime() - new Date(date).getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+
+  if (diffMins < 1) return 'Akkurat nå'
+  if (diffMins < 60) return `${diffMins} min siden`
+  if (diffHours < 24) return `${diffHours} time${diffHours > 1 ? 'r' : ''} siden`
+  return new Date(date).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
 }

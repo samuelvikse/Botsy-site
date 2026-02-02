@@ -103,12 +103,53 @@ VIKTIG:
 // System prompt for owner chat
 const OWNER_CHAT_PROMPT = `Du er Botsy, en hjelpsom digital assistent som hjelper bedriftseiere med å sette opp kundeservice.
 
-Når eieren gir deg en instruks eller informasjon:
-1. Bekreft at du har forstått
-2. Spør om relevante detaljer (varighet, betingelser, unntak)
-3. Foreslå å opprette en strukturert instruks
+DU KAN GJØRE DISSE TINGENE FOR EIEREN:
 
-Vær vennlig, hjelpsom og snakk naturlig på norsk. Hold svarene korte.`
+1. **LEGGE TIL FAQs I KUNNSKAPSBASEN**
+   Når eieren vil legge til informasjon som kunder ofte spør om:
+   - "Legg til en FAQ om..."
+   - "Husk at vi tilbyr..."
+   - "Kunder bør vite at..."
+   - Informasjon om produkter, tjenester, priser, åpningstider, etc.
+
+   Svar med JSON-markør: [FAQ:{"question":"Spørsmålet","answer":"Svaret"}]
+   Etterfulgt av: "Skal jeg legge dette til i kunnskapsbasen din?"
+
+2. **LEGGE TIL INSTRUKSJONER**
+   Når eieren gir tidsbegrensede eller spesielle instrukser:
+   - "Vi er stengt i morgen"
+   - "Vi har 20% rabatt denne uken"
+   - "Kampanje: ..."
+
+   Svar med JSON-markør: [INSTRUCTION:{"content":"Innholdet","category":"promotion|availability|policy|general"}]
+   Etterfulgt av: "Skal jeg legge dette til i instruksjoner så det blir delt med alle som spør Botsy?"
+
+3. **SYNKRONISERE FAQs FRA DOKUMENTER**
+   Når eieren spør om å overføre/synkronisere FAQs fra dokumenter:
+   - "Overfør FAQs fra dokumenter"
+   - "Synkroniser kunnskapsbasen"
+   - "Hent FAQs fra opplastede dokumenter"
+
+   Svar med: [SYNC_FAQS]
+   Etterfulgt av: "Skal jeg synkronisere alle FAQs fra dine opplastede dokumenter til kunnskapsbasen?"
+
+4. **EKSPORTERE DATA TIL EXCEL**
+   Når eieren ber om å laste ned eller eksportere data:
+   - "Last ned analysedata", "Eksporter statistikk", "Gi meg analyseskjema" → Svar med: [EXPORT:analytics]
+   - "Last ned kontaktliste", "Eksporter kontakter", "Hvem har kontaktet oss" → Svar med: [EXPORT:contacts]
+
+   For eksport: Ikke spør om bekreftelse, bare start nedlastingen med en gang!
+
+5. **BEKREFTELSE**
+   Når eieren svarer "ja", "ok", "gjør det", "bekreft", etc. på en av handlingene over (unntatt eksport),
+   inkluder [CONFIRMED] i starten av svaret ditt.
+
+VIKTIG:
+- Svar alltid vennlig og naturlig på norsk
+- Hold svarene korte og konsise
+- Spør om bekreftelse for FAQ, instruksjoner og synkronisering
+- For eksport: Start nedlastingen direkte uten å spørre
+- Bruk riktig JSON-format for handlinger`
 
 // Prompt for finding answers to FAQ questions
 const FAQ_ANSWER_PROMPT = `Du er en ekspert på å finne svar i nettside-innhold.
@@ -326,13 +367,25 @@ Omformuler svaret slik at det passer som et kundeservice-svar med ${toneDescript
   return response.choices[0]?.message?.content?.trim() || userAnswer
 }
 
+// Types for owner chat response
+interface OwnerChatResult {
+  reply: string
+  shouldCreateInstruction: boolean
+  suggestedInstruction?: Partial<Instruction>
+  shouldCreateFAQ: boolean
+  suggestedFAQ?: { question: string; answer: string }
+  shouldSyncFAQs: boolean
+  isConfirmation: boolean
+  exportType?: 'analytics' | 'contacts'
+}
+
 // Chat with owner for instruction management
 export async function chatWithOwner(
   message: string,
   history: OwnerChatMessage[],
   businessProfile: BusinessProfile | null,
   activeInstructions: Instruction[]
-): Promise<{ reply: string; shouldCreateInstruction: boolean; suggestedInstruction?: Partial<Instruction> }> {
+): Promise<OwnerChatResult> {
   let context = ''
 
   if (businessProfile) {
@@ -376,30 +429,74 @@ export async function chatWithOwner(
     max_tokens: 500,
   })
 
-  const reply = response.choices[0]?.message?.content || 'Beklager, jeg kunne ikke behandle forespørselen.'
+  let reply = response.choices[0]?.message?.content || 'Beklager, jeg kunne ikke behandle forespørselen.'
 
-  const instructionKeywords = ['rabatt', 'kampanje', 'tilbud', 'stengt', 'åpent', 'policy', 'regel', 'alltid', 'aldri', 'husk']
-  const lowerMessage = message.toLowerCase()
-  const shouldCreateInstruction = instructionKeywords.some(keyword => lowerMessage.includes(keyword))
+  // Parse response for action markers
+  let shouldCreateFAQ = false
+  let suggestedFAQ: { question: string; answer: string } | undefined
+  let shouldCreateInstruction = false
+  let suggestedInstruction: Partial<Instruction> | undefined
+  let shouldSyncFAQs = false
+  const isConfirmation = reply.includes('[CONFIRMED]')
 
-  let category: Instruction['category'] = 'general'
-  if (lowerMessage.includes('rabatt') || lowerMessage.includes('kampanje') || lowerMessage.includes('tilbud')) {
-    category = 'promotion'
-  } else if (lowerMessage.includes('stengt') || lowerMessage.includes('åpent') || lowerMessage.includes('time')) {
-    category = 'availability'
-  } else if (lowerMessage.includes('policy') || lowerMessage.includes('regel') || lowerMessage.includes('refusjon')) {
-    category = 'policy'
+  // Check for FAQ marker
+  const faqMatch = reply.match(/\[FAQ:(\{[^}]*\})\]/)
+  if (faqMatch) {
+    try {
+      suggestedFAQ = JSON.parse(faqMatch[1])
+      shouldCreateFAQ = true
+      reply = reply.replace(faqMatch[0], '').trim()
+    } catch {
+      // Invalid JSON, ignore
+    }
+  }
+
+  // Check for instruction marker
+  const instructionMatch = reply.match(/\[INSTRUCTION:(\{[^}]*\})\]/)
+  if (instructionMatch) {
+    try {
+      const parsed = JSON.parse(instructionMatch[1])
+      suggestedInstruction = {
+        content: parsed.content,
+        category: parsed.category || 'general',
+        priority: 'medium',
+        isActive: true,
+      }
+      shouldCreateInstruction = true
+      reply = reply.replace(instructionMatch[0], '').trim()
+    } catch {
+      // Invalid JSON, ignore
+    }
+  }
+
+  // Check for sync FAQs marker
+  if (reply.includes('[SYNC_FAQS]')) {
+    shouldSyncFAQs = true
+    reply = reply.replace('[SYNC_FAQS]', '').trim()
+  }
+
+  // Check for export markers
+  let exportType: 'analytics' | 'contacts' | undefined = undefined
+  const exportMatch = reply.match(/\[EXPORT:(analytics|contacts)\]/)
+  if (exportMatch) {
+    exportType = exportMatch[1] as 'analytics' | 'contacts'
+    reply = reply.replace(exportMatch[0], '').trim()
+  }
+
+  // Clean up confirmation marker
+  if (isConfirmation) {
+    reply = reply.replace('[CONFIRMED]', '').trim()
   }
 
   return {
     reply,
     shouldCreateInstruction,
-    suggestedInstruction: shouldCreateInstruction ? {
-      content: message,
-      category,
-      priority: 'medium',
-      isActive: true,
-    } : undefined,
+    suggestedInstruction,
+    shouldCreateFAQ,
+    suggestedFAQ,
+    shouldSyncFAQs,
+    isConfirmation,
+    exportType,
   }
 }
 

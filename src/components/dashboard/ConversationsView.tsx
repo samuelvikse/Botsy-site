@@ -32,6 +32,8 @@ const MESSAGES_POLL_INTERVAL = 3000
 
 interface ConversationsViewProps {
   companyId: string
+  initialConversationId?: string | null
+  onConversationOpened?: () => void
 }
 
 type ChannelFilter = 'all' | 'sms' | 'widget' | 'messenger' | 'email'
@@ -58,7 +60,7 @@ interface ChatMessage {
   isManual?: boolean
 }
 
-export function ConversationsView({ companyId }: ConversationsViewProps) {
+export function ConversationsView({ companyId, initialConversationId, onConversationOpened }: ConversationsViewProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -69,6 +71,7 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
   const [newMessage, setNewMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [manualMode, setManualMode] = useState(false)
+  const [hasOpenedInitial, setHasOpenedInitial] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Scroll to bottom when messages change
@@ -196,6 +199,18 @@ export function ConversationsView({ companyId }: ConversationsViewProps) {
       isMounted = false
     }
   }, [fetchConversations])
+
+  // Open initial conversation if provided
+  useEffect(() => {
+    if (initialConversationId && conversations.length > 0 && !hasOpenedInitial) {
+      const conv = conversations.find(c => c.id === initialConversationId)
+      if (conv) {
+        setSelectedConversation(conv)
+        setHasOpenedInitial(true)
+        onConversationOpened?.()
+      }
+    }
+  }, [initialConversationId, conversations, hasOpenedInitial, onConversationOpened])
 
   // Auto-refresh conversations
   useEffect(() => {

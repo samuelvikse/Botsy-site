@@ -165,12 +165,17 @@ export async function saveToneConfig(
 
   const docRef = doc(db, 'companies', companyId)
 
-  // Extract language fields to save at businessProfile level
-  const { language, languageName, ...restToneConfig } = toneConfig
+  // Extract fields that should be saved at businessProfile level (not inside toneConfig)
+  const { language, languageName, tone, ...restToneConfig } = toneConfig
 
   const updateData: Record<string, unknown> = {
     'businessProfile.toneConfig': restToneConfig,
     updatedAt: serverTimestamp(),
+  }
+
+  // Save tone at businessProfile level (not inside toneConfig)
+  if (tone) {
+    updateData['businessProfile.tone'] = tone
   }
 
   // Save language at businessProfile level (not inside toneConfig)
@@ -550,6 +555,7 @@ export async function getCompany(companyId: string): Promise<{
     isEnabled: boolean
     logoUrl?: string | null
     widgetSize?: 'small' | 'medium' | 'large'
+    animationStyle?: 'scale' | 'slide' | 'fade' | 'bounce' | 'flip'
   }
 } | null> {
   if (!db) throw new Error('Firestore not initialized')
@@ -584,6 +590,7 @@ export async function getCompany(companyId: string): Promise<{
       isEnabled: data.widgetSettings?.isEnabled ?? true,
       logoUrl: data.widgetSettings?.logoUrl || null,
       widgetSize: data.widgetSettings?.widgetSize || 'medium',
+      animationStyle: data.widgetSettings?.animationStyle || 'scale',
     },
   }
 }
