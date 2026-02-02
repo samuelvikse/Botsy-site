@@ -666,6 +666,14 @@ export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): s
       toneGuide += lengthGuide
     }
 
+    // Emoji configuration
+    if (toneConfig.useEmojis !== undefined) {
+      const emojiGuide = toneConfig.useEmojis
+        ? '\n\nEMOJIS: Du KAN bruke emojis i svarene dine for å gjøre dem mer vennlige og engasjerende. Ikke overdriv - 1-2 emojis per svar er passende.'
+        : '\n\nEMOJIS: IKKE bruk emojis i svarene dine. Hold kommunikasjonen ren og tekstbasert.'
+      toneGuide += emojiGuide
+    }
+
     // Humor level configuration
     if (toneConfig.humorLevel) {
       const humorGuide = toneConfig.humorLevel === 'none'
@@ -674,7 +682,7 @@ export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): s
         ? '\n\nHUMOR: Du kan være lett og vennlig, men hold det subtilt. Ingen åpenbare vitser.'
         : toneConfig.humorLevel === 'moderate'
         ? '\n\nHUMOR: Bruk moderat humor når det passer. En vennlig vits eller lett kommentar er ok.'
-        : '\n\nHUMOR: Vær leken og morsom! Bruk gjerne humor, emojis og morsomme kommentarer.'
+        : '\n\nHUMOR: Vær leken og morsom! Bruk gjerne humor og morsomme kommentarer.'
       toneGuide += humorGuide
     }
 
