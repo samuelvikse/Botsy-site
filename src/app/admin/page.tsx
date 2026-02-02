@@ -701,6 +701,34 @@ function formatTimeAgo(date: Date | string | unknown): string {
 }
 
 // Knowledge Base View
+// Helper function to calculate string similarity (Levenshtein-based)
+function calculateSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().trim()
+  const s2 = str2.toLowerCase().trim()
+
+  if (s1 === s2) return 1
+  if (s1.length === 0 || s2.length === 0) return 0
+
+  // Simple word overlap similarity
+  const words1 = new Set(s1.split(/\s+/).filter(w => w.length > 2))
+  const words2 = new Set(s2.split(/\s+/).filter(w => w.length > 2))
+
+  if (words1.size === 0 || words2.size === 0) return 0
+
+  let overlap = 0
+  words1.forEach(word => {
+    if (words2.has(word)) overlap++
+  })
+
+  return overlap / Math.max(words1.size, words2.size)
+}
+
+interface SimilarFaqPair {
+  faq1: { id: string; question: string; answer: string; source: string; confirmed: boolean }
+  faq2: { id: string; question: string; answer: string; source: string; confirmed: boolean }
+  similarity: number
+}
+
 function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [sourceFilter, setSourceFilter] = useState<'all' | 'user' | 'extracted'>('all')
@@ -717,6 +745,13 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ id: string; question: string; answer: string } | null>(null)
   const [newFaq, setNewFaq] = useState({ question: '', answer: '' })
+
+  // Duplicate detection states
+  const [duplicatesModalOpen, setDuplicatesModalOpen] = useState(false)
+  const [similarPairs, setSimilarPairs] = useState<SimilarFaqPair[]>([])
+  const [currentPairIndex, setCurrentPairIndex] = useState(0)
+  const [hasCheckedDuplicates, setHasCheckedDuplicates] = useState(false)
+
   const toast = useToast()
 
   // Load FAQs on mount
@@ -735,6 +770,120 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   useEffect(() => {
     loadFaqs()
   }, [companyId])
+
+  // Check for similar FAQs after loading
+  useEffect(() => {
+    if (faqs.length > 1 && !isLoading && !hasCheckedDuplicates) {
+      const pairs: SimilarFaqPair[] = []
+      const SIMILARITY_THRESHOLD = 0.5 // 50% word overlap
+
+      for (let i = 0; i < faqs.length; i++) {
+        for (let j = i + 1; j < faqs.length; j++) {
+          const similarity = calculateSimilarity(faqs[i].question, faqs[j].question)
+          if (similarity >= SIMILARITY_THRESHOLD) {
+            pairs.push({
+              faq1: faqs[i],
+              faq2: faqs[j],
+              similarity,
+            })
+          }
+        }
+      }
+
+      if (pairs.length > 0) {
+        // Sort by similarity (highest first)
+        pairs.sort((a, b) => b.similarity - a.similarity)
+        setSimilarPairs(pairs)
+        setCurrentPairIndex(0)
+        setDuplicatesModalOpen(true)
+      }
+      setHasCheckedDuplicates(true)
+    }
+  }, [faqs, isLoading, hasCheckedDuplicates])
+
+  // Handle keeping one FAQ and deleting the other
+  const handleKeepFaq = async (keepId: string, deleteId: string) => {
+    setIsSaving(true)
+    try {
+      const { deleteFAQ } = await import('@/lib/firestore')
+      await deleteFAQ(companyId, deleteId)
+      setFaqs(prev => prev.filter(f => f.id !== deleteId))
+
+      // Move to next pair or close modal
+      if (currentPairIndex < similarPairs.length - 1) {
+        // Filter out pairs that involve the deleted FAQ
+        const remainingPairs = similarPairs.filter(
+          (p, idx) => idx > currentPairIndex && p.faq1.id !== deleteId && p.faq2.id !== deleteId
+        )
+        if (remainingPairs.length > 0) {
+          setSimilarPairs(remainingPairs)
+          setCurrentPairIndex(0)
+        } else {
+          setDuplicatesModalOpen(false)
+        }
+      } else {
+        setDuplicatesModalOpen(false)
+      }
+      toast.success('FAQ fjernet', 'Duplikaten ble slettet')
+    } catch {
+      toast.error('Kunne ikke slette', 'Prøv igjen')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Handle merging two FAQs (keep question from first, combine answers)
+  const handleMergeFaqs = async (faq1: SimilarFaqPair['faq1'], faq2: SimilarFaqPair['faq2']) => {
+    setIsSaving(true)
+    try {
+      const { updateFAQ, deleteFAQ } = await import('@/lib/firestore')
+
+      // Merge answers
+      const mergedAnswer = `${faq1.answer}\n\n${faq2.answer}`
+
+      // Update the first FAQ with merged answer
+      await updateFAQ(companyId, faq1.id, { answer: mergedAnswer })
+
+      // Delete the second FAQ
+      await deleteFAQ(companyId, faq2.id)
+
+      // Update local state
+      setFaqs(prev => prev
+        .map(f => f.id === faq1.id ? { ...f, answer: mergedAnswer } : f)
+        .filter(f => f.id !== faq2.id)
+      )
+
+      // Move to next pair or close modal
+      const remainingPairs = similarPairs.filter(
+        (p, idx) => idx > currentPairIndex && p.faq1.id !== faq2.id && p.faq2.id !== faq2.id
+      )
+      if (remainingPairs.length > 0) {
+        setSimilarPairs(remainingPairs)
+        setCurrentPairIndex(0)
+      } else {
+        setDuplicatesModalOpen(false)
+      }
+      toast.success('FAQs slått sammen', 'De to FAQ-ene ble kombinert')
+    } catch {
+      toast.error('Kunne ikke slå sammen', 'Prøv igjen')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Skip this pair
+  const handleSkipPair = () => {
+    if (currentPairIndex < similarPairs.length - 1) {
+      setCurrentPairIndex(prev => prev + 1)
+    } else {
+      setDuplicatesModalOpen(false)
+    }
+  }
+
+  // Skip all remaining pairs
+  const handleSkipAll = () => {
+    setDuplicatesModalOpen(false)
+  }
 
   // Sync FAQs from documents
   const syncFromDocuments = async () => {
@@ -1145,6 +1294,89 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
                 {isSaving ? 'Lagrer...' : 'Lagre endringer'}
               </Button>
             </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Similar FAQs Modal */}
+      <Modal
+        isOpen={duplicatesModalOpen}
+        onClose={handleSkipAll}
+        title={`Lignende FAQs funnet (${currentPairIndex + 1} av ${similarPairs.length})`}
+        size="lg"
+      >
+        {similarPairs.length > 0 && similarPairs[currentPairIndex] && (
+          <div className="space-y-4">
+            <p className="text-[#A8B4C8] text-sm">
+              Disse to FAQ-ene ser ut til å handle om det samme ({Math.round(similarPairs[currentPairIndex].similarity * 100)}% likhet).
+              Vil du slå dem sammen eller beholde én?
+            </p>
+
+            {/* FAQ 1 */}
+            <div className="p-4 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <Badge variant="secondary" className={similarPairs[currentPairIndex].faq1.source === 'extracted' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : ''}>
+                  {similarPairs[currentPairIndex].faq1.source === 'user' ? 'Manuell' : 'Fra dokument'}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleKeepFaq(similarPairs[currentPairIndex].faq1.id, similarPairs[currentPairIndex].faq2.id)}
+                  disabled={isSaving}
+                  className="text-green-400 border-green-500/30 hover:bg-green-500/10"
+                >
+                  <CheckCheck className="h-4 w-4 mr-1" />
+                  Behold denne
+                </Button>
+              </div>
+              <p className="text-white font-medium mb-1">{similarPairs[currentPairIndex].faq1.question}</p>
+              <p className="text-[#A8B4C8] text-sm">{similarPairs[currentPairIndex].faq1.answer}</p>
+            </div>
+
+            {/* FAQ 2 */}
+            <div className="p-4 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <Badge variant="secondary" className={similarPairs[currentPairIndex].faq2.source === 'extracted' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : ''}>
+                  {similarPairs[currentPairIndex].faq2.source === 'user' ? 'Manuell' : 'Fra dokument'}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleKeepFaq(similarPairs[currentPairIndex].faq2.id, similarPairs[currentPairIndex].faq1.id)}
+                  disabled={isSaving}
+                  className="text-green-400 border-green-500/30 hover:bg-green-500/10"
+                >
+                  <CheckCheck className="h-4 w-4 mr-1" />
+                  Behold denne
+                </Button>
+              </div>
+              <p className="text-white font-medium mb-1">{similarPairs[currentPairIndex].faq2.question}</p>
+              <p className="text-[#A8B4C8] text-sm">{similarPairs[currentPairIndex].faq2.answer}</p>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={handleSkipPair}
+                className="flex-1"
+              >
+                Hopp over
+              </Button>
+              <Button
+                onClick={() => handleMergeFaqs(similarPairs[currentPairIndex].faq1, similarPairs[currentPairIndex].faq2)}
+                disabled={isSaving}
+                className="flex-1 bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90"
+              >
+                {isSaving ? 'Slår sammen...' : 'Slå sammen begge'}
+              </Button>
+            </div>
+
+            {similarPairs.length > 1 && (
+              <p className="text-[#6B7A94] text-xs text-center">
+                {similarPairs.length - currentPairIndex - 1} flere lignende par å gjennomgå
+              </p>
+            )}
           </div>
         )}
       </Modal>
