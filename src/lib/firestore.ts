@@ -136,8 +136,45 @@ export async function deleteFAQ(
   faqId: string
 ): Promise<void> {
   const faqs = await getFAQs(companyId)
+  const faqToDelete = faqs.find((f) => f.id === faqId)
   const filtered = faqs.filter((f) => f.id !== faqId)
   await saveFAQs(companyId, filtered)
+
+  // Add the question to dismissed list so it won't be re-synced from documents
+  if (faqToDelete && faqToDelete.source === 'extracted') {
+    await addDismissedFAQ(companyId, faqToDelete.question)
+  }
+}
+
+// Track dismissed FAQs so they don't get re-synced from documents
+export async function getDismissedFAQs(companyId: string): Promise<string[]> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docRef = doc(db, 'companies', companyId)
+  const docSnap = await getDoc(docRef)
+
+  if (docSnap.exists()) {
+    return docSnap.data().dismissedFAQs || []
+  }
+  return []
+}
+
+export async function addDismissedFAQ(companyId: string, question: string): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const dismissed = await getDismissedFAQs(companyId)
+  const normalizedQuestion = question.toLowerCase().trim()
+
+  // Don't add duplicates
+  if (dismissed.some(q => q.toLowerCase().trim() === normalizedQuestion)) {
+    return
+  }
+
+  const docRef = doc(db, 'companies', companyId)
+  await updateDoc(docRef, {
+    dismissedFAQs: [...dismissed, question],
+    updatedAt: serverTimestamp(),
+  })
 }
 
 // ============================================

@@ -3,6 +3,7 @@ import {
   getKnowledgeDocuments,
   getFAQs,
   saveFAQs,
+  getDismissedFAQs,
 } from '@/lib/firestore'
 import type { FAQ } from '@/types'
 
@@ -26,6 +27,9 @@ export async function POST(request: NextRequest) {
     // Get existing FAQs
     const existingFAQs = await getFAQs(companyId)
 
+    // Get dismissed FAQs (deleted by user, should not be re-added)
+    const dismissedFAQs = await getDismissedFAQs(companyId)
+
     // Track new FAQs to add
     const newFAQs: FAQ[] = []
 
@@ -34,19 +38,27 @@ export async function POST(request: NextRequest) {
       if (doc.status !== 'ready' || !doc.analyzedData?.faqs) continue
 
       for (const faq of doc.analyzedData.faqs) {
+        const normalizedQuestion = faq.question.toLowerCase().trim()
+
         // Check if FAQ already exists (by question similarity)
         const exists = existingFAQs.some(
           (existing) =>
-            existing.question.toLowerCase().trim() === faq.question.toLowerCase().trim()
+            existing.question.toLowerCase().trim() === normalizedQuestion
+        )
+
+        // Check if FAQ was previously dismissed/deleted by user
+        const isDismissed = dismissedFAQs.some(
+          (dismissed) =>
+            dismissed.toLowerCase().trim() === normalizedQuestion
         )
 
         // Also check if already added in this sync
         const alreadyAdded = newFAQs.some(
           (added) =>
-            added.question.toLowerCase().trim() === faq.question.toLowerCase().trim()
+            added.question.toLowerCase().trim() === normalizedQuestion
         )
 
-        if (!exists && !alreadyAdded) {
+        if (!exists && !isDismissed && !alreadyAdded) {
           newFAQs.push({
             id: `doc-${doc.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             question: faq.question,

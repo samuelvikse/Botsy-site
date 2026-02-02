@@ -340,7 +340,7 @@ function AdminContent() {
         </header>
 
         {/* Page Content - Scrollable area */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
           {activeTab === 'dashboard' && companyId && (
             <DashboardView
               companyId={companyId}
@@ -508,14 +508,14 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
   const messengerPercentage = totalChannels > 0 ? Math.round((stats?.messengerCount || 0) / totalChannels * 100) : 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-hidden">
       <div>
         <h1 className="text-2xl font-bold text-white mb-1">Dashboard</h1>
         <p className="text-[#6B7A94]">Oversikt over Botsy sin aktivitet</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard
           title="Samtaler i dag"
           value={isLoading ? '...' : String(stats?.conversationsToday || 0)}
@@ -591,8 +591,8 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
       )}
 
       {/* Recent Conversations & Activity */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 p-6">
+      <div className="grid lg:grid-cols-3 gap-4 lg:gap-6 overflow-hidden">
+        <Card className="lg:col-span-2 p-4 lg:p-6 overflow-hidden">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-white">Nylige samtaler</h2>
             <Button variant="ghost" size="sm" onClick={onViewAllConversations}>
@@ -621,8 +621,8 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
           </div>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-white mb-6">Aktivitet</h2>
+        <Card className="p-4 lg:p-6 overflow-hidden">
+          <h2 className="text-lg font-semibold text-white mb-4 lg:mb-6">Aktivitet</h2>
           <div className="space-y-4">
             <ActivityItem
               icon={<Bot className="h-4 w-4" />}
@@ -654,9 +654,9 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
       </div>
 
       {/* Channel Stats */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold text-white mb-6">Samtaler per kanal</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <Card className="p-4 lg:p-6 overflow-hidden">
+        <h2 className="text-lg font-semibold text-white mb-4 lg:mb-6">Samtaler per kanal</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
           <ChannelStat channel="SMS" count={stats?.smsCount || 0} percentage={smsPercentage} color="#CDFF4D" />
           <ChannelStat channel="Widget" count={stats?.widgetCount || 0} percentage={widgetPercentage} color="#3B82F6" />
           <ChannelStat channel="Messenger" count={stats?.messengerCount || 0} percentage={messengerPercentage} color="#0084FF" />
