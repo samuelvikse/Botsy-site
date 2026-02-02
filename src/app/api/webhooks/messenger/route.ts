@@ -211,12 +211,8 @@ async function processMessage(
       }
     }
 
-    // Get user profile for personalization
-    const userProfile = channel.credentials.pageAccessToken
-      ? await getMessengerUserProfile(message.senderId, channel.credentials.pageAccessToken)
-      : null
-
-    // Get context for AI (including knowledge documents)
+    // Skip user profile fetch for faster response (not critical)
+    // Get context for AI (including knowledge documents) - all in parallel
     const [businessProfile, faqs, instructions, history, knowledgeDocs] = await Promise.all([
       getBusinessProfile(companyId),
       getFAQs(companyId),
@@ -236,7 +232,7 @@ async function processMessage(
     // Generate AI response
     const aiResponse = await generateAIResponse({
       userMessage: message.text,
-      userName: userProfile?.firstName,
+      userName: undefined, // Skip profile fetch for speed
       businessProfile,
       faqs,
       instructions,
@@ -494,7 +490,7 @@ Dokumenter er kun tilleggskunnskap når kunnskapsbasen ikke har svaret.`
 
   // Use shared AI provider (Gemini primary, Groq fallback)
   const { generateAIResponse } = await import('@/lib/ai-providers')
-  const result = await generateAIResponse(systemPrompt, messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, { maxTokens: 500, temperature: 0.7 })
+  const result = await generateAIResponse(systemPrompt, messages as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, { maxTokens: 250, temperature: 0.7 })
 
   // Debug: Log which AI provider was used
   console.log('[Messenger] AI Response:', {

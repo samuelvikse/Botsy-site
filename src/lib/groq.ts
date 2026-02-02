@@ -928,7 +928,7 @@ export async function chatWithCustomer(
 
   // Use Gemini (primary) with Groq fallback
   const { generateAIResponse } = await import('./ai-providers')
-  const result = await generateAIResponse(systemPrompt, messages, { maxTokens: 400, temperature: 0.7 })
+  const result = await generateAIResponse(systemPrompt, messages, { maxTokens: 250, temperature: 0.7 })
 
   if (result.success) {
     console.log(`[Chat] Response from ${result.provider}, length: ${result.response.length}`)

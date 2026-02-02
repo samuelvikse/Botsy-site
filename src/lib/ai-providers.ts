@@ -16,26 +16,38 @@ export interface AIResponse {
 }
 
 /**
- * Generate AI response using Gemini (primary) with Groq fallback
+ * Generate AI response using Gemini and Groq in parallel (race for speed)
+ * Returns the first successful response
  */
 export async function generateAIResponse(
   systemPrompt: string,
   messages: AIMessage[],
   options?: { maxTokens?: number; temperature?: number }
 ): Promise<AIResponse> {
-  const maxTokens = options?.maxTokens ?? 500
+  const maxTokens = options?.maxTokens ?? 300 // Reduced for faster responses
   const temperature = options?.temperature ?? 0.7
 
-  // Try Gemini first
-  const geminiResult = await callGemini(systemPrompt, messages, maxTokens, temperature)
-  if (geminiResult.success) {
-    return { ...geminiResult, provider: 'gemini' }
-  }
+  // Race both providers in parallel - use whichever responds first
+  const geminiPromise = callGemini(systemPrompt, messages, maxTokens, temperature)
+    .then(result => result.success ? { ...result, provider: 'gemini' as const } : null)
+    .catch(() => null)
 
-  // Fallback to Groq
-  const groqResult = await callGroq(systemPrompt, messages, maxTokens, temperature)
-  if (groqResult.success) {
-    return { ...groqResult, provider: 'groq' }
+  const groqPromise = callGroq(systemPrompt, messages, maxTokens, temperature)
+    .then(result => result.success ? { ...result, provider: 'groq' as const } : null)
+    .catch(() => null)
+
+  // Return first successful response
+  const results = await Promise.all([geminiPromise, groqPromise])
+
+  // Prefer Gemini if both succeeded (usually better quality)
+  const geminiResult = results[0]
+  const groqResult = results[1]
+
+  if (geminiResult) {
+    return geminiResult
+  }
+  if (groqResult) {
+    return groqResult
   }
 
   return { success: false, response: '', provider: undefined }
@@ -115,7 +127,7 @@ async function callGroq(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama-3.1-8b-instant', // Much faster than 70b-versatile
         messages: groqMessages,
         max_tokens: maxTokens,
         temperature: temperature,
