@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -708,6 +708,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  const pendingFaqsRef = useRef<HTMLDivElement>(null)
 
   // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
@@ -981,15 +982,24 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
                 <p className="text-[#A8B4C8] text-sm">Gjennomgå og bekreft FAQs fra dokumenter før de blir aktive</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleConfirmAllFaqs}
-              disabled={isSaving}
-              className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
-            >
-              <CheckCheck className="h-4 w-4 mr-1.5" />
-              Bekreft alle
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => pendingFaqsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+              >
+                Vis
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleConfirmAllFaqs}
+                disabled={isSaving}
+                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+              >
+                <CheckCheck className="h-4 w-4 mr-1.5" />
+                Bekreft alle
+              </Button>
+            </div>
           </div>
         </Card>
       )}
@@ -1001,8 +1011,15 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
             <p className="text-[#6B7A94]">Ingen FAQs funnet</p>
           </Card>
         ) : (
-          filteredFaqs.map((faq) => (
-            <Card key={faq.id} className={`p-5 ${!faq.confirmed ? 'border-amber-500/20 bg-amber-500/[0.02]' : ''}`}>
+          filteredFaqs.map((faq, index) => {
+            // Find if this is the first unconfirmed FAQ
+            const isFirstUnconfirmed = !faq.confirmed && filteredFaqs.findIndex(f => !f.confirmed) === index
+            return (
+            <Card
+              key={faq.id}
+              ref={isFirstUnconfirmed ? pendingFaqsRef : undefined}
+              className={`p-5 ${!faq.confirmed ? 'border-amber-500/20 bg-amber-500/[0.02]' : ''}`}
+            >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
@@ -1048,7 +1065,8 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
                 </div>
               </div>
             </Card>
-          ))
+            )
+          })
         )}
       </div>
 
