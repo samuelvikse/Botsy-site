@@ -455,7 +455,7 @@ export default function ContactPage() {
             {[
               {
                 q: 'Hvor lang tid tar det å sette opp Botsy?',
-                a: 'De fleste er i gang på under 10 minutter. Botsy analyserer nettsiden din automatisk.'
+                a: 'De fleste er i gang på under 5 minutter. Botsy analyserer nettsiden din automatisk.'
               },
               {
                 q: 'Trenger jeg teknisk kompetanse?',

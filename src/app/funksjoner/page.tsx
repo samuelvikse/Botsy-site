@@ -248,7 +248,7 @@ export default function FeaturesPage() {
               className="flex flex-wrap justify-center gap-8 lg:gap-16"
             >
               {[
-                { value: '< 3s', label: 'Responstid' },
+                { value: '< 10s', label: 'Responstid' },
                 { value: '100%', label: 'Norsk språk' },
                 { value: '24/7', label: 'Tilgjengelighet' },
               ].map((stat, i) => (
@@ -457,7 +457,7 @@ export default function FeaturesPage() {
           >
             {[
               { icon: Clock, title: '24/7 tilgjengelighet', desc: 'Aldri gå glipp av en kunde' },
-              { icon: Zap, title: 'Lynrask respons', desc: 'Svar på under 3 sekunder' },
+              { icon: Zap, title: 'Lynrask respons', desc: 'Svar på under 10 sekunder' },
               { icon: Shield, title: 'GDPR-compliant', desc: 'Data trygt i EU' },
               { icon: Languages, title: 'Flerspråklig', desc: 'Tilpasser seg kundens språk' },
               { icon: Bell, title: 'Smarte varsler', desc: 'Bli varslet når det trengs' },

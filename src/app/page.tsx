@@ -267,7 +267,7 @@ export default function LandingPage() {
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">&lt;3s</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">&lt;10s</p>
               <p className="text-sm text-[#6B7A94] mt-1">Responstid</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />

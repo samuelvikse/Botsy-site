@@ -449,7 +449,7 @@ function RegisterContent() {
 
           <div className="mt-12 p-6 bg-botsy-lime/5 border border-botsy-lime/20 rounded-2xl">
             <p className="text-white text-sm font-medium mb-2">
-              Kom i gang på under 10 minutter
+              Kom i gang på under 5 minutter
             </p>
             <p className="text-[#A8B4C8] text-sm">
               Legg inn nettsiden din, og Botsy lærer seg bedriften automatisk. Ingen komplisert oppsett eller teknisk kunnskap nødvendig.

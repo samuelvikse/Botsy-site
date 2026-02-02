@@ -260,7 +260,7 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
             />
             <StatCard
               title="Responstid"
-              value="< 3 sek"
+              value="< 10 sek"
               icon={<Clock className="h-5 w-5" />}
               color="green"
             />
@@ -361,7 +361,7 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
                 </div>
                 <span className="text-green-400 font-medium">Styrke</span>
               </div>
-              <p className="text-white text-sm">Rask responstid på under 3 sekunder gir god kundeopplevelse</p>
+              <p className="text-white text-sm">Rask responstid på under 10 sekunder gir god kundeopplevelse</p>
             </Card>
 
             <Card className="p-5 bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20">

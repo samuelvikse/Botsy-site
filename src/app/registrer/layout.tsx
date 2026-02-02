@@ -3,7 +3,7 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd'
 
 export const metadata: Metadata = {
   title: 'Opprett Konto – Start Gratis med Botsy',
-  description: 'Opprett din Botsy-konto og start 14 dagers gratis prøveperiode. Ingen kredittkort nødvendig. Automatiser kundeservice med AI på under 10 minutter.',
+  description: 'Opprett din Botsy-konto og start 14 dagers gratis prøveperiode. Ingen kredittkort nødvendig. Automatiser kundeservice med AI på under 5 minutter.',
   keywords: [
     'registrer Botsy',
     'opprett chatbot konto',

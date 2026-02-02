@@ -149,7 +149,7 @@ export default function TryFreePage() {
                 variants={fadeInUp}
                 className="text-lg lg:text-xl text-[#A8B4C8] mb-10 leading-relaxed max-w-xl"
               >
-                Botsy svarer kundene dine 24/7, lærer bedriften din på 10 minutter,
+                Botsy svarer kundene dine 24/7, lærer bedriften din på 5 minutter,
                 og koster mindre enn en kaffekopp per dag.
               </motion.p>
 
@@ -177,7 +177,7 @@ export default function TryFreePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-botsy-lime" />
-                  <span>Klar på 10 min</span>
+                  <span>Klar på 5 min</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-botsy-lime" />
@@ -406,7 +406,7 @@ export default function TryFreePage() {
             />
             <FeatureCard
               icon={<Zap className="h-6 w-6" />}
-              title="Under 3 sekunder"
+              title="Under 10 sekunder"
               description="Lynrask responstid på alle henvendelser. Kundene dine venter aldri."
             />
             <FeatureCard
@@ -443,7 +443,7 @@ export default function TryFreePage() {
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
             <div>
-              <p className="text-3xl lg:text-4xl font-bold text-white font-display">&lt;3s</p>
+              <p className="text-3xl lg:text-4xl font-bold text-white font-display">&lt;10s</p>
               <p className="text-sm text-[#6B7A94] mt-1">Responstid</p>
             </div>
             <div className="hidden md:block w-px h-12 bg-white/10" />
@@ -561,7 +561,7 @@ export default function TryFreePage() {
                 </Link>
               </div>
               <p className="text-[#6B7A94] text-sm mt-6">
-                Ingen kredittkort nødvendig • Setup på 10 min • Kanseller når som helst
+                Ingen kredittkort nødvendig • Setup på 5 min • Kanseller når som helst
               </p>
             </div>
           </motion.div>
