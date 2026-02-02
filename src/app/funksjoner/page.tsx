@@ -109,13 +109,14 @@ export default function FeaturesPage() {
       id: 'channels',
       icon: Layers,
       title: 'Alle kanaler, ett sted',
-      subtitle: 'Widget, Instagram, SMS, Messenger',
+      subtitle: 'Widget, Instagram, SMS, Messenger, E-post',
       description: 'Kundene dine kan nå deg hvor som helst. Botsy svarer på alle kanaler fra ett samlet dashboard.',
       features: [
         'Nettside-widget',
         'Instagram DMs',
         'SMS-gateway',
-        'Facebook Messenger'
+        'Facebook Messenger',
+        'E-post (IMAP/SMTP)'
       ]
     },
     {

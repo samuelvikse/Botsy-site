@@ -19,7 +19,8 @@ import {
   ArrowRight,
   Menu,
   X,
-  LayoutDashboard
+  LayoutDashboard,
+  Mail
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -615,7 +616,7 @@ export default function LandingPage() {
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6"
+            className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6"
           >
             <motion.div variants={fadeInUp}>
               <Card className="p-6 lg:p-8 h-full group hover:border-[#0084FF]/30 transition-all duration-300 relative overflow-hidden">
@@ -665,6 +666,19 @@ export default function LandingPage() {
                   </div>
                   <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">Nettside-widget</h3>
                   <p className="text-sm text-[#6B7A94]">Chat direkte på nettsiden din</p>
+                </div>
+              </Card>
+            </motion.div>
+
+            <motion.div variants={fadeInUp}>
+              <Card className="p-6 lg:p-8 h-full group hover:border-[#EA4335]/30 transition-all duration-300 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#EA4335]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="h-14 w-14 lg:h-16 lg:w-16 rounded-2xl bg-[#EA4335]/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
+                    <Mail className="w-8 h-8 lg:w-9 lg:h-9 text-[#EA4335]" />
+                  </div>
+                  <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">E-post</h3>
+                  <p className="text-sm text-[#6B7A94]">IMAP/SMTP-støtte</p>
                 </div>
               </Card>
             </motion.div>
