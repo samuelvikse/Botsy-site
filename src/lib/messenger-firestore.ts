@@ -418,6 +418,29 @@ export async function clearMessengerChatManualMode(
 }
 
 /**
+ * Check if a Messenger chat is in manual mode
+ */
+export async function getMessengerChatManualMode(
+  companyId: string,
+  senderId: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/messengerChats/${senderId}`)
+
+    if (!response.ok) return false
+
+    const doc = await response.json()
+    if (!doc.fields) return false
+
+    const data = parseFirestoreFields(doc.fields)
+    return (data.isManualMode as boolean) || false
+  } catch (error) {
+    console.error('[Messenger Firestore] Error checking manual mode:', error)
+    return false
+  }
+}
+
+/**
  * Get business profile for AI context
  */
 export async function getBusinessProfile(companyId: string): Promise<Record<string, unknown> | null> {

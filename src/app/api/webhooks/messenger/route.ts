@@ -14,6 +14,7 @@ import {
   getFAQs,
   getActiveInstructions,
   getKnowledgeDocuments,
+  getMessengerChatManualMode,
 } from '@/lib/messenger-firestore'
 import { buildToneConfiguration } from '@/lib/groq'
 import { createEscalation } from '@/lib/escalation-firestore'
@@ -150,6 +151,13 @@ async function processMessage(
       timestamp: new Date(message.timestamp),
       messageId: message.messageId,
     })
+
+    // Check if chat is in manual mode - if so, don't respond with AI
+    const isManualMode = await getMessengerChatManualMode(companyId, message.senderId)
+    if (isManualMode) {
+      console.log('[Messenger] Chat is in manual mode, skipping AI response')
+      return // Don't respond - employee will handle it
+    }
 
     // Check for human handoff request FIRST
     if (detectHumanHandoff(message.text)) {
