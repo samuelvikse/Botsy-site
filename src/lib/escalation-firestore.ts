@@ -257,6 +257,7 @@ export async function deleteEscalation(escalationId: string): Promise<void> {
 /**
  * Resolve all pending escalations for a specific conversation
  * Used when an employee opens/views an escalated conversation
+ * Handles both old format (just sessionId) and new format (widget-sessionId)
  */
 export async function resolveEscalationsByConversation(
   companyId: string,
@@ -265,22 +266,36 @@ export async function resolveEscalationsByConversation(
   if (!db) throw new Error('Firestore not initialized')
 
   const escalationsRef = collection(db, 'escalations')
-  const q = query(
-    escalationsRef,
-    where('companyId', '==', companyId),
-    where('conversationId', '==', conversationId),
-    where('status', '==', 'pending')
-  )
-
-  const snapshot = await getDocs(q)
   let resolvedCount = 0
 
-  for (const docSnap of snapshot.docs) {
-    await updateDoc(doc(db, 'escalations', docSnap.id), {
-      status: 'resolved',
-      resolvedAt: serverTimestamp(),
-    })
-    resolvedCount++
+  // Build list of possible conversationId formats to check
+  const idsToCheck = [conversationId]
+
+  // If it has a prefix, also check without prefix (for old escalations)
+  if (conversationId.startsWith('widget-')) {
+    idsToCheck.push(conversationId.replace('widget-', ''))
+  } else if (conversationId.startsWith('messenger-')) {
+    idsToCheck.push(conversationId.replace('messenger-', ''))
+  }
+
+  // Resolve escalations for all matching IDs
+  for (const idToCheck of idsToCheck) {
+    const q = query(
+      escalationsRef,
+      where('companyId', '==', companyId),
+      where('conversationId', '==', idToCheck),
+      where('status', '==', 'pending')
+    )
+
+    const snapshot = await getDocs(q)
+
+    for (const docSnap of snapshot.docs) {
+      await updateDoc(doc(db, 'escalations', docSnap.id), {
+        status: 'resolved',
+        resolvedAt: serverTimestamp(),
+      })
+      resolvedCount++
+    }
   }
 
   return resolvedCount
