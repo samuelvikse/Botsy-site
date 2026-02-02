@@ -16,7 +16,35 @@ import {
   getKnowledgeDocuments,
 } from '@/lib/messenger-firestore'
 import { buildToneConfiguration } from '@/lib/groq'
+import { createEscalation } from '@/lib/escalation-firestore'
+import { sendEscalationNotifications } from '@/lib/push-notifications'
 import type { ToneConfig } from '@/types'
+
+// Phrases that indicate user wants human assistance
+const HUMAN_HANDOFF_PHRASES = [
+  'snakke med en ansatt',
+  'snakke med et menneske',
+  'snakke med en person',
+  'snakke med kundeservice',
+  'snakke med support',
+  'ekte person',
+  'ekte menneske',
+  'menneskelig hjelp',
+  'kontakte dere',
+  'ringe dere',
+  'få hjelp av en ansatt',
+  'talk to a human',
+  'talk to a person',
+  'real person',
+  'human agent',
+  'customer service',
+  'speak to someone',
+]
+
+function detectHumanHandoff(message: string): boolean {
+  const lowerMessage = message.toLowerCase()
+  return HUMAN_HANDOFF_PHRASES.some(phrase => lowerMessage.includes(phrase))
+}
 
 // Webhook verification token (should match what you set in Facebook App)
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN || 'botsy-messenger-verify'
@@ -122,6 +150,58 @@ async function processMessage(
       timestamp: new Date(message.timestamp),
       messageId: message.messageId,
     })
+
+    // Check for human handoff request FIRST
+    if (detectHumanHandoff(message.text)) {
+      try {
+        console.log('[Messenger] Human handoff detected, creating escalation')
+
+        // Create escalation
+        const escalationId = await createEscalation({
+          companyId,
+          conversationId: message.senderId,
+          channel: 'messenger',
+          customerIdentifier: `Messenger ${message.senderId.slice(0, 8)}`,
+          customerMessage: message.text,
+          status: 'pending',
+        })
+
+        // Send push notifications to employees
+        await sendEscalationNotifications(
+          companyId,
+          `Messenger ${message.senderId.slice(0, 8)}`,
+          message.text,
+          message.senderId,
+          'messenger'
+        )
+
+        console.log('[Messenger] Escalation created:', escalationId)
+
+        // Send response to customer
+        if (channel.credentials.pageAccessToken) {
+          const escalationResponse = 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig.'
+
+          await sendMessengerMessage(
+            { pageAccessToken: channel.credentials.pageAccessToken, appSecret: channel.credentials.appSecret || '' },
+            { recipientId: message.senderId, text: escalationResponse }
+          )
+
+          // Save outgoing message
+          await saveMessengerMessage(companyId, message.senderId, {
+            direction: 'outbound',
+            senderId: message.recipientId,
+            text: escalationResponse,
+            timestamp: new Date(),
+            messageId: `esc-${Date.now()}`,
+          })
+        }
+
+        return // Don't continue with normal AI response
+      } catch (error) {
+        console.error('[Messenger] Error creating escalation:', error)
+        // Continue with normal AI response if escalation fails
+      }
+    }
 
     // Get user profile for personalization
     const userProfile = channel.credentials.pageAccessToken

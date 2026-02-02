@@ -348,8 +348,12 @@ export async function POST(
       }
 
       // Check for human handoff request
-      if (detectHumanHandoff(message)) {
+      const isHandoffRequest = detectHumanHandoff(message)
+      console.log('[Chat API] Human handoff check:', { message, isHandoffRequest })
+
+      if (isHandoffRequest) {
         try {
+          console.log('[Chat API] Creating escalation for company:', companyId)
           // Create escalation
           const escalationId = await createEscalation({
             companyId,
@@ -360,14 +364,17 @@ export async function POST(
             status: 'pending',
           })
 
+          console.log('[Chat API] Escalation created:', escalationId)
+
           // Send push notifications to all subscribed employees
-          await sendEscalationNotifications(
+          const notificationsSent = await sendEscalationNotifications(
             companyId,
             `Besøkende ${sessionId.slice(0, 8)}`,
             message,
             sessionId,
             'widget'
           )
+          console.log('[Chat API] Notifications sent:', notificationsSent)
 
           // Set session to manual mode
           const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
