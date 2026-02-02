@@ -335,9 +335,10 @@ export function SimpleNotificationBell({ companyId }: { companyId?: string }) {
         // Only show toast if we had previous data (not on initial load)
         if (previousEscalationIds.current.size > 0 && newIds.length > 0) {
           for (const esc of newIds) {
+            const message = esc.customerMessage || 'Kunde trenger assistanse'
             toast.warning(
               'Kunde trenger hjelp',
-              `${esc.customerIdentifier}: "${esc.customerMessage.slice(0, 50)}${esc.customerMessage.length > 50 ? '...' : ''}"`
+              `${esc.customerIdentifier || 'Ukjent'}: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}"`
             )
           }
         }
