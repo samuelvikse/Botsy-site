@@ -66,7 +66,9 @@ export const metadata: Metadata = {
   icons: {
     icon: { url: '/favicon.svg', type: 'image/svg+xml' },
     shortcut: '/favicon.svg',
-    apple: { url: '/favicon.svg', type: 'image/svg+xml' },
+    apple: [
+      { url: '/phone_app_icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
   manifest: '/manifest.json',
   openGraph: {
