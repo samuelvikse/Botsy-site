@@ -445,15 +445,15 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
     conversationsToday: number
     smsCount: number
     widgetCount: number
-    emailCount: number
     messengerCount: number
+    instagramCount: number
     totalMessages: number
     recentConversations: Array<{
       id: string
       name: string
       phone?: string
       email?: string
-      channel: 'sms' | 'widget' | 'email' | 'messenger'
+      channel: 'sms' | 'widget' | 'messenger' | 'instagram'
       lastMessage: string
       lastMessageAt: Date
     }>
@@ -501,10 +501,10 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
     return () => clearInterval(interval)
   }, [companyId])
 
-  const totalChannels = (stats?.smsCount || 0) + (stats?.widgetCount || 0) + (stats?.emailCount || 0) + (stats?.messengerCount || 0)
+  const totalChannels = (stats?.smsCount || 0) + (stats?.widgetCount || 0) + (stats?.instagramCount || 0) + (stats?.messengerCount || 0)
   const smsPercentage = totalChannels > 0 ? Math.round((stats?.smsCount || 0) / totalChannels * 100) : 0
   const widgetPercentage = totalChannels > 0 ? Math.round((stats?.widgetCount || 0) / totalChannels * 100) : 0
-  const emailPercentage = totalChannels > 0 ? Math.round((stats?.emailCount || 0) / totalChannels * 100) : 0
+  const instagramPercentage = totalChannels > 0 ? Math.round((stats?.instagramCount || 0) / totalChannels * 100) : 0
   const messengerPercentage = totalChannels > 0 ? Math.round((stats?.messengerCount || 0) / totalChannels * 100) : 0
 
   return (
@@ -539,7 +539,7 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
         />
         <StatCard
           title="Aktive kanaler"
-          value={isLoading ? '...' : String(((stats?.smsCount || 0) > 0 ? 1 : 0) + ((stats?.widgetCount || 0) > 0 ? 1 : 0) + ((stats?.emailCount || 0) > 0 ? 1 : 0) + ((stats?.messengerCount || 0) > 0 ? 1 : 0))}
+          value={isLoading ? '...' : String(((stats?.smsCount || 0) > 0 ? 1 : 0) + ((stats?.widgetCount || 0) > 0 ? 1 : 0) + ((stats?.instagramCount || 0) > 0 ? 1 : 0) + ((stats?.messengerCount || 0) > 0 ? 1 : 0))}
           change=""
           trend="up"
           icon={<TrendingUp className="h-5 w-5" />}
@@ -660,7 +660,7 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
           <ChannelStat channel="SMS" count={stats?.smsCount || 0} percentage={smsPercentage} color="#CDFF4D" />
           <ChannelStat channel="Widget" count={stats?.widgetCount || 0} percentage={widgetPercentage} color="#3B82F6" />
           <ChannelStat channel="Messenger" count={stats?.messengerCount || 0} percentage={messengerPercentage} color="#0084FF" />
-          <ChannelStat channel="Instagram" count={0} percentage={0} color="#E4405F" />
+          <ChannelStat channel="Instagram" count={stats?.instagramCount || 0} percentage={instagramPercentage} color="#E4405F" />
         </div>
       </Card>
     </div>
@@ -1688,7 +1688,7 @@ function ConversationPreview({ name, message, time, channel, status, onClick }: 
   status: 'resolved' | 'pending' | 'escalated'
   onClick?: () => void
 }) {
-  const channelColors = {
+  const channelColors: Record<string, string> = {
     instagram: '#E4405F',
     messenger: '#0084FF',
     sms: '#CDFF4D',

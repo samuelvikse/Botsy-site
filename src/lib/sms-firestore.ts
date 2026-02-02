@@ -313,7 +313,7 @@ export interface DashboardStats {
   conversationsToday: number
   smsCount: number
   widgetCount: number
-  emailCount: number
+  instagramCount: number
   messengerCount: number
   totalMessages: number
   recentConversations: Array<{
@@ -321,7 +321,7 @@ export interface DashboardStats {
     name: string
     phone?: string
     email?: string
-    channel: 'sms' | 'widget' | 'email' | 'messenger'
+    channel: 'sms' | 'widget' | 'instagram' | 'messenger'
     lastMessage: string
     lastMessageAt: Date
   }>
@@ -335,7 +335,7 @@ export async function getDashboardStats(companyId: string): Promise<DashboardSta
     conversationsToday: 0,
     smsCount: 0,
     widgetCount: 0,
-    emailCount: 0,
+    instagramCount: 0,
     messengerCount: 0,
     totalMessages: 0,
     recentConversations: [],
@@ -409,21 +409,21 @@ export async function getDashboardStats(companyId: string): Promise<DashboardSta
     })
   })
 
-  // Get email chats
-  const emailChatsRef = collection(db, 'companies', companyId, 'emailChats')
-  const emailChatsSnap = await getDocs(emailChatsRef)
+  // Get Instagram chats (uses same collection structure as Messenger)
+  const instagramChatsRef = collection(db, 'companies', companyId, 'instagramChats')
+  const instagramChatsSnap = await getDocs(instagramChatsRef)
 
-  emailChatsSnap.forEach((doc) => {
+  instagramChatsSnap.forEach((doc) => {
     const data = doc.data()
     const messages = data.messages || []
     const messageCount = messages.length
 
-    stats.emailCount++
+    stats.instagramCount++
     stats.totalConversations++
     stats.totalMessages += messageCount
 
     const lastMessageAt = data.lastMessageAt
-      ? new Date(data.lastMessageAt)
+      ? (data.lastMessageAt as Timestamp).toDate()
       : new Date()
 
     if (lastMessageAt >= today) {
@@ -433,11 +433,10 @@ export async function getDashboardStats(companyId: string): Promise<DashboardSta
     const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null
 
     stats.recentConversations.push({
-      id: `email-${doc.id}`,
-      name: data.customerEmail || doc.id,
-      email: data.customerEmail || doc.id,
-      channel: 'email',
-      lastMessage: lastMsg?.body?.slice(0, 50) || data.lastSubject || 'Ingen meldinger',
+      id: `instagram-${doc.id}`,
+      name: data.senderName || `Instagram ${doc.id.slice(-6)}`,
+      channel: 'instagram',
+      lastMessage: lastMsg?.text?.slice(0, 50) || 'Ingen meldinger',
       lastMessageAt,
     })
   })
