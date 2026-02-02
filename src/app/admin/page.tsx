@@ -662,9 +662,26 @@ function DashboardView({ companyId, onViewAllConversations, onViewConversation }
   )
 }
 
-function formatTimeAgo(date: Date): string {
+function formatTimeAgo(date: Date | string | unknown): string {
+  if (!date) return 'Ukjent'
+
   const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
+  let dateObj: Date
+
+  if (date instanceof Date) {
+    dateObj = date
+  } else if (typeof date === 'string') {
+    dateObj = new Date(date)
+  } else if (typeof date === 'object' && date !== null && 'seconds' in date) {
+    // Firestore Timestamp
+    dateObj = new Date((date as { seconds: number }).seconds * 1000)
+  } else {
+    return 'Ukjent'
+  }
+
+  if (isNaN(dateObj.getTime())) return 'Ukjent'
+
+  const diffMs = now.getTime() - dateObj.getTime()
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
@@ -674,7 +691,7 @@ function formatTimeAgo(date: Date): string {
   if (diffHours < 24) return `${diffHours} time${diffHours > 1 ? 'r' : ''} siden`
   if (diffDays < 7) return `${diffDays} dag${diffDays > 1 ? 'er' : ''} siden`
 
-  return date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
+  return dateObj.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
 }
 
 // Knowledge Base View
