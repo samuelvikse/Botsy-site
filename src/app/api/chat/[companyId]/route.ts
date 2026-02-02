@@ -354,12 +354,12 @@ export async function POST(
       if (isHandoffRequest) {
         try {
           console.log('[Chat API] Creating escalation for company:', companyId)
-          // Create escalation
+          // Create escalation - use widget-prefixed ID to match ConversationsView format
           const escalationId = await createEscalation({
             companyId,
-            conversationId: sessionId,
+            conversationId: `widget-${sessionId}`,
             channel: 'widget',
-            customerIdentifier: `Besøkende ${sessionId.slice(0, 8)}`,
+            customerIdentifier: `Besøkende ${sessionId.slice(-6)}`,
             customerMessage: message,
             status: 'pending',
           })

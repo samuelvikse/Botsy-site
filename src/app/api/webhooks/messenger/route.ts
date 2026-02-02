@@ -159,9 +159,9 @@ async function processMessage(
         // Create escalation
         const escalationId = await createEscalation({
           companyId,
-          conversationId: message.senderId,
+          conversationId: `messenger-${message.senderId}`,
           channel: 'messenger',
-          customerIdentifier: `Messenger ${message.senderId.slice(0, 8)}`,
+          customerIdentifier: `Facebook ${message.senderId.slice(-6)}`,
           customerMessage: message.text,
           status: 'pending',
         })
