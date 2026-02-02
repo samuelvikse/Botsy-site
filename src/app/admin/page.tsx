@@ -388,7 +388,7 @@ function AdminContent() {
           )}
           {activeTab === 'employees' && companyId && <EmployeesView companyId={companyId} />}
           {activeTab === 'security' && <SecuritySettingsView />}
-          {activeTab === 'settings' && companyId && <SettingsView companyId={companyId} onNavigateToChannels={() => setActiveTab('channels')} />}
+          {activeTab === 'settings' && companyId && <SettingsView companyId={companyId} userId={user?.uid} onNavigateToChannels={() => setActiveTab('channels')} />}
         </main>
       </div>
 
@@ -1166,9 +1166,11 @@ const LANGUAGE_OPTIONS = [
   { code: 'fi', name: 'Suomi', flag: '🇫🇮' },
 ]
 
-function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; onNavigateToChannels: () => void }) {
+function SettingsView({ companyId, userId, onNavigateToChannels }: { companyId: string; userId?: string; onNavigateToChannels: () => void }) {
   const [settings, setSettings] = useState({
     botName: 'Botsy',
+  })
+  const [notificationPrefs, setNotificationPrefs] = useState({
     emailNotifications: true,
     dailySummary: false,
   })
@@ -1194,9 +1196,18 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const { getGeneralSettings, getBusinessProfile } = await import('@/lib/firestore')
+        const { getGeneralSettings, getBusinessProfile, getUserNotificationPreferences } = await import('@/lib/firestore')
         const savedSettings = await getGeneralSettings(companyId)
-        setSettings(savedSettings)
+        setSettings({ botName: savedSettings.botName })
+
+        // Load user-level notification preferences
+        if (userId) {
+          const userPrefs = await getUserNotificationPreferences(userId)
+          setNotificationPrefs({
+            emailNotifications: userPrefs.emailNotifications,
+            dailySummary: userPrefs.dailySummary,
+          })
+        }
 
         // Load language from business profile
         const profile = await getBusinessProfile(companyId)
@@ -1213,10 +1224,10 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
       }
     }
     loadSettings()
-  }, [companyId])
+  }, [companyId, userId])
 
-  const handleToggle = (key: 'emailNotifications' | 'dailySummary') => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }))
+  const handleNotificationToggle = (key: 'emailNotifications' | 'dailySummary') => {
+    setNotificationPrefs(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   const handleLanguageChange = (code: string) => {
@@ -1230,8 +1241,12 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const { saveGeneralSettings, saveToneConfig } = await import('@/lib/firestore')
+      const { saveGeneralSettings, saveToneConfig, saveUserNotificationPreferences } = await import('@/lib/firestore')
       await saveGeneralSettings(companyId, settings)
+      // Save user notification preferences
+      if (userId) {
+        await saveUserNotificationPreferences(userId, notificationPrefs)
+      }
       // Save language to businessProfile
       await saveToneConfig(companyId, { language, languageName })
       toast.success('Innstillinger lagret', 'Endringene dine ble lagret')
@@ -1357,31 +1372,44 @@ function SettingsView({ companyId, onNavigateToChannels }: { companyId: string; 
 
       {/* Notifications */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-white mb-6">Varsler</h2>
-        <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-white mb-2">Varsler</h2>
+        <p className="text-[#6B7A94] text-sm mb-6">
+          Disse innstillingene synces med varselsbjellen. Varslene sendes til din e-postadresse.
+        </p>
+        <div className="space-y-5">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1 pr-4">
               <p className="text-white text-sm font-medium">E-postvarsler</p>
-              <p className="text-[#6B7A94] text-sm">Få varsel ved eskalerte samtaler</p>
+              <p className="text-[#6B7A94] text-sm">Få e-post når kunder ber om å snakke med en ansatt</p>
             </div>
             <button
-              onClick={() => handleToggle('emailNotifications')}
-              className={`w-12 h-6 rounded-full relative transition-colors ${settings.emailNotifications ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
+              onClick={() => handleNotificationToggle('emailNotifications')}
+              className={`w-12 h-6 rounded-full relative transition-colors flex-shrink-0 ${notificationPrefs.emailNotifications ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
             >
-              <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${settings.emailNotifications ? 'right-1' : 'left-1 bg-white/50'}`} />
+              <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${notificationPrefs.emailNotifications ? 'right-1' : 'left-1 bg-white/50'}`} />
             </button>
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white text-sm font-medium">Daglig oppsummering</p>
-              <p className="text-[#6B7A94] text-sm">Motta daglig rapport på e-post</p>
+          <div className="border-t border-white/[0.06] pt-5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <p className="text-white text-sm font-medium">Daglig oppsummering</p>
+                <p className="text-[#6B7A94] text-sm">Motta daglig analyse, dagens beste ansatt og statistikk på e-post</p>
+              </div>
+              <button
+                onClick={() => handleNotificationToggle('dailySummary')}
+                className={`w-12 h-6 rounded-full relative transition-colors flex-shrink-0 ${notificationPrefs.dailySummary ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
+              >
+                <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${notificationPrefs.dailySummary ? 'right-1' : 'left-1 bg-white/50'}`} />
+              </button>
             </div>
-            <button
-              onClick={() => handleToggle('dailySummary')}
-              className={`w-12 h-6 rounded-full relative transition-colors ${settings.dailySummary ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
-            >
-              <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${settings.dailySummary ? 'right-1' : 'left-1 bg-white/50'}`} />
-            </button>
+            {notificationPrefs.dailySummary && (
+              <div className="mt-3 p-3 bg-botsy-lime/5 border border-botsy-lime/20 rounded-lg">
+                <p className="text-botsy-lime/80 text-xs">
+                  Du vil motta en daglig oppsummering hver morgen kl. 08:00 med statistikk,
+                  analyse og hvem som var dagens beste ansatt.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </Card>

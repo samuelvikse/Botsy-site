@@ -949,3 +949,97 @@ export async function getGeneralSettings(
     dailySummary: stored.dailySummary ?? defaults.dailySummary,
   }
 }
+
+// ============================================
+// User Notification Preferences
+// ============================================
+
+export interface UserNotificationPreferences {
+  emailNotifications: boolean
+  dailySummary: boolean
+  email?: string // The email to send notifications to
+}
+
+export async function saveUserNotificationPreferences(
+  userId: string,
+  preferences: Partial<UserNotificationPreferences>
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const docRef = doc(db, 'users', userId)
+
+  const updateData: Record<string, unknown> = {}
+  Object.entries(preferences).forEach(([key, value]) => {
+    updateData[`notificationPreferences.${key}`] = value
+  })
+  updateData['updatedAt'] = serverTimestamp()
+
+  await updateDoc(docRef, updateData)
+}
+
+export async function getUserNotificationPreferences(
+  userId: string
+): Promise<UserNotificationPreferences> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  const defaults: UserNotificationPreferences = {
+    emailNotifications: true,
+    dailySummary: false,
+  }
+
+  const docRef = doc(db, 'users', userId)
+  const docSnap = await getDoc(docRef)
+
+  if (!docSnap.exists()) return defaults
+
+  const data = docSnap.data()
+  const stored = data.notificationPreferences || {}
+  const userEmail = data.email
+
+  return {
+    emailNotifications: stored.emailNotifications ?? defaults.emailNotifications,
+    dailySummary: stored.dailySummary ?? defaults.dailySummary,
+    email: stored.email || userEmail,
+  }
+}
+
+/**
+ * Get all users who have daily summary enabled for a company
+ */
+export async function getUsersWithDailySummaryEnabled(
+  companyId: string
+): Promise<Array<{ userId: string; email: string; displayName: string }>> {
+  if (!db) throw new Error('Firestore not initialized')
+
+  // Get all memberships for this company
+  const membershipsRef = collection(db, 'memberships')
+  const q = query(membershipsRef, where('companyId', '==', companyId))
+  const membershipsSnapshot = await getDocs(q)
+
+  const usersWithDailySummary: Array<{ userId: string; email: string; displayName: string }> = []
+
+  for (const membershipDoc of membershipsSnapshot.docs) {
+    const membership = membershipDoc.data()
+    const userId = membership.userId
+
+    // Get user document
+    const userDocRef = doc(db, 'users', userId)
+    const userDoc = await getDoc(userDocRef)
+
+    if (userDoc.exists()) {
+      const userData = userDoc.data()
+      const prefs = userData.notificationPreferences || {}
+
+      // Check if daily summary is enabled
+      if (prefs.dailySummary === true) {
+        usersWithDailySummary.push({
+          userId,
+          email: prefs.email || userData.email,
+          displayName: userData.displayName || userData.email,
+        })
+      }
+    }
+  }
+
+  return usersWithDailySummary
+}
