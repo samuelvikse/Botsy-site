@@ -51,6 +51,7 @@ interface Conversation {
   messageCount: number
   status: 'active' | 'resolved' | 'pending'
   isManualMode?: boolean
+  lastMessageRole?: 'user' | 'assistant' // Track who sent the last message
 }
 
 interface ChatMessage {
@@ -152,6 +153,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
             messageCount: chat.messageCount,
             status: 'active' as const,
             isManualMode: chat.isManualMode || false,
+            lastMessageRole: lastMsg?.role as 'user' | 'assistant' | undefined,
           })
         })
       } catch {
@@ -166,7 +168,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
           if (messengerData.success && messengerData.chats) {
             messengerData.chats.forEach((chat: {
               senderId: string
-              lastMessage: { text: string } | null
+              lastMessage: { text: string; direction?: 'inbound' | 'outbound' } | null
               lastMessageAt: string
               messageCount: number
               isManualMode?: boolean
@@ -181,6 +183,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                 messageCount: chat.messageCount,
                 status: 'active' as const,
                 isManualMode: chat.isManualMode || false,
+                lastMessageRole: chat.lastMessage?.direction === 'inbound' ? 'user' : 'assistant',
               })
             })
           }
@@ -440,6 +443,17 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
             status: result.status,
           },
         ])
+        // Update conversation to show we've replied
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === selectedConversation.id
+              ? { ...c, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const }
+              : c
+          )
+        )
+        setSelectedConversation((prev) =>
+          prev ? { ...prev, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const } : null
+        )
       } else if (selectedConversation.channel === 'messenger') {
         // Messenger - send via API
         const response = await fetch('/api/messenger/send', {
@@ -464,6 +478,17 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
               isManual: true,
             },
           ])
+          // Update conversation to show we've replied
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === selectedConversation.id
+                ? { ...c, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const }
+                : c
+            )
+          )
+          setSelectedConversation((prev) =>
+            prev ? { ...prev, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const } : null
+          )
         } else {
           throw new Error(data.error)
         }
@@ -491,6 +516,17 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
               isManual: true,
             },
           ])
+          // Update conversation to show we've replied
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === selectedConversation.id
+                ? { ...c, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const }
+                : c
+            )
+          )
+          setSelectedConversation((prev) =>
+            prev ? { ...prev, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const } : null
+          )
         } else {
           throw new Error(data.error)
         }
@@ -588,6 +624,8 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
           ) : (
             filteredConversations.map((conv) => {
               const ChannelIcon = channelConfig[conv.channel].icon
+              // Only show "waiting" state if in manual mode AND customer sent last message
+              const isAwaitingReply = conv.isManualMode && conv.lastMessageRole === 'user'
 
               return (
                 <button
@@ -595,29 +633,29 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                   onClick={() => handleSelectConversation(conv)}
                   className={`w-full p-4 text-left border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors ${
                     selectedConversation?.id === conv.id ? 'bg-white/[0.05]' : ''
-                  } ${conv.isManualMode ? 'bg-red-500/[0.08] border-l-2 border-l-red-500' : ''}`}
+                  } ${isAwaitingReply ? 'bg-red-500/[0.08] border-l-2 border-l-red-500' : ''}`}
                 >
                   <div className="flex items-start gap-3">
                     <div className="relative">
                       <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0 ${
-                        conv.isManualMode ? 'bg-red-500/20' : 'bg-white/[0.1]'
+                        isAwaitingReply ? 'bg-red-500/20' : 'bg-white/[0.1]'
                       }`}>
                         <ChannelIcon
                           className="h-5 w-5"
-                          style={{ color: conv.isManualMode ? '#ef4444' : channelConfig[conv.channel].color }}
+                          style={{ color: isAwaitingReply ? '#ef4444' : channelConfig[conv.channel].color }}
                         />
                       </div>
-                      {conv.isManualMode && (
+                      {isAwaitingReply && (
                         <div className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-red-500 rounded-full border-2 border-[#0d1829] animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2">
-                          <p className={`font-medium text-sm truncate ${conv.isManualMode ? 'text-red-400' : 'text-white'}`}>
+                          <p className={`font-medium text-sm truncate ${isAwaitingReply ? 'text-red-400' : 'text-white'}`}>
                             {conv.name}
                           </p>
-                          {conv.isManualMode && (
+                          {isAwaitingReply && (
                             <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-medium rounded">
                               Venter
                             </span>
