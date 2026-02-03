@@ -722,44 +722,135 @@ Du SKAL bruke emojis i ALLE svarene dine. Dette er PÅKREVD av bedriftseieren.
   return toneGuide
 }
 
+interface ReminderContext {
+  toneConfig?: ToneConfig
+  faqs?: FAQ[]
+  instructions?: Instruction[]
+  knowledgeDocuments?: Array<{
+    faqs: Array<{ question: string; answer: string }>
+    fileName?: string
+  }>
+}
+
 /**
- * Build a reminder section to reinforce tone settings at the end of the prompt
+ * Build a comprehensive reminder section at the end of the prompt
+ * Reinforces tone settings, available knowledge, and active instructions
  */
-export function buildToneReminder(toneConfig?: ToneConfig): string {
+export function buildContextReminder(context: ReminderContext): string {
+  const { toneConfig, faqs, instructions, knowledgeDocuments } = context
   const useEmojis = toneConfig?.useEmojis ?? false
   const responseLength = toneConfig?.responseLength || 'balanced'
   const humorLevel = toneConfig?.humorLevel || 'none'
 
-  let reminder = '\n\n══════════════════════════════════════\nPÅMINNELSE FØR DU SVARER:\n══════════════════════════════════════\n'
+  let reminder = `
 
-  // Emoji reminder
+╔══════════════════════════════════════════════════════════════╗
+║           PÅMINNELSE FØR DU SVARER                           ║
+╠══════════════════════════════════════════════════════════════╣
+║ TONE-INNSTILLINGER (FØLG DISSE NØYE):                        ║
+╚══════════════════════════════════════════════════════════════╝
+`
+
+  // Emoji reminder - VERY PROMINENT
   if (useEmojis) {
-    reminder += '✓ EMOJIS: Ja - bruk 1-2 emojis i svaret ditt!\n'
+    reminder += `
+┌─────────────────────────────────────────────────────────────┐
+│ ✅ EMOJIS: PÅ - Du MÅ bruke 1-2 emojis i dette svaret!      │
+│    Eksempler: 😊 👋 ✨ 💬 🎉 👍 💡 ℹ️                         │
+└─────────────────────────────────────────────────────────────┘`
   } else {
-    reminder += '✗ EMOJIS: Nei - ingen emojis\n'
+    reminder += `
+┌─────────────────────────────────────────────────────────────┐
+│ ❌ EMOJIS: AV - Ingen emojis i svaret                       │
+└─────────────────────────────────────────────────────────────┘`
   }
 
   // Length reminder
   if (responseLength === 'short') {
-    reminder += '✓ LENGDE: Kort (1-2 setninger)\n'
+    reminder += '\n📏 LENGDE: Kort (maks 1-2 setninger)'
   } else if (responseLength === 'detailed') {
-    reminder += '✓ LENGDE: Detaljert (4-6 setninger)\n'
+    reminder += '\n📏 LENGDE: Detaljert (4-6 setninger)'
   } else {
-    reminder += '✓ LENGDE: Balansert (2-3 setninger)\n'
+    reminder += '\n📏 LENGDE: Balansert (2-3 setninger)'
   }
 
   // Humor reminder
   if (humorLevel === 'none') {
-    reminder += '✗ HUMOR: Ingen - vær seriøs\n'
+    reminder += '\n🎭 HUMOR: Av - vær profesjonell og seriøs'
   } else if (humorLevel === 'subtle') {
-    reminder += '✓ HUMOR: Subtil\n'
+    reminder += '\n🎭 HUMOR: Subtil - lett og vennlig'
   } else if (humorLevel === 'moderate') {
-    reminder += '✓ HUMOR: Moderat\n'
+    reminder += '\n🎭 HUMOR: Moderat - bruk humor når det passer'
   } else {
-    reminder += '✓ HUMOR: Playful/morsom\n'
+    reminder += '\n🎭 HUMOR: Playful - vær leken og morsom!'
   }
 
-  reminder += '══════════════════════════════════════\nSvar nå på kundens melding med disse innstillingene.'
+  // Knowledge base reminder
+  const confirmedFaqs = faqs?.filter(f => f.confirmed) || []
+  if (confirmedFaqs.length > 0) {
+    reminder += `
+
+╔══════════════════════════════════════════════════════════════╗
+║ 📚 KUNNSKAPSBASE: ${confirmedFaqs.length} FAQs tilgjengelig
+║ Bruk disse til å svare på spørsmål. Omformuler med egne ord. ║
+╚══════════════════════════════════════════════════════════════╝
+Nøkkeltemater: ${confirmedFaqs.slice(0, 5).map(f => f.question.split(' ').slice(0, 3).join(' ')).join(', ')}${confirmedFaqs.length > 5 ? '...' : ''}`
+  }
+
+  // Documents reminder
+  if (knowledgeDocuments && knowledgeDocuments.length > 0) {
+    const totalDocFaqs = knowledgeDocuments.reduce((sum, doc) => sum + (doc.faqs?.length || 0), 0)
+    const docNames = knowledgeDocuments.map(d => d.fileName || 'Dokument').slice(0, 3)
+    reminder += `
+
+╔══════════════════════════════════════════════════════════════╗
+║ 📄 DOKUMENTER: ${knowledgeDocuments.length} dokument(er) med ${totalDocFaqs} FAQs
+║ Dokumentene inneholder tilleggsinformasjon.                  ║
+║ MERK: Kunnskapsbasen har PRIORITET ved motstrid.             ║
+╚══════════════════════════════════════════════════════════════╝
+Kilder: ${docNames.join(', ')}${knowledgeDocuments.length > 3 ? '...' : ''}`
+  }
+
+  // Active instructions reminder
+  const activeInstructions = instructions?.filter(i => i.isActive) || []
+  if (activeInstructions.length > 0) {
+    const highPriority = activeInstructions.filter(i => i.priority === 'high')
+    const normalPriority = activeInstructions.filter(i => i.priority !== 'high')
+
+    reminder += `
+
+╔══════════════════════════════════════════════════════════════╗
+║ ⚡ AKTIVE INSTRUKSJONER: ${activeInstructions.length} stk (FØLG DISSE!)
+╚══════════════════════════════════════════════════════════════╝`
+
+    if (highPriority.length > 0) {
+      reminder += '\n🔴 HØYT PRIORITERT:'
+      highPriority.forEach((inst, i) => {
+        reminder += `\n   ${i + 1}. ${inst.content.substring(0, 60)}${inst.content.length > 60 ? '...' : ''}`
+      })
+    }
+
+    if (normalPriority.length > 0) {
+      reminder += '\n🟡 NORMAL PRIORITET:'
+      normalPriority.slice(0, 3).forEach((inst, i) => {
+        reminder += `\n   ${i + 1}. ${inst.content.substring(0, 60)}${inst.content.length > 60 ? '...' : ''}`
+      })
+      if (normalPriority.length > 3) {
+        reminder += `\n   ... og ${normalPriority.length - 3} til`
+      }
+    }
+  }
+
+  // Final reminder
+  reminder += `
+
+══════════════════════════════════════════════════════════════
+SVAR NÅ på kundens melding. Husk:
+${useEmojis ? '→ Bruk emojis! 😊' : '→ Ingen emojis'}
+→ ${responseLength === 'short' ? 'Hold det kort!' : responseLength === 'detailed' ? 'Vær detaljert' : 'Balansert lengde'}
+${activeInstructions.length > 0 ? '→ Følg instruksjonene!' : ''}
+${confirmedFaqs.length > 0 ? '→ Bruk kunnskapsbasen!' : ''}
+══════════════════════════════════════════════════════════════`
 
   return reminder
 }
@@ -947,8 +1038,13 @@ REGLER:
     - IKKE nevn e-postoppsummering som et alternativ med mindre kunden spør
 `
 
-  // Add the tone reminder at the very end to reinforce settings
-  prompt += buildToneReminder(businessProfile.toneConfig)
+  // Add comprehensive reminder at the very end to reinforce ALL settings
+  prompt += buildContextReminder({
+    toneConfig: businessProfile.toneConfig,
+    faqs,
+    instructions,
+    knowledgeDocuments,
+  })
 
   return prompt
 }
