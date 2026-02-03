@@ -48,6 +48,7 @@ export function getAuthUrl(params: {
     'pages_messaging',           // Send messages via Messenger
     'pages_manage_metadata',     // Subscribe to webhooks
     'pages_read_engagement',     // Read page engagement
+    'business_management',       // Access business assets
   ]
 
   // Add Instagram-specific scopes
