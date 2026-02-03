@@ -149,6 +149,7 @@ async function processInstagramMessage(
 
     // Get Instagram channel configuration
     const channel = await getInstagramChannel(companyId)
+    console.log('[Instagram] Channel config:', JSON.stringify(channel, null, 2))
 
     if (!channel || !channel.isActive) {
       console.log('[Instagram] Channel not active for company:', companyId)
