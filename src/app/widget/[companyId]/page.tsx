@@ -601,14 +601,15 @@ export default function WidgetPage({
           padding: 0;
         }
 
-        html, body {
+        html, body, body.bg-botsy-dark, .bg-botsy-dark, #__next, main {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           background: transparent !important;
+          background-color: transparent !important;
           min-height: auto !important;
         }
 
-        .bg-botsy-dark {
-          background: transparent !important;
+        body {
+          background: none !important;
         }
 
         .scrollbar-thin::-webkit-scrollbar {

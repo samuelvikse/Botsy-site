@@ -10,15 +10,24 @@ export default function WidgetLayout({
   children: React.ReactNode
 }) {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'transparent',
-        zIndex: 9999,
-      }}
-    >
-      {children}
-    </div>
+    <>
+      <style>{`
+        html, body, .bg-botsy-dark {
+          background: transparent !important;
+          background-color: transparent !important;
+          min-height: auto !important;
+        }
+      `}</style>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'transparent',
+          zIndex: 9999,
+        }}
+      >
+        {children}
+      </div>
+    </>
   )
 }
