@@ -1183,6 +1183,15 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
 
                   {/* Actions */}
                   <div className="flex gap-3 mt-6">
+                    {channels[activeChannel]?.isConfigured && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleDisconnect(activeChannel)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      >
+                        Koble fra
+                      </Button>
+                    )}
                     <Button onClick={handleSaveChannel} disabled={isSaving} className="flex-1">
                       {isSaving ? (
                         <>
