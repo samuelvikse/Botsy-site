@@ -54,17 +54,20 @@
     large: { width: 440, height: 620 },
   };
 
-  // Small size for just the button (56px button + 16px padding + extra for shadow)
+  // Small size for just the button (56px button + padding for shadow)
   const setClosedStyle = () => {
     iframe.style.cssText = `
       position: fixed;
-      bottom: 0;
-      ${position === 'bottom-left' ? 'left: 0;' : 'right: 0;'}
-      width: 90px;
-      height: 90px;
+      bottom: 8px;
+      ${position === 'bottom-left' ? 'left: 8px;' : 'right: 8px;'}
+      width: 72px;
+      height: 72px;
       border: none;
+      outline: none;
       background: transparent;
       z-index: 999999;
+      overflow: visible;
+      color-scheme: normal;
     `;
   };
 
@@ -81,6 +84,7 @@
         width: 100%;
         height: 100%;
         border: none;
+        outline: none;
         background: transparent;
         z-index: 999999;
       `;
@@ -93,8 +97,10 @@
         width: ${size.width}px;
         height: ${size.height}px;
         border: none;
+        outline: none;
         background: transparent;
         z-index: 999999;
+        border-radius: 0;
       `;
     }
   };

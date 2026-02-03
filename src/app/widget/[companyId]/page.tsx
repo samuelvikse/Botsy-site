@@ -635,7 +635,7 @@ export default function WidgetPage({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
-            className={`fixed bottom-4 ${config.position === 'bottom-left' ? 'left-4' : 'right-4'} h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-colors overflow-hidden`}
+            className={`absolute bottom-2 ${config.position === 'bottom-left' ? 'left-2' : 'right-2'} h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-colors overflow-hidden`}
             style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
           >
             {config.logoUrl ? (
