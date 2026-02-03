@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Globe, Check, Edit2, RefreshCw, Building2, Sparkles, Palette, MessageCircle, Plus, X, ThumbsUp, ThumbsDown, Loader2, Mail, Phone, MapPin, Clock, Users, CreditCard, User } from 'lucide-react'
+import { Globe, Check, Edit2, RefreshCw, Building2, Sparkles, Palette, MessageCircle, Plus, X, ThumbsUp, ThumbsDown, Loader2, Mail, Phone, MapPin, Clock, Users, CreditCard, User, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ChatBubble, ChatContainer } from '@/components/ui/chat-bubble'
@@ -351,6 +351,10 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
   const [searchResult, setSearchResult] = useState<{ found: boolean; answer: string } | null>(null)
   const [currentQuestion, setCurrentQuestion] = useState('')
   const [isReformulating, setIsReformulating] = useState(false)
+
+  // Pricing management states
+  const [showAllPrices, setShowAllPrices] = useState(false)
+  const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null)
 
   // Simulate progress during analysis
   useEffect(() => {
@@ -819,21 +823,108 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
                 transition={{ delay: 0.18 }}
               >
                 <Card className="p-4 border-white/[0.08]">
-                  <h4 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-botsy-lime" />
-                    Priser funnet ({analysisResult.pricing.length})
-                  </h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-white font-medium text-sm flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-botsy-lime" />
+                      Priser funnet ({analysisResult.pricing.length})
+                    </h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const newPrice = { item: '', price: '' }
+                        setAnalysisResult({
+                          ...analysisResult,
+                          pricing: [...(analysisResult.pricing || []), newPrice],
+                        })
+                        setEditingPriceIndex((analysisResult.pricing?.length || 0))
+                        setShowAllPrices(true)
+                      }}
+                      className="h-7 px-2 text-xs hover:bg-botsy-lime/10 hover:text-botsy-lime"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Legg til
+                    </Button>
+                  </div>
                   <div className="space-y-2">
-                    {analysisResult.pricing.slice(0, 6).map((item, i) => (
-                      <div key={i} className="flex justify-between items-center text-sm py-1.5 border-b border-white/[0.04] last:border-0">
-                        <span className="text-[#A8B4C8]">{item.item}</span>
-                        <span className="text-botsy-lime font-medium">{item.price}</span>
+                    {(showAllPrices ? analysisResult.pricing : analysisResult.pricing.slice(0, 6)).map((item, i) => (
+                      <div key={i} className="group flex items-center gap-2 text-sm py-1.5 border-b border-white/[0.04] last:border-0">
+                        {editingPriceIndex === i ? (
+                          <>
+                            <input
+                              type="text"
+                              value={item.item}
+                              onChange={(e) => {
+                                const newPricing = [...(analysisResult.pricing || [])]
+                                newPricing[i] = { ...newPricing[i], item: e.target.value }
+                                setAnalysisResult({ ...analysisResult, pricing: newPricing })
+                              }}
+                              placeholder="Produkt/tjeneste"
+                              className="flex-1 h-8 px-2 bg-white/[0.05] border border-white/[0.1] rounded text-white text-sm placeholder:text-[#6B7A94]/50 focus:outline-none focus:border-botsy-lime/50"
+                              autoFocus
+                            />
+                            <input
+                              type="text"
+                              value={item.price}
+                              onChange={(e) => {
+                                const newPricing = [...(analysisResult.pricing || [])]
+                                newPricing[i] = { ...newPricing[i], price: e.target.value }
+                                setAnalysisResult({ ...analysisResult, pricing: newPricing })
+                              }}
+                              placeholder="Pris"
+                              className="w-28 h-8 px-2 bg-white/[0.05] border border-white/[0.1] rounded text-botsy-lime text-sm placeholder:text-[#6B7A94]/50 focus:outline-none focus:border-botsy-lime/50"
+                            />
+                            <button
+                              onClick={() => setEditingPriceIndex(null)}
+                              className="p-1 text-botsy-lime hover:bg-botsy-lime/10 rounded"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="flex-1 text-[#A8B4C8]">{item.item || '(tomt)'}</span>
+                            <span className="text-botsy-lime font-medium">{item.price || '-'}</span>
+                            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                              <button
+                                onClick={() => setEditingPriceIndex(i)}
+                                className="p-1 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const newPricing = analysisResult.pricing?.filter((_, idx) => idx !== i)
+                                  setAnalysisResult({ ...analysisResult, pricing: newPricing })
+                                }}
+                                className="p-1 text-[#6B7A94] hover:text-red-400 hover:bg-red-500/10 rounded"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
-                    {analysisResult.pricing.length > 6 && (
-                      <p className="text-[#6B7A94] text-xs mt-2">+ {analysisResult.pricing.length - 6} flere priser</p>
-                    )}
                   </div>
+                  {analysisResult.pricing.length > 6 && (
+                    <button
+                      onClick={() => setShowAllPrices(!showAllPrices)}
+                      className="w-full mt-3 py-2 text-sm text-[#6B7A94] hover:text-white flex items-center justify-center gap-1 transition-colors"
+                    >
+                      {showAllPrices ? (
+                        <>
+                          <ChevronUp className="h-4 w-4" />
+                          Vis mindre
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4" />
+                          Vis {analysisResult.pricing.length - 6} flere priser
+                        </>
+                      )}
+                    </button>
+                  )}
                 </Card>
               </motion.div>
             )}
