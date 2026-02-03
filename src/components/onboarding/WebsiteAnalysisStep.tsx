@@ -84,28 +84,27 @@ function FAQItem({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className={`p-4 rounded-xl border transition-all duration-300 ${
+      onClick={() => setShowAnswer(!showAnswer)}
+      className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer hover:bg-white/[0.02] ${
         faq.confirmed
-          ? 'bg-botsy-lime/5 border-botsy-lime/20'
+          ? 'bg-botsy-lime/5 border-botsy-lime/20 hover:bg-botsy-lime/10'
           : isNew
-          ? 'bg-blue-500/5 border-blue-500/20'
+          ? 'bg-blue-500/5 border-blue-500/20 hover:bg-blue-500/10'
           : 'bg-white/[0.03] border-white/[0.08]'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <button
-          onClick={() => setShowAnswer(!showAnswer)}
-          className="flex-1 text-left"
-        >
+        <div className="flex-1 text-left">
           <p className="text-white font-medium text-sm flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-botsy-lime/70 flex-shrink-0" />
             {faq.question}
+            <ChevronDown className={`h-4 w-4 text-[#6B7A94] ml-auto transition-transform ${showAnswer ? 'rotate-180' : ''}`} />
           </p>
-        </button>
+        </div>
 
         {!faq.confirmed && (
           <button
-            onClick={onRemove}
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
             className="p-1 text-[#6B7A94] hover:text-red-400 transition-colors"
           >
             <X className="h-4 w-4" />
@@ -127,6 +126,7 @@ function FAQItem({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="mt-3 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
             <p className="text-[#A8B4C8] text-sm pl-6 mb-3">{faq.answer}</p>
 
@@ -355,6 +355,9 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
   // Pricing management states
   const [showAllPrices, setShowAllPrices] = useState(false)
   const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null)
+
+  // Contact info editing state
+  const [editingContactField, setEditingContactField] = useState<'email' | 'phone' | 'address' | 'openingHours' | null>(null)
 
   // Simulate progress during analysis
   useEffect(() => {
@@ -774,46 +777,154 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
             </div>
 
             {/* Contact Info Card */}
-            {(analysisResult.contactInfo?.email || analysisResult.contactInfo?.phone || analysisResult.contactInfo?.address || analysisResult.contactInfo?.openingHours) && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-              >
-                <Card className="p-4 border-white/[0.08]">
-                  <h4 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
+            {/* Contact Info Card - Always show, allow adding if empty */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <Card className="p-4 border-white/[0.08]">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-white font-medium text-sm flex items-center gap-2">
                     <Phone className="h-4 w-4 text-botsy-lime" />
-                    Kontaktinformasjon funnet
+                    Kontaktinformasjon
                   </h4>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {analysisResult.contactInfo?.email && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-4 w-4 text-[#6B7A94]" />
-                        <span className="text-[#A8B4C8]">{analysisResult.contactInfo.email}</span>
-                      </div>
-                    )}
-                    {analysisResult.contactInfo?.phone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-[#6B7A94]" />
-                        <span className="text-[#A8B4C8]">{analysisResult.contactInfo.phone}</span>
-                      </div>
-                    )}
-                    {analysisResult.contactInfo?.address && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-[#6B7A94]" />
-                        <span className="text-[#A8B4C8]">{analysisResult.contactInfo.address}</span>
-                      </div>
-                    )}
-                    {analysisResult.contactInfo?.openingHours && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="h-4 w-4 text-[#6B7A94]" />
-                        <span className="text-[#A8B4C8]">{analysisResult.contactInfo.openingHours}</span>
-                      </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {/* Email */}
+                  <div
+                    onClick={() => setEditingContactField(editingContactField === 'email' ? null : 'email')}
+                    className="group flex items-center gap-2 text-sm p-2 rounded-lg cursor-pointer hover:bg-white/[0.03] transition-colors"
+                  >
+                    <Mail className="h-4 w-4 text-[#6B7A94] flex-shrink-0" />
+                    {editingContactField === 'email' ? (
+                      <input
+                        type="email"
+                        value={analysisResult.contactInfo?.email || ''}
+                        onChange={(e) => setAnalysisResult({
+                          ...analysisResult,
+                          contactInfo: {
+                            email: e.target.value || null,
+                            phone: analysisResult.contactInfo?.phone ?? null,
+                            address: analysisResult.contactInfo?.address ?? null,
+                            openingHours: analysisResult.contactInfo?.openingHours ?? null,
+                          }
+                        })}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingContactField(null)}
+                        placeholder="epost@bedrift.no"
+                        className="flex-1 h-7 px-2 bg-white/[0.05] border border-white/[0.1] rounded text-white text-sm placeholder:text-[#6B7A94]/50 focus:outline-none focus:border-botsy-lime/50"
+                        autoFocus
+                      />
+                    ) : (
+                      <>
+                        <span className="text-[#A8B4C8] flex-1">{analysisResult.contactInfo?.email || <span className="text-[#6B7A94]/50">Legg til e-post</span>}</span>
+                        <Edit2 className="h-3.5 w-3.5 text-[#6B7A94] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </>
                     )}
                   </div>
-                </Card>
-              </motion.div>
-            )}
+
+                  {/* Phone */}
+                  <div
+                    onClick={() => setEditingContactField(editingContactField === 'phone' ? null : 'phone')}
+                    className="group flex items-center gap-2 text-sm p-2 rounded-lg cursor-pointer hover:bg-white/[0.03] transition-colors"
+                  >
+                    <Phone className="h-4 w-4 text-[#6B7A94] flex-shrink-0" />
+                    {editingContactField === 'phone' ? (
+                      <input
+                        type="tel"
+                        value={analysisResult.contactInfo?.phone || ''}
+                        onChange={(e) => setAnalysisResult({
+                          ...analysisResult,
+                          contactInfo: {
+                            email: analysisResult.contactInfo?.email ?? null,
+                            phone: e.target.value || null,
+                            address: analysisResult.contactInfo?.address ?? null,
+                            openingHours: analysisResult.contactInfo?.openingHours ?? null,
+                          }
+                        })}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingContactField(null)}
+                        placeholder="+47 123 45 678"
+                        className="flex-1 h-7 px-2 bg-white/[0.05] border border-white/[0.1] rounded text-white text-sm placeholder:text-[#6B7A94]/50 focus:outline-none focus:border-botsy-lime/50"
+                        autoFocus
+                      />
+                    ) : (
+                      <>
+                        <span className="text-[#A8B4C8] flex-1">{analysisResult.contactInfo?.phone || <span className="text-[#6B7A94]/50">Legg til telefon</span>}</span>
+                        <Edit2 className="h-3.5 w-3.5 text-[#6B7A94] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </>
+                    )}
+                  </div>
+
+                  {/* Address */}
+                  <div
+                    onClick={() => setEditingContactField(editingContactField === 'address' ? null : 'address')}
+                    className="group flex items-center gap-2 text-sm p-2 rounded-lg cursor-pointer hover:bg-white/[0.03] transition-colors"
+                  >
+                    <MapPin className="h-4 w-4 text-[#6B7A94] flex-shrink-0" />
+                    {editingContactField === 'address' ? (
+                      <input
+                        type="text"
+                        value={analysisResult.contactInfo?.address || ''}
+                        onChange={(e) => setAnalysisResult({
+                          ...analysisResult,
+                          contactInfo: {
+                            email: analysisResult.contactInfo?.email ?? null,
+                            phone: analysisResult.contactInfo?.phone ?? null,
+                            address: e.target.value || null,
+                            openingHours: analysisResult.contactInfo?.openingHours ?? null,
+                          }
+                        })}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingContactField(null)}
+                        placeholder="Gateadresse 1, 0000 By"
+                        className="flex-1 h-7 px-2 bg-white/[0.05] border border-white/[0.1] rounded text-white text-sm placeholder:text-[#6B7A94]/50 focus:outline-none focus:border-botsy-lime/50"
+                        autoFocus
+                      />
+                    ) : (
+                      <>
+                        <span className="text-[#A8B4C8] flex-1">{analysisResult.contactInfo?.address || <span className="text-[#6B7A94]/50">Legg til adresse</span>}</span>
+                        <Edit2 className="h-3.5 w-3.5 text-[#6B7A94] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </>
+                    )}
+                  </div>
+
+                  {/* Opening Hours */}
+                  <div
+                    onClick={() => setEditingContactField(editingContactField === 'openingHours' ? null : 'openingHours')}
+                    className="group flex items-center gap-2 text-sm p-2 rounded-lg cursor-pointer hover:bg-white/[0.03] transition-colors"
+                  >
+                    <Clock className="h-4 w-4 text-[#6B7A94] flex-shrink-0" />
+                    {editingContactField === 'openingHours' ? (
+                      <input
+                        type="text"
+                        value={analysisResult.contactInfo?.openingHours || ''}
+                        onChange={(e) => setAnalysisResult({
+                          ...analysisResult,
+                          contactInfo: {
+                            email: analysisResult.contactInfo?.email ?? null,
+                            phone: analysisResult.contactInfo?.phone ?? null,
+                            address: analysisResult.contactInfo?.address ?? null,
+                            openingHours: e.target.value || null,
+                          }
+                        })}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingContactField(null)}
+                        placeholder="Man-Fre 09-17"
+                        className="flex-1 h-7 px-2 bg-white/[0.05] border border-white/[0.1] rounded text-white text-sm placeholder:text-[#6B7A94]/50 focus:outline-none focus:border-botsy-lime/50"
+                        autoFocus
+                      />
+                    ) : (
+                      <>
+                        <span className="text-[#A8B4C8] flex-1">{analysisResult.contactInfo?.openingHours || <span className="text-[#6B7A94]/50">Legg til åpningstider</span>}</span>
+                        <Edit2 className="h-3.5 w-3.5 text-[#6B7A94] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
 
             {/* Pricing Card */}
             {analysisResult.pricing && analysisResult.pricing.length > 0 && (
