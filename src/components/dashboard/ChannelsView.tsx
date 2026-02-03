@@ -545,6 +545,17 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
                 placeholder="Bruk samme token som Messenger..."
                 className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
               />
+              <p className="text-[#6B7A94] text-xs mt-1.5">
+                Finn din Page Access Token her:{' '}
+                <a
+                  href="https://developers.facebook.com/tools/explorer"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-botsy-lime hover:underline"
+                >
+                  developers.facebook.com/tools/explorer
+                </a>
+              </p>
             </div>
           </div>
         )

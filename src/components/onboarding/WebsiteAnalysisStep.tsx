@@ -68,6 +68,7 @@ function FAQItem({
   onConfirm,
   onReject,
   onUpdateAnswer,
+  onUpdateQuestion,
   onRemove,
 }: {
   faq: FAQ
@@ -75,16 +76,21 @@ function FAQItem({
   onConfirm: () => void
   onReject: () => void
   onUpdateAnswer: (answer: string) => void
+  onUpdateQuestion: (question: string) => void
   onRemove: () => void
 }) {
   const [showAnswer, setShowAnswer] = useState(false)
+  const [isEditingQuestion, setIsEditingQuestion] = useState(false)
+  const [isEditingAnswer, setIsEditingAnswer] = useState(false)
+  const [editedQuestion, setEditedQuestion] = useState(faq.question)
+  const [editedAnswer, setEditedAnswer] = useState(faq.answer)
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      onClick={() => setShowAnswer(!showAnswer)}
+      onClick={() => !isEditingQuestion && !isEditingAnswer && setShowAnswer(!showAnswer)}
       className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer hover:bg-white/[0.02] ${
         faq.confirmed
           ? 'bg-botsy-lime/5 border-botsy-lime/20 hover:bg-botsy-lime/10'
@@ -95,11 +101,43 @@ function FAQItem({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 text-left">
-          <p className="text-white font-medium text-sm flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-botsy-lime/70 flex-shrink-0" />
-            {faq.question}
-            <ChevronDown className={`h-4 w-4 text-[#6B7A94] ml-auto transition-transform ${showAnswer ? 'rotate-180' : ''}`} />
-          </p>
+          {isEditingQuestion ? (
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <MessageCircle className="h-4 w-4 text-botsy-lime/70 flex-shrink-0" />
+              <input
+                type="text"
+                value={editedQuestion}
+                onChange={(e) => setEditedQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onUpdateQuestion(editedQuestion)
+                    setIsEditingQuestion(false)
+                  } else if (e.key === 'Escape') {
+                    setEditedQuestion(faq.question)
+                    setIsEditingQuestion(false)
+                  }
+                }}
+                onBlur={() => {
+                  onUpdateQuestion(editedQuestion)
+                  setIsEditingQuestion(false)
+                }}
+                className="flex-1 h-7 px-2 bg-white/[0.05] border border-white/[0.1] rounded text-white text-sm focus:outline-none focus:border-botsy-lime/50"
+                autoFocus
+              />
+            </div>
+          ) : (
+            <div className="group flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-botsy-lime/70 flex-shrink-0" />
+              <p className="text-white font-medium text-sm flex-1">{faq.question}</p>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsEditingQuestion(true); }}
+                className="p-1 text-[#6B7A94] hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </button>
+              <ChevronDown className={`h-4 w-4 text-[#6B7A94] transition-transform ${showAnswer ? 'rotate-180' : ''}`} />
+            </div>
+          )}
         </div>
 
         {!faq.confirmed && (
@@ -112,7 +150,7 @@ function FAQItem({
         )}
 
         {faq.confirmed && (
-          <span className="flex items-center gap-1 text-botsy-lime text-xs">
+          <span className="flex items-center gap-1 text-botsy-lime text-xs flex-shrink-0">
             <Check className="h-3.5 w-3.5" />
             Bekreftet
           </span>
@@ -128,7 +166,41 @@ function FAQItem({
             className="mt-3 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-[#A8B4C8] text-sm pl-6 mb-3">{faq.answer}</p>
+            {isEditingAnswer ? (
+              <div className="pl-6 mb-3">
+                <textarea
+                  value={editedAnswer}
+                  onChange={(e) => setEditedAnswer(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      onUpdateAnswer(editedAnswer)
+                      setIsEditingAnswer(false)
+                    } else if (e.key === 'Escape') {
+                      setEditedAnswer(faq.answer)
+                      setIsEditingAnswer(false)
+                    }
+                  }}
+                  onBlur={() => {
+                    onUpdateAnswer(editedAnswer)
+                    setIsEditingAnswer(false)
+                  }}
+                  rows={3}
+                  className="w-full px-3 py-2 bg-white/[0.05] border border-white/[0.1] rounded-lg text-[#A8B4C8] text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <div className="group flex items-start gap-2 pl-6 mb-3">
+                <p className="text-[#A8B4C8] text-sm flex-1">{faq.answer}</p>
+                <button
+                  onClick={() => setIsEditingAnswer(true)}
+                  className="p-1 text-[#6B7A94] hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
 
             {!faq.confirmed && (
               <div className="flex items-center gap-2 pl-6">
@@ -467,6 +539,17 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
         ...analysisResult,
         faqs: analysisResult.faqs.map(faq =>
           faq.id === faqId ? { ...faq, answer: newAnswer, confirmed: true } : faq
+        ),
+      })
+    }
+  }
+
+  const handleUpdateFAQQuestion = (faqId: string, newQuestion: string) => {
+    if (analysisResult) {
+      setAnalysisResult({
+        ...analysisResult,
+        faqs: analysisResult.faqs.map(faq =>
+          faq.id === faqId ? { ...faq, question: newQuestion } : faq
         ),
       })
     }
@@ -1308,6 +1391,7 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
                           onConfirm={() => handleConfirmFAQ(faq.id)}
                           onReject={() => handleRejectFAQ(faq.id)}
                           onUpdateAnswer={(answer) => handleUpdateFAQAnswer(faq.id, answer)}
+                          onUpdateQuestion={(question) => handleUpdateFAQQuestion(faq.id, question)}
                           onRemove={() => handleRemoveFAQ(faq.id)}
                         />
                       ))}
