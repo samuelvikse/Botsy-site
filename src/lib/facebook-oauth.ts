@@ -140,15 +140,22 @@ export async function getUserPages(userAccessToken: string): Promise<FacebookPag
   url.searchParams.set('access_token', userAccessToken)
   url.searchParams.set('fields', 'id,name,access_token,instagram_business_account{id,username}')
 
+  console.log('[Facebook OAuth] Fetching pages from:', url.toString().replace(userAccessToken, 'TOKEN_HIDDEN'))
+
   const response = await fetch(url.toString())
+  const responseText = await response.text()
+
+  console.log('[Facebook OAuth] Pages response status:', response.status)
+  console.log('[Facebook OAuth] Pages response body:', responseText)
 
   if (!response.ok) {
-    const error = await response.json()
+    const error = JSON.parse(responseText)
     console.error('[Facebook OAuth] Failed to get user pages:', error)
     throw new Error(error.error?.message || 'Failed to get user pages')
   }
 
-  const data: FacebookPagesResponse = await response.json()
+  const data: FacebookPagesResponse = JSON.parse(responseText)
+  console.log('[Facebook OAuth] Found pages:', data.data?.length || 0)
   return data.data || []
 }
 
