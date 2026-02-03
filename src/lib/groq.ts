@@ -59,9 +59,14 @@ ANALYSER FØLGENDE ASPEKTER (I PRIORITERT REKKEFØLGE):
 7. **Bransjeterminologi**
    - Hvilke faguttrykk og bransjespesifikke ord brukes?
 
-8. **FAQ og vanlige spørsmål**
-   - Identifiser alle spørsmål og svar du finner
-   - Strukturer dem som klare Q&A-par
+8. **FAQ og vanlige spørsmål** (SVÆRT VIKTIG!)
+   - Først: Identifiser eksisterende spørsmål og svar på nettsiden
+   - Deretter: GENERER 5-10 relevante FAQs basert på innholdet!
+   - Tenk: "Hva ville kunder typisk spørre om denne bedriften?"
+   - Lag FAQs om: lokasjon, åpningstider, tjenester, produkter, priser, kontakt, leveringstid, etc.
+   - Eksempel: Hvis det står "Vi har kontorer i Oslo og Bergen" → Lag FAQ: "Hvor har dere kontorer?" / "Vi har kontorer i Oslo og Bergen."
+   - Eksempel: Hvis det står "Gratis frakt over 500kr" → Lag FAQ: "Har dere fri frakt?" / "Ja, vi har gratis frakt på ordre over 500kr."
+   - ALLTID generer FAQs selv om ingen eksisterer på nettsiden!
 
 9. **Språk**
    - Identifiser hovedspråket på nettsiden
@@ -105,9 +110,10 @@ VIKTIG:
 - Bruk norsk språk i alle verdier (unntatt e-poster/tlf/adresser - behold nøyaktig)
 - Hvis du ikke finner informasjon, bruk tomme arrays [] eller null
 - ALDRI gjett eller finn på kontaktinfo, priser, eller ansatte!
-- Inkluder ALLE FAQs du finner på nettsiden
 - Let GRUNDIG etter priser - dette er det kundene spør mest om!
-- description-feltet er SVÆRT VIKTIG - skriv en grundig, informativ beskrivelse!`
+- description-feltet er SVÆRT VIKTIG - skriv en grundig, informativ beskrivelse!
+- FAQs: GENERER ALLTID minst 5 relevante FAQs basert på innholdet, selv om ingen finnes på siden!
+- FAQs skal være nyttige spørsmål som kunder faktisk ville stilt om bedriften`
 
 // System prompt for owner chat
 const OWNER_CHAT_PROMPT = `Du er Botsy, en hjelpsom digital assistent som hjelper bedriftseiere med å sette opp kundeservice.
