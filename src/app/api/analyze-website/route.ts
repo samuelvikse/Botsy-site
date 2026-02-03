@@ -54,6 +54,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<AnalyzeWe
       formattedContent += '\n\n--- OM OSS-SIDE ---\n' + formatForAnalysis(scrapedData.aboutPage)
     }
 
+    if (scrapedData.servicesPage) {
+      formattedContent += '\n\n--- TJENESTER-SIDE ---\n' + formatForAnalysis(scrapedData.servicesPage)
+    }
+
+    if (scrapedData.contactPage) {
+      formattedContent += '\n\n--- KONTAKT-SIDE ---\n' + formatForAnalysis(scrapedData.contactPage)
+    }
+
+    if (scrapedData.pricingPage) {
+      formattedContent += '\n\n--- PRISER-SIDE ---\n' + formatForAnalysis(scrapedData.pricingPage)
+    }
+
     if (!formattedContent || formattedContent.length < 50) {
       return NextResponse.json(
         { success: false, error: 'Kunne ikke finne nok innhold på nettsiden for analyse' },

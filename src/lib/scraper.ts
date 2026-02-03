@@ -246,11 +246,14 @@ export function formatForAnalysis(content: ScrapedContent): string {
   return formatted.trim()
 }
 
-// Scrape multiple pages including FAQ page
+// Scrape multiple pages for comprehensive analysis
 export async function scrapeWithFAQPage(baseUrl: string): Promise<{
   mainContent: ScrapedContent
   faqPage?: ScrapedContent
   aboutPage?: ScrapedContent
+  servicesPage?: ScrapedContent
+  contactPage?: ScrapedContent
+  pricingPage?: ScrapedContent
 }> {
   // Ensure URL has protocol
   if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
@@ -259,61 +262,74 @@ export async function scrapeWithFAQPage(baseUrl: string): Promise<{
 
   const origin = new URL(baseUrl).origin
 
-  // Scrape main page
+  // Scrape main page first
   const mainContent = await scrapeWebsite(baseUrl)
 
-  // Try to find and scrape FAQ page
-  let faqPage: ScrapedContent | undefined
-  const faqPaths = ['/faq', '/ofte-stilte-sporsmal', '/sporsmal-og-svar', '/hjelp', '/help', '/support', '/kundeservice']
-
-  for (const path of faqPaths) {
-    try {
-      const faqUrl = origin + path
-      faqPage = await scrapeWebsite(faqUrl)
-      if (faqPage.mainContent.length > 200 || (faqPage.rawFaqs && faqPage.rawFaqs.length > 0)) {
-        break
+  // Helper to find page by paths or links
+  const findPage = async (
+    paths: string[],
+    linkKeywords: string[],
+    minLength = 200
+  ): Promise<ScrapedContent | undefined> => {
+    // Try direct paths first
+    for (const path of paths) {
+      try {
+        const url = origin + path
+        const page = await scrapeWebsite(url)
+        if (page.mainContent.length > minLength || (page.rawFaqs && page.rawFaqs.length > 0)) {
+          return page
+        }
+      } catch {
+        // Page doesn't exist at this path
       }
-      faqPage = undefined
-    } catch {
-      // FAQ page doesn't exist at this path
     }
-  }
 
-  // Also check links from main page for FAQ
-  if (!faqPage) {
+    // Check links from main page
     for (const link of mainContent.links) {
-      if (link.toLowerCase().includes('faq') ||
-          link.toLowerCase().includes('sporsmal') ||
-          link.toLowerCase().includes('hjelp')) {
+      const lowerLink = link.toLowerCase()
+      if (linkKeywords.some(kw => lowerLink.includes(kw))) {
         try {
-          faqPage = await scrapeWebsite(link)
-          if (faqPage.mainContent.length > 200 || (faqPage.rawFaqs && faqPage.rawFaqs.length > 0)) {
-            break
+          const page = await scrapeWebsite(link)
+          if (page.mainContent.length > minLength || (page.rawFaqs && page.rawFaqs.length > 0)) {
+            return page
           }
-          faqPage = undefined
         } catch {
           // Skip
         }
       }
     }
+
+    return undefined
   }
 
-  // Try to find about page
-  let aboutPage: ScrapedContent | undefined
-  const aboutPaths = ['/om-oss', '/about', '/about-us', '/om', '/hvem-er-vi']
+  // Scrape all relevant pages in parallel for speed
+  const [faqPage, aboutPage, servicesPage, contactPage, pricingPage] = await Promise.all([
+    // FAQ page
+    findPage(
+      ['/faq', '/ofte-stilte-sporsmal', '/sporsmal-og-svar', '/hjelp', '/help', '/support', '/kundeservice'],
+      ['faq', 'sporsmal', 'hjelp', 'help', 'support']
+    ),
+    // About page
+    findPage(
+      ['/om-oss', '/about', '/about-us', '/om', '/hvem-er-vi', '/historie', '/var-historie'],
+      ['om-oss', 'about', 'hvem', 'historie']
+    ),
+    // Services page
+    findPage(
+      ['/tjenester', '/services', '/hva-vi-gjor', '/losninger', '/solutions', '/tilbud'],
+      ['tjeneste', 'service', 'losning', 'solution', 'tilbud']
+    ),
+    // Contact page
+    findPage(
+      ['/kontakt', '/contact', '/kontakt-oss', '/contact-us', '/finn-oss'],
+      ['kontakt', 'contact', 'finn-oss']
+    ),
+    // Pricing page
+    findPage(
+      ['/priser', '/pricing', '/prisliste', '/prices', '/pakker', '/abonnement', '/plans'],
+      ['pris', 'price', 'pakke', 'abonnement', 'plan', 'cost', 'kost']
+    ),
+  ])
 
-  for (const path of aboutPaths) {
-    try {
-      const aboutUrl = origin + path
-      aboutPage = await scrapeWebsite(aboutUrl)
-      if (aboutPage.mainContent.length > 200) {
-        break
-      }
-      aboutPage = undefined
-    } catch {
-      // About page doesn't exist at this path
-    }
-  }
-
-  return { mainContent, faqPage, aboutPage }
+  return { mainContent, faqPage, aboutPage, servicesPage, contactPage, pricingPage }
 }

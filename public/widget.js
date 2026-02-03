@@ -4,8 +4,15 @@
     return;
   }
 
-  // Don't run on admin pages
-  if (window.location.pathname.startsWith('/admin')) {
+  // Don't run on admin, login, onboarding, or widget preview pages
+  const excludedPaths = ['/admin', '/login', '/onboarding', '/invite', '/transfer', '/widget'];
+  const currentPath = window.location.pathname;
+  if (excludedPaths.some(path => currentPath.startsWith(path))) {
+    // Also remove any existing widget iframe on excluded pages
+    const existingIframe = document.getElementById('botsy-widget-iframe');
+    if (existingIframe) {
+      existingIframe.remove();
+    }
     return;
   }
 
@@ -154,4 +161,30 @@
       setOpenStyle();
     }
   });
+
+  // Handle client-side navigation (for Next.js/React apps)
+  // Check if we should remove the widget when pathname changes
+  function checkAndRemoveOnExcludedPaths() {
+    const excludedPaths = ['/admin', '/login', '/onboarding', '/invite', '/transfer', '/widget'];
+    const currentPath = window.location.pathname;
+    if (excludedPaths.some(path => currentPath.startsWith(path))) {
+      const widgetIframe = document.getElementById('botsy-widget-iframe');
+      if (widgetIframe) {
+        widgetIframe.remove();
+      }
+    }
+  }
+
+  // Listen for popstate (back/forward navigation)
+  window.addEventListener('popstate', checkAndRemoveOnExcludedPaths);
+
+  // Use MutationObserver to detect URL changes (for pushState/replaceState)
+  let lastUrl = window.location.href;
+  const observer = new MutationObserver(function() {
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href;
+      checkAndRemoveOnExcludedPaths();
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 })();

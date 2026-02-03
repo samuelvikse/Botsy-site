@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Globe, Check, Edit2, RefreshCw, Building2, Sparkles, Palette, MessageCircle, Plus, X, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
+import { Globe, Check, Edit2, RefreshCw, Building2, Sparkles, Palette, MessageCircle, Plus, X, ThumbsUp, ThumbsDown, Loader2, Mail, Phone, MapPin, Clock, Users, CreditCard, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ChatBubble, ChatContainer } from '@/components/ui/chat-bubble'
@@ -746,7 +746,7 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
             className="mt-8 space-y-6"
           >
             {/* Quick Stats Row */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <StatCard
                 icon={Building2}
                 label="Bransje"
@@ -756,14 +756,119 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
                 icon={Palette}
                 label="Anbefalt tone"
                 value={analysisResult.tone === 'formal' ? 'Formell' : analysisResult.tone === 'friendly' ? 'Vennlig' : 'Uformell'}
-                subtext={analysisResult.toneReason ? analysisResult.toneReason.slice(0, 50) + '...' : undefined}
               />
               <StatCard
                 icon={MessageCircle}
                 label="FAQ funnet"
                 value={`${analysisResult.faqs.length} spørsmål`}
               />
+              <StatCard
+                icon={Users}
+                label="Målgruppe"
+                value={analysisResult.targetAudience?.split(' ').slice(0, 3).join(' ') || 'Ikke funnet'}
+              />
             </div>
+
+            {/* Contact Info Card */}
+            {(analysisResult.contactInfo?.email || analysisResult.contactInfo?.phone || analysisResult.contactInfo?.address || analysisResult.contactInfo?.openingHours) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+              >
+                <Card className="p-4 border-white/[0.08]">
+                  <h4 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-botsy-lime" />
+                    Kontaktinformasjon funnet
+                  </h4>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {analysisResult.contactInfo?.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-[#6B7A94]" />
+                        <span className="text-[#A8B4C8]">{analysisResult.contactInfo.email}</span>
+                      </div>
+                    )}
+                    {analysisResult.contactInfo?.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-[#6B7A94]" />
+                        <span className="text-[#A8B4C8]">{analysisResult.contactInfo.phone}</span>
+                      </div>
+                    )}
+                    {analysisResult.contactInfo?.address && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-[#6B7A94]" />
+                        <span className="text-[#A8B4C8]">{analysisResult.contactInfo.address}</span>
+                      </div>
+                    )}
+                    {analysisResult.contactInfo?.openingHours && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="h-4 w-4 text-[#6B7A94]" />
+                        <span className="text-[#A8B4C8]">{analysisResult.contactInfo.openingHours}</span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* Pricing Card */}
+            {analysisResult.pricing && analysisResult.pricing.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18 }}
+              >
+                <Card className="p-4 border-white/[0.08]">
+                  <h4 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-botsy-lime" />
+                    Priser funnet ({analysisResult.pricing.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {analysisResult.pricing.slice(0, 6).map((item, i) => (
+                      <div key={i} className="flex justify-between items-center text-sm py-1.5 border-b border-white/[0.04] last:border-0">
+                        <span className="text-[#A8B4C8]">{item.item}</span>
+                        <span className="text-botsy-lime font-medium">{item.price}</span>
+                      </div>
+                    ))}
+                    {analysisResult.pricing.length > 6 && (
+                      <p className="text-[#6B7A94] text-xs mt-2">+ {analysisResult.pricing.length - 6} flere priser</p>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* Staff Card */}
+            {analysisResult.staff && analysisResult.staff.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.19 }}
+              >
+                <Card className="p-4 border-white/[0.08]">
+                  <h4 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
+                    <User className="h-4 w-4 text-botsy-lime" />
+                    Team ({analysisResult.staff.length} ansatte)
+                  </h4>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {analysisResult.staff.slice(0, 4).map((person, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <div className="h-8 w-8 rounded-full bg-botsy-lime/10 flex items-center justify-center flex-shrink-0">
+                          <User className="h-4 w-4 text-botsy-lime/70" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">{person.name}</p>
+                          <p className="text-[#6B7A94] text-xs">{person.role}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {analysisResult.staff.length > 4 && (
+                      <p className="text-[#6B7A94] text-xs col-span-2">+ {analysisResult.staff.length - 4} flere ansatte</p>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+            )}
 
             {/* Tone Reason Card */}
             {analysisResult.toneReason && (
@@ -840,7 +945,26 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
                     editing={isEditing}
                     multiline
                     onChange={(v) => handleEditField('description', v)}
+                    placeholder="En detaljert beskrivelse av bedriften..."
                   />
+                  {(analysisResult.targetAudience || isEditing) && (
+                    <ProfileField
+                      label="Målgruppe"
+                      value={analysisResult.targetAudience || ''}
+                      editing={isEditing}
+                      onChange={(v) => handleEditField('targetAudience', v)}
+                      placeholder="Hvem er deres kunder?"
+                    />
+                  )}
+                  {(analysisResult.brandPersonality || isEditing) && (
+                    <ProfileField
+                      label="Merkevare-personlighet"
+                      value={analysisResult.brandPersonality || ''}
+                      editing={isEditing}
+                      onChange={(v) => handleEditField('brandPersonality', v)}
+                      placeholder="F.eks. profesjonell, vennlig, innovativ"
+                    />
+                  )}
 
                   {/* Tone Selector */}
                   <div>
@@ -1026,12 +1150,14 @@ function ProfileField({
   editing,
   multiline,
   onChange,
+  placeholder,
 }: {
   label: string
   value: string
   editing: boolean
   multiline?: boolean
   onChange: (value: string) => void
+  placeholder?: string
 }) {
   return (
     <div>
@@ -1041,15 +1167,17 @@ function ProfileField({
           <textarea
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            rows={3}
-            className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 focus:bg-white/[0.05] resize-none transition-all duration-300"
+            rows={4}
+            placeholder={placeholder}
+            className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm placeholder:text-[#6B7A94]/50 focus:outline-none focus:border-botsy-lime/50 focus:bg-white/[0.05] resize-none transition-all duration-300"
           />
         ) : (
           <input
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 focus:bg-white/[0.05] transition-all duration-300"
+            placeholder={placeholder}
+            className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm placeholder:text-[#6B7A94]/50 focus:outline-none focus:border-botsy-lime/50 focus:bg-white/[0.05] transition-all duration-300"
           />
         )
       ) : (

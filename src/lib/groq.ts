@@ -10,6 +10,14 @@ const MODEL = 'llama-3.3-70b-versatile'
 // Deep research prompt for website analysis
 const WEBSITE_ANALYSIS_PROMPT = `Du er en ekspert merkevare-analytiker og research-spesialist. Din oppgave er å gjøre en GRUNDIG analyse av en bedrifts nettside og finne ALL viktig informasjon som kunder trenger.
 
+DU HAR TILGANG TIL INNHOLD FRA FLERE SIDER:
+- Hovedside
+- FAQ/hjelp-side (hvis funnet)
+- Om oss-side (hvis funnet)
+- Tjenester-side (hvis funnet)
+- Kontakt-side (hvis funnet)
+- Priser-side (hvis funnet)
+
 ANALYSER FØLGENDE ASPEKTER (I PRIORITERT REKKEFØLGE):
 
 1. **KONTAKTINFORMASJON** (KRITISK VIKTIG!)
@@ -62,7 +70,7 @@ ANALYSER FØLGENDE ASPEKTER (I PRIORITERT REKKEFØLGE):
 Returner ALLTID gyldig JSON med denne strukturen:
 {
   "businessName": "Bedriftens navn",
-  "industry": "Bransje/sektor",
+  "industry": "Bransje/sektor (vær spesifikk, f.eks. 'Tannlegekontor' ikke bare 'Helse')",
   "contactInfo": {
     "email": "epost@bedrift.no (eller null hvis ikke funnet)",
     "phone": "+47 12345678 (eller null hvis ikke funnet)",
@@ -80,12 +88,12 @@ Returner ALLTID gyldig JSON med denne strukturen:
   "toneReason": "Begrunnelse på 1-2 setninger for hvorfor denne tonen passer",
   "language": "ISO 639-1 språkkode (f.eks. 'no', 'en', 'sv')",
   "languageName": "Menneskelesbart språknavn (f.eks. 'Norsk', 'English', 'Svenska')",
-  "targetAudience": "Beskrivelse av målgruppen",
+  "targetAudience": "Detaljert beskrivelse av målgruppen (hvem de selger til, aldersgruppe, behov)",
   "brandPersonality": "2-3 adjektiver som beskriver merkevaren",
-  "services": ["tjeneste1", "tjeneste2"],
+  "services": ["tjeneste1", "tjeneste2", "tjeneste3"],
   "products": ["produkt1", "produkt2"],
   "terminology": ["faguttrykk1", "faguttrykk2"],
-  "description": "2-3 setninger som oppsummerer bedriften",
+  "description": "VIKTIG: Skriv en DETALJERT beskrivelse på 4-6 setninger som dekker: 1) Hva bedriften gjør og tilbyr, 2) Hva som gjør dem unike eller spesielle, 3) Hvilke verdier/filosofi de har, 4) Hvem de primært hjelper. Denne beskrivelsen skal gi en fullstendig forståelse av bedriften.",
   "faqs": [
     {"question": "Spørsmål 1?", "answer": "Svar 1"},
     {"question": "Spørsmål 2?", "answer": "Svar 2"}
@@ -98,7 +106,8 @@ VIKTIG:
 - Hvis du ikke finner informasjon, bruk tomme arrays [] eller null
 - ALDRI gjett eller finn på kontaktinfo, priser, eller ansatte!
 - Inkluder ALLE FAQs du finner på nettsiden
-- Let GRUNDIG etter priser - dette er det kundene spør mest om!`
+- Let GRUNDIG etter priser - dette er det kundene spør mest om!
+- description-feltet er SVÆRT VIKTIG - skriv en grundig, informativ beskrivelse!`
 
 // System prompt for owner chat
 const OWNER_CHAT_PROMPT = `Du er Botsy, en hjelpsom digital assistent som hjelper bedriftseiere med å sette opp kundeservice.
@@ -521,26 +530,44 @@ export async function generateAnalysisSummary(
 ): Promise<string> {
   const toneNorsk = profile.tone === 'formal' ? 'formell' : profile.tone === 'casual' ? 'uformell' : 'vennlig'
 
-  let summary = `Jeg har tatt en grundig kikk på ${profile.businessName}! `
+  let summary = `Jeg har gjort en grundig analyse av ${profile.businessName}! `
 
   if (profile.industry && profile.industry !== 'Ukjent') {
-    summary += `Dere jobber innen ${profile.industry.toLowerCase()}. `
+    summary += `Dere er i ${profile.industry.toLowerCase()}-bransjen. `
   }
 
   if (profile.description) {
-    summary += profile.description + ' '
+    summary += `\n\n${profile.description}`
   }
 
-  summary += `\n\nJeg anbefaler at jeg bruker en ${toneNorsk} tone når jeg snakker med kundene deres`
+  // Mention what was found
+  const foundItems: string[] = []
+  if (profile.contactInfo?.email || profile.contactInfo?.phone) {
+    foundItems.push('kontaktinfo')
+  }
+  if (profile.pricing && profile.pricing.length > 0) {
+    foundItems.push(`${profile.pricing.length} priser`)
+  }
+  if (profile.staff && profile.staff.length > 0) {
+    foundItems.push(`${profile.staff.length} teammedlemmer`)
+  }
+  if (profile.services && profile.services.length > 0) {
+    foundItems.push(`${profile.services.length} tjenester`)
+  }
+  if (faqCount > 0) {
+    foundItems.push(`${faqCount} FAQ`)
+  }
+
+  if (foundItems.length > 0) {
+    summary += `\n\nJeg fant: ${foundItems.join(', ')}.`
+  }
+
+  summary += `\n\nJeg anbefaler en ${toneNorsk} tone`
   if (profile.toneReason) {
     summary += ` - ${profile.toneReason.toLowerCase()}`
   }
 
-  if (faqCount > 0) {
-    summary += `\n\nJeg fant ${faqCount} spørsmål og svar på nettsiden som jeg kan bruke til å hjelpe kundene deres.`
-  }
-
-  summary += '\n\nStemmer dette? Du kan justere alt hvis noe ikke er helt riktig!'
+  summary += '\n\nSe over informasjonen under og juster det som ikke stemmer!'
 
   return summary
 }
