@@ -525,7 +525,7 @@ export interface Escalation {
   id: string
   companyId: string
   conversationId: string
-  channel: 'sms' | 'widget' | 'email' | 'messenger'
+  channel: 'sms' | 'widget' | 'email' | 'messenger' | 'instagram'
   customerIdentifier: string // phone, email, or session ID
   customerMessage: string
   status: 'pending' | 'claimed' | 'resolved'
@@ -538,7 +538,7 @@ export interface Escalation {
 export interface EscalationDoc {
   companyId: string
   conversationId: string
-  channel: 'sms' | 'widget' | 'email' | 'messenger'
+  channel: 'sms' | 'widget' | 'email' | 'messenger' | 'instagram'
   customerIdentifier: string
   customerMessage: string
   status: 'pending' | 'claimed' | 'resolved'

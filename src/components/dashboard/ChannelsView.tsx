@@ -432,7 +432,7 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'messenger':
         return `${baseUrl}/api/webhooks/messenger`
       case 'instagram':
-        return `${baseUrl}/api/webhooks/messenger` // Instagram uses same webhook as Messenger
+        return `${baseUrl}/api/webhooks/instagram`
       case 'email':
         return `${baseUrl}/api/webhooks/email`
       default:

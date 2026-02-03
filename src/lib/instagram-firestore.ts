@@ -1,0 +1,558 @@
+/**
+ * Firestore operations for Instagram integration
+ * Uses Firebase REST API (no Admin SDK / service account needed)
+ */
+
+import { parseFirestoreFields, toFirestoreValue } from './firestore-utils'
+
+const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
+const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
+
+export interface InstagramChannel {
+  pageId: string
+  username: string
+  isActive: boolean
+  credentials: {
+    pageAccessToken?: string
+  }
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+export interface InstagramChatMessage {
+  id: string
+  direction: 'inbound' | 'outbound'
+  senderId: string
+  text: string
+  timestamp: Date
+  messageId?: string
+}
+
+/**
+ * Get Instagram channel configuration for a company
+ */
+export async function getInstagramChannel(companyId: string): Promise<InstagramChannel | null> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
+
+    if (!response.ok) {
+      if (response.status === 404) return null
+      throw new Error(`Firestore error: ${response.status}`)
+    }
+
+    const doc = await response.json()
+
+    if (!doc.fields) return null
+
+    const data = parseFirestoreFields(doc.fields)
+    const channels = data.channels as Record<string, unknown> | undefined
+    const instagram = channels?.instagram as Record<string, unknown> | undefined
+
+    if (!instagram) return null
+
+    const credentials = instagram.credentials as Record<string, unknown> | undefined
+
+    return {
+      pageId: instagram.pageId as string,
+      username: instagram.username as string,
+      isActive: instagram.isActive as boolean ?? false,
+      credentials: {
+        pageAccessToken: credentials?.pageAccessToken as string | undefined,
+      },
+      createdAt: instagram.createdAt as Date | undefined,
+      updatedAt: instagram.updatedAt as Date | undefined,
+    }
+  } catch (error) {
+    console.error('[Instagram Firestore] Error getting channel:', error)
+    return null
+  }
+}
+
+/**
+ * Find company by Instagram Page ID
+ */
+export async function findCompanyByInstagramPageId(pageId: string): Promise<string | null> {
+  try {
+    const query = {
+      structuredQuery: {
+        from: [{ collectionId: 'companies' }],
+        where: {
+          compositeFilter: {
+            op: 'AND',
+            filters: [
+              {
+                fieldFilter: {
+                  field: { fieldPath: 'channels.instagram.pageId' },
+                  op: 'EQUAL',
+                  value: { stringValue: pageId }
+                }
+              },
+              {
+                fieldFilter: {
+                  field: { fieldPath: 'channels.instagram.isActive' },
+                  op: 'EQUAL',
+                  value: { booleanValue: true }
+                }
+              }
+            ]
+          }
+        },
+        limit: 1
+      }
+    }
+
+    const response = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(query)
+      }
+    )
+
+    if (!response.ok) {
+      console.error('[Instagram Firestore] Query error:', response.status)
+      return null
+    }
+
+    const results = await response.json()
+
+    if (!results || results.length === 0 || !results[0].document) {
+      return null
+    }
+
+    const docName = results[0].document.name as string
+    const companyId = docName.split('/').pop()
+
+    return companyId || null
+  } catch (error) {
+    console.error('[Instagram Firestore] Error finding company:', error)
+    return null
+  }
+}
+
+/**
+ * Save Instagram message to conversation history
+ */
+export async function saveInstagramMessage(
+  companyId: string,
+  senderId: string,
+  message: Omit<InstagramChatMessage, 'id'>
+): Promise<void> {
+  try {
+    const chatDocPath = `${FIRESTORE_BASE_URL}/companies/${companyId}/instagramChats/${senderId}`
+    const response = await fetch(chatDocPath)
+
+    const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const messageData = {
+      id: messageId,
+      direction: message.direction,
+      senderId: message.senderId,
+      text: message.text,
+      timestamp: message.timestamp.toISOString(),
+      messageId: message.messageId || '',
+    }
+
+    if (response.ok) {
+      const doc = await response.json()
+      const existingData = doc.fields ? parseFirestoreFields(doc.fields) : {}
+      const existingMessages = (existingData.messages as unknown[]) || []
+
+      const validMessages = existingMessages
+        .map(m => {
+          const msg = m as Record<string, unknown>
+          if (!msg.text || typeof msg.text !== 'string') {
+            return null
+          }
+          return {
+            id: msg.id as string || `msg-recovered-${Date.now()}`,
+            direction: msg.direction as string || 'inbound',
+            senderId: msg.senderId as string || senderId,
+            text: msg.text as string,
+            timestamp: msg.timestamp as string || new Date().toISOString(),
+            messageId: msg.messageId as string || '',
+          }
+        })
+        .filter((m): m is NonNullable<typeof m> => m !== null)
+
+      const updateData = {
+        fields: {
+          senderId: toFirestoreValue(senderId),
+          messages: toFirestoreValue([...validMessages, messageData]),
+          lastMessageAt: toFirestoreValue(new Date()),
+          updatedAt: toFirestoreValue(new Date()),
+        }
+      }
+
+      await fetch(chatDocPath, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      })
+    } else {
+      const newChatData = {
+        fields: {
+          senderId: toFirestoreValue(senderId),
+          messages: toFirestoreValue([messageData]),
+          lastMessageAt: toFirestoreValue(new Date()),
+          createdAt: toFirestoreValue(new Date()),
+          updatedAt: toFirestoreValue(new Date()),
+        }
+      }
+
+      await fetch(chatDocPath, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newChatData),
+      })
+    }
+
+  } catch (error) {
+    console.error('[Instagram Firestore] Error saving message:', error)
+  }
+}
+
+/**
+ * Get Instagram conversation history
+ */
+export async function getInstagramHistory(
+  companyId: string,
+  senderId: string,
+  limitCount: number = 10
+): Promise<InstagramChatMessage[]> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instagramChats/${senderId}`)
+
+    if (!response.ok) return []
+
+    const doc = await response.json()
+    if (!doc.fields) return []
+
+    const data = parseFirestoreFields(doc.fields)
+    const messages = (data.messages as unknown[]) || []
+
+    const validMessages = messages
+      .map((m) => {
+        const msg = m as Record<string, unknown>
+
+        if (!msg.text || typeof msg.text !== 'string') {
+          return null
+        }
+
+        let timestamp: Date
+        if (msg.timestamp instanceof Date) {
+          timestamp = msg.timestamp
+        } else if (typeof msg.timestamp === 'string') {
+          timestamp = new Date(msg.timestamp)
+        } else {
+          timestamp = new Date()
+        }
+
+        if (isNaN(timestamp.getTime())) {
+          timestamp = new Date()
+        }
+
+        return {
+          id: (msg.id as string) || `msg-${Date.now()}`,
+          direction: (msg.direction as 'inbound' | 'outbound') || 'inbound',
+          senderId: (msg.senderId as string) || senderId,
+          text: msg.text as string,
+          timestamp,
+          messageId: msg.messageId as string | undefined,
+        }
+      })
+      .filter((m): m is NonNullable<typeof m> => m !== null)
+
+    return validMessages.slice(-limitCount)
+  } catch (error) {
+    console.error('[Instagram Firestore] Error getting history:', error)
+    return []
+  }
+}
+
+/**
+ * Get all Instagram chats for a company
+ */
+export async function getAllInstagramChats(
+  companyId: string
+): Promise<Array<{
+  senderId: string
+  lastMessage: InstagramChatMessage | null
+  lastMessageAt: Date
+  messageCount: number
+  isManualMode: boolean
+}>> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instagramChats`)
+
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json()
+    if (!data.documents) {
+      return []
+    }
+
+    const chats: Array<{
+      senderId: string
+      lastMessage: InstagramChatMessage | null
+      lastMessageAt: Date
+      messageCount: number
+      isManualMode: boolean
+    }> = []
+
+    for (const doc of data.documents) {
+      if (!doc.fields) continue
+
+      const chatData = parseFirestoreFields(doc.fields)
+      const messages = (chatData.messages as unknown[]) || []
+
+      const validMessages = messages.filter((m) => {
+        const msg = m as Record<string, unknown>
+        return msg.text && typeof msg.text === 'string'
+      })
+
+      const lastMsg = validMessages.length > 0
+        ? validMessages[validMessages.length - 1] as Record<string, unknown>
+        : null
+
+      let lastMessageAt: Date
+      if (chatData.lastMessageAt instanceof Date) {
+        lastMessageAt = chatData.lastMessageAt
+      } else if (typeof chatData.lastMessageAt === 'string') {
+        lastMessageAt = new Date(chatData.lastMessageAt)
+      } else {
+        lastMessageAt = new Date()
+      }
+
+      if (isNaN(lastMessageAt.getTime())) {
+        lastMessageAt = new Date()
+      }
+
+      let lastMsgTimestamp: Date | undefined
+      if (lastMsg) {
+        if (lastMsg.timestamp instanceof Date) {
+          lastMsgTimestamp = lastMsg.timestamp
+        } else if (typeof lastMsg.timestamp === 'string') {
+          lastMsgTimestamp = new Date(lastMsg.timestamp)
+        } else {
+          lastMsgTimestamp = new Date()
+        }
+        if (isNaN(lastMsgTimestamp.getTime())) {
+          lastMsgTimestamp = new Date()
+        }
+      }
+
+      chats.push({
+        senderId: (chatData.senderId as string) || doc.name.split('/').pop() || '',
+        lastMessage: lastMsg ? {
+          id: (lastMsg.id as string) || '',
+          direction: (lastMsg.direction as 'inbound' | 'outbound') || 'inbound',
+          senderId: (lastMsg.senderId as string) || '',
+          text: (lastMsg.text as string) || '',
+          timestamp: lastMsgTimestamp!,
+          messageId: lastMsg.messageId as string | undefined,
+        } : null,
+        lastMessageAt,
+        messageCount: validMessages.length,
+        isManualMode: (chatData.isManualMode as boolean) || false,
+      })
+    }
+
+    chats.sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime())
+
+    return chats
+  } catch (error) {
+    console.error('[Instagram Firestore] Error getting all chats:', error)
+    return []
+  }
+}
+
+/**
+ * Check if an Instagram chat is in manual mode
+ */
+export async function getInstagramChatManualMode(
+  companyId: string,
+  senderId: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instagramChats/${senderId}`)
+
+    if (!response.ok) return false
+
+    const doc = await response.json()
+    if (!doc.fields) return false
+
+    const data = parseFirestoreFields(doc.fields)
+    return (data.isManualMode as boolean) || false
+  } catch (error) {
+    console.error('[Instagram Firestore] Error checking manual mode:', error)
+    return false
+  }
+}
+
+/**
+ * Get business profile for AI context
+ */
+export async function getBusinessProfile(companyId: string): Promise<Record<string, unknown> | null> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
+
+    if (!response.ok) return null
+
+    const doc = await response.json()
+
+    if (!doc.fields) return null
+
+    const data = parseFirestoreFields(doc.fields)
+    return data.businessProfile as Record<string, unknown> | null
+  } catch (error) {
+    console.error('[Instagram Firestore] Error getting business profile:', error)
+    return null
+  }
+}
+
+/**
+ * Get FAQs for AI context
+ */
+export async function getFAQs(companyId: string): Promise<Array<Record<string, unknown>>> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/faqs`)
+
+    if (!response.ok) return []
+
+    const data = await response.json()
+
+    if (!data.documents) return []
+
+    return data.documents.map((doc: { fields?: Record<string, unknown> }) => {
+      if (!doc.fields) return {}
+      return parseFirestoreFields(doc.fields)
+    }).filter((faq: Record<string, unknown>) => faq.confirmed === true)
+  } catch (error) {
+    console.error('[Instagram Firestore] Error getting FAQs:', error)
+    return []
+  }
+}
+
+/**
+ * Get active instructions for AI context
+ */
+export async function getActiveInstructions(companyId: string): Promise<Array<{ content: string; priority: string }>> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`)
+
+    if (!response.ok) return []
+
+    const data = await response.json()
+
+    if (!data.documents) return []
+
+    const now = new Date()
+
+    return data.documents
+      .map((doc: { fields?: Record<string, unknown> }) => {
+        if (!doc.fields) return null
+        const instruction = parseFirestoreFields(doc.fields)
+        return {
+          content: instruction.content as string,
+          priority: instruction.priority as string || 'medium',
+          isActive: instruction.isActive as boolean,
+          startsAt: instruction.startsAt as Date | undefined,
+          expiresAt: instruction.expiresAt as Date | undefined,
+        }
+      })
+      .filter((inst: { isActive: boolean; startsAt?: Date; expiresAt?: Date } | null) => {
+        if (!inst || !inst.isActive) return false
+        if (inst.startsAt && inst.startsAt > now) return false
+        if (inst.expiresAt && inst.expiresAt < now) return false
+        return true
+      })
+      .map((inst: { content: string; priority: string }) => ({
+        content: inst.content,
+        priority: inst.priority,
+      }))
+  } catch (error) {
+    console.error('[Instagram Firestore] Error getting instructions:', error)
+    return []
+  }
+}
+
+/**
+ * Get knowledge documents for AI context
+ */
+export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
+  faqs: Array<{ question: string; answer: string }>
+  rules: string[]
+  policies: string[]
+  importantInfo: string[]
+  uploadedAt: Date
+  fileName: string
+}>> {
+  try {
+    const response = await fetch(
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/knowledgeDocs`
+    )
+
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json()
+
+    if (!data.documents || data.documents.length === 0) {
+      return []
+    }
+
+    const documents: Array<{
+      faqs: Array<{ question: string; answer: string }>
+      rules: string[]
+      policies: string[]
+      importantInfo: string[]
+      uploadedAt: Date
+      fileName: string
+    }> = []
+
+    for (const doc of data.documents) {
+      if (!doc.fields) {
+        continue
+      }
+
+      const docData = parseFirestoreFields(doc.fields)
+
+      if (docData.status !== 'ready') {
+        continue
+      }
+
+      const analyzedData = docData.analyzedData as Record<string, unknown> | undefined
+
+      let uploadedAt = new Date()
+      if (docData.uploadedAt) {
+        if (typeof docData.uploadedAt === 'string') {
+          uploadedAt = new Date(docData.uploadedAt)
+        } else if (docData.uploadedAt instanceof Date) {
+          uploadedAt = docData.uploadedAt
+        }
+      }
+
+      if (analyzedData) {
+        documents.push({
+          faqs: (analyzedData.faqs as Array<{ question: string; answer: string }>) || [],
+          rules: (analyzedData.rules as string[]) || [],
+          policies: (analyzedData.policies as string[]) || [],
+          importantInfo: (analyzedData.importantInfo as string[]) || [],
+          uploadedAt,
+          fileName: (docData.fileName as string) || 'Ukjent',
+        })
+      }
+    }
+
+    documents.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())
+
+    return documents
+  } catch (error) {
+    console.error('[Instagram Firestore] Error getting knowledge documents:', error)
+    return []
+  }
+}
