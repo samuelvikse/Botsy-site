@@ -38,9 +38,10 @@ interface ChannelStatus {
     provider?: SMSProvider
     phoneNumber?: string
   }
-  whatsapp: { connected: boolean }
+  instagram: { connected: boolean }
   messenger: { connected: boolean }
   email: { connected: boolean }
+  widget: { connected: boolean }
 }
 
 export default function OnboardingPage() {
@@ -68,9 +69,10 @@ export default function OnboardingPage() {
   const [smsError, setSmsError] = useState<string | null>(null)
   const [channelStatus, setChannelStatus] = useState<ChannelStatus>({
     sms: { connected: false },
-    whatsapp: { connected: false },
+    instagram: { connected: false },
     messenger: { connected: false },
-    email: { connected: false }
+    email: { connected: false },
+    widget: { connected: false }
   })
 
   const totalSteps = 5
@@ -447,16 +449,18 @@ export default function OnboardingPage() {
 
               <div className="grid gap-4">
                 {[
-                  { name: 'WhatsApp', desc: 'WhatsApp Business API', color: '#25D366', popular: true, key: 'whatsapp' },
+                  { name: 'Instagram', desc: 'Instagram Direct Messages', color: '#E4405F', popular: true, key: 'instagram' },
                   { name: 'Messenger', desc: 'Facebook Pages', color: '#0084FF', popular: true, key: 'messenger' },
                   { name: 'SMS', desc: 'Norske mobilnumre', color: '#CDFF4D', popular: false, key: 'sms' },
-                  { name: 'E-post', desc: 'IMAP/SMTP', color: '#EA4335', popular: false, key: 'email' }
+                  { name: 'E-post', desc: 'IMAP/SMTP', color: '#EA4335', popular: false, key: 'email' },
+                  { name: 'Widget', desc: 'Settes opp i dashbordet', color: '#BFFF00', popular: false, key: 'widget', dashboardOnly: true }
                 ].map((channel) => {
                   const status = channelStatus[channel.key as keyof ChannelStatus]
                   const isConnected = status?.connected
+                  const isDashboardOnly = 'dashboardOnly' in channel && channel.dashboardOnly
 
                   return (
-                    <Card key={channel.name} className="p-5">
+                    <Card key={channel.name} className={`p-5 ${isDashboardOnly ? 'opacity-70' : ''}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div
@@ -487,14 +491,18 @@ export default function OnboardingPage() {
                             </p>
                           </div>
                         </div>
-                        <Button
-                          variant={isConnected ? 'outline' : 'default'}
-                          size="sm"
-                          onClick={() => handleChannelClick(channel.name)}
-                          disabled={channel.key !== 'sms'} // Only SMS is functional for now
-                        >
-                          {isConnected ? 'Endre' : 'Koble til'}
-                        </Button>
+                        {isDashboardOnly ? (
+                          <span className="text-[#6B7A94] text-sm">I dashbordet</span>
+                        ) : (
+                          <Button
+                            variant={isConnected ? 'outline' : 'default'}
+                            size="sm"
+                            onClick={() => handleChannelClick(channel.name)}
+                            disabled={channel.key !== 'sms'} // Only SMS is functional for now
+                          >
+                            {isConnected ? 'Endre' : 'Koble til'}
+                          </Button>
+                        )}
                       </div>
                     </Card>
                   )
