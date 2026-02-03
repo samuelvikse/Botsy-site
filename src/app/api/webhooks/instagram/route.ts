@@ -42,8 +42,8 @@ function detectHumanHandoff(message: string): boolean {
   return HUMAN_HANDOFF_PHRASES.some(phrase => lowerMessage.includes(phrase))
 }
 
-// Webhook verification token
-const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'botsy_webhook_secret_2024'
+// Webhook verification token - hardcoded for reliability
+const VERIFY_TOKEN = 'botsy_webhook_secret_2024'
 
 /**
  * GET - Webhook verification (Facebook/Instagram sends this to verify your endpoint)
