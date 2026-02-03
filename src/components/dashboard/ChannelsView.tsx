@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ArrowRight,
   Mail,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -130,6 +131,16 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
   const [emailAddress, setEmailAddress] = useState('')
   const [emailCredentials, setEmailCredentials] = useState<Record<string, string>>({})
 
+  // Facebook OAuth states
+  const [isConnectingFacebook, setIsConnectingFacebook] = useState(false)
+  const [facebookConnectChannel, setFacebookConnectChannel] = useState<'instagram' | 'messenger' | null>(null)
+
+  // Google OAuth states
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false)
+
+  // SMS guide states
+  const [showSmsGuide, setShowSmsGuide] = useState(false)
+
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
 
   const fetchChannels = useCallback(async () => {
@@ -203,6 +214,71 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
   useEffect(() => {
     fetchChannels()
   }, [fetchChannels])
+
+  // Handle Facebook OAuth callback results from URL params
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const fbSuccess = params.get('fb_success')
+    const fbPage = params.get('fb_page')
+    const fbError = params.get('fb_error')
+    const googleSuccess = params.get('google_success')
+    const googleEmail = params.get('google_email')
+    const googleError = params.get('google_error')
+
+    if (fbSuccess) {
+      const channelName = fbSuccess === 'instagram' ? 'Instagram' : 'Messenger'
+      toast.success(
+        `${channelName} tilkoblet!`,
+        fbPage ? `Koblet til ${fbPage}` : `${channelName} er nå konfigurert`
+      )
+      // Remove query params from URL
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+      // Refresh channel data
+      fetchChannels()
+    } else if (fbError) {
+      toast.error('Facebook-tilkobling feilet', fbError)
+      // Remove query params from URL
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    }
+
+    if (googleSuccess) {
+      toast.success(
+        'Gmail tilkoblet!',
+        googleEmail ? `Koblet til ${googleEmail}` : 'E-post er nå konfigurert'
+      )
+      // Remove query params from URL
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+      // Refresh channel data
+      fetchChannels()
+    } else if (googleError) {
+      toast.error('Google-tilkobling feilet', googleError)
+      // Remove query params from URL
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [toast, fetchChannels])
+
+  const handleConnectWithFacebook = (channel: 'instagram' | 'messenger') => {
+    setIsConnectingFacebook(true)
+    setFacebookConnectChannel(channel)
+
+    // Redirect to Facebook OAuth
+    const oauthUrl = `/api/auth/facebook?channel=${channel}&companyId=${companyId}`
+    window.location.href = oauthUrl
+  }
+
+  const handleConnectWithGoogle = () => {
+    setIsConnectingGoogle(true)
+
+    // Redirect to Google OAuth
+    const oauthUrl = `/api/auth/google?companyId=${companyId}`
+    window.location.href = oauthUrl
+  }
 
   const openConfigPanel = (channelId: ChannelType) => {
     setActiveChannel(channelId)
@@ -470,6 +546,95 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
               </div>
             </div>
 
+            {/* SMS Guide Section */}
+            <div className="p-4 bg-[#CDFF4D]/5 border border-[#CDFF4D]/20 rounded-xl">
+              <button
+                onClick={() => setShowSmsGuide(!showSmsGuide)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📋</span>
+                  <span className="text-white font-medium text-sm">Slik finner du credentials</span>
+                </div>
+                <ChevronRight className={`h-4 w-4 text-[#CDFF4D] transition-transform ${showSmsGuide ? 'rotate-90' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {showSmsGuide && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-4 space-y-3">
+                      {smsProvider === 'twilio' ? (
+                        <>
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">1</span>
+                            <p className="text-[#A8B4C8] text-sm">
+                              Logg inn på <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer" className="text-[#CDFF4D] hover:underline">console.twilio.com</a>
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">2</span>
+                            <p className="text-[#A8B4C8] text-sm">
+                              Finn <strong className="text-white">Account SID</strong> og <strong className="text-white">Auth Token</strong> på forsiden (Dashboard)
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">3</span>
+                            <p className="text-[#A8B4C8] text-sm">
+                              Gå til <strong className="text-white">"Phone Numbers"</strong> → <strong className="text-white">"Manage"</strong> → <strong className="text-white">"Active numbers"</strong> for å finne telefonnummeret ditt
+                            </p>
+                          </div>
+                          <a
+                            href="https://console.twilio.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[#F22F46]/10 border border-[#F22F46]/30 rounded-lg text-[#F22F46] text-sm font-medium hover:bg-[#F22F46]/20 transition-colors"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Åpne Twilio Console
+                          </a>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">1</span>
+                            <p className="text-[#A8B4C8] text-sm">
+                              Logg inn på <a href="https://dashboard.messagebird.com/" target="_blank" rel="noopener noreferrer" className="text-[#CDFF4D] hover:underline">dashboard.messagebird.com</a>
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">2</span>
+                            <p className="text-[#A8B4C8] text-sm">
+                              Gå til <strong className="text-white">"Developers"</strong> → <strong className="text-white">"API access"</strong> i sidemenyen
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">3</span>
+                            <p className="text-[#A8B4C8] text-sm">
+                              Kopier din <strong className="text-white">API Key</strong> (Live key for produksjon)
+                            </p>
+                          </div>
+                          <a
+                            href="https://dashboard.messagebird.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[#2481D7]/10 border border-[#2481D7]/30 rounded-lg text-[#2481D7] text-sm font-medium hover:bg-[#2481D7]/20 transition-colors"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Åpne MessageBird Dashboard
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div>
               <label className="text-white text-sm font-medium block mb-2">
                 Telefonnummer (E.164 format)
@@ -481,6 +646,9 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
                 placeholder="+4712345678"
                 className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
               />
+              <p className="text-[#6B7A94] text-xs mt-1.5">
+                Telefonnummeret du har kjøpt hos {smsProvider === 'twilio' ? 'Twilio' : 'MessageBird'}
+              </p>
             </div>
 
             {SMS_PROVIDERS.find(p => p.value === smsProvider)?.fields.map((field) => (
@@ -503,9 +671,39 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'instagram':
         return (
           <div className="space-y-5">
-            <div className="p-3 bg-[#E4405F]/10 border border-[#E4405F]/20 rounded-xl">
-              <p className="text-[#A8B4C8] text-sm">
-                Instagram bruker samme API som Messenger. Sørg for at Instagram-kontoen er koblet til Facebook-siden din i Meta Business Suite.
+            {/* Easy Connect Button */}
+            {!channels.instagram.isConfigured && (
+              <div className="p-4 bg-gradient-to-r from-[#E4405F]/10 to-[#F77737]/10 border border-[#E4405F]/20 rounded-xl">
+                <h4 className="text-white font-medium mb-2">Enkel tilkobling</h4>
+                <p className="text-[#A8B4C8] text-sm mb-4">
+                  Koble til Instagram automatisk med Facebook-kontoen din. Alt konfigureres for deg.
+                </p>
+                <Button
+                  onClick={() => handleConnectWithFacebook('instagram')}
+                  disabled={isConnectingFacebook}
+                  className="w-full bg-[#E4405F] hover:bg-[#d62f4d] text-white"
+                >
+                  {isConnectingFacebook && facebookConnectChannel === 'instagram' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Kobler til...
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Koble til med Facebook
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Manual setup info */}
+            <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+              <p className="text-[#6B7A94] text-sm">
+                {channels.instagram.isConfigured
+                  ? 'Instagram er tilkoblet. Du kan oppdatere innstillingene nedenfor.'
+                  : 'Eller konfigurer manuelt nedenfor. Instagram bruker samme API som Messenger.'}
               </p>
             </div>
 
@@ -563,9 +761,39 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'messenger':
         return (
           <div className="space-y-5">
-            <div className="p-3 bg-[#0084FF]/10 border border-[#0084FF]/20 rounded-xl">
-              <p className="text-[#A8B4C8] text-sm">
-                For å koble til Messenger trenger du en Facebook-side med admin-tilgang.
+            {/* Easy Connect Button */}
+            {!channels.messenger.isConfigured && (
+              <div className="p-4 bg-gradient-to-r from-[#0084FF]/10 to-[#00C6FF]/10 border border-[#0084FF]/20 rounded-xl">
+                <h4 className="text-white font-medium mb-2">Enkel tilkobling</h4>
+                <p className="text-[#A8B4C8] text-sm mb-4">
+                  Koble til Messenger automatisk med Facebook-kontoen din. Alt konfigureres for deg.
+                </p>
+                <Button
+                  onClick={() => handleConnectWithFacebook('messenger')}
+                  disabled={isConnectingFacebook}
+                  className="w-full bg-[#0084FF] hover:bg-[#0073e6] text-white"
+                >
+                  {isConnectingFacebook && facebookConnectChannel === 'messenger' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Kobler til...
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Koble til med Facebook
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Manual setup info */}
+            <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+              <p className="text-[#6B7A94] text-sm">
+                {channels.messenger.isConfigured
+                  ? 'Messenger er tilkoblet. Du kan oppdatere innstillingene nedenfor.'
+                  : 'Eller konfigurer manuelt nedenfor. Du trenger en Facebook-side med admin-tilgang.'}
               </p>
             </div>
 
@@ -622,58 +850,144 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'email':
         return (
           <div className="space-y-5">
-            <div className="p-3 bg-[#EA4335]/10 border border-[#EA4335]/20 rounded-xl">
-              <p className="text-[#A8B4C8] text-sm">
-                Koble til en e-postadresse for å la Botsy svare på kundehenvendelser via e-post. Vi støtter IMAP/SMTP-tilkobling.
-              </p>
-            </div>
+            {/* Gmail OAuth - Easy Connect */}
+            {!channels.email.isConfigured && (
+              <div className="p-4 bg-gradient-to-r from-[#EA4335]/10 via-[#FBBC04]/10 to-[#34A853]/10 border border-[#EA4335]/20 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex -space-x-1">
+                    <div className="w-3 h-3 rounded-full bg-[#EA4335]" />
+                    <div className="w-3 h-3 rounded-full bg-[#FBBC04]" />
+                    <div className="w-3 h-3 rounded-full bg-[#34A853]" />
+                    <div className="w-3 h-3 rounded-full bg-[#4285F4]" />
+                  </div>
+                  <h4 className="text-white font-medium">Enkel tilkobling med Google</h4>
+                </div>
+                <p className="text-[#A8B4C8] text-sm mb-4">
+                  Koble til Gmail automatisk med Google-kontoen din. Alt konfigureres for deg - ingen API-nøkler eller servere å sette opp.
+                </p>
+                <Button
+                  onClick={handleConnectWithGoogle}
+                  disabled={isConnectingGoogle}
+                  className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium"
+                >
+                  {isConnectingGoogle ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Kobler til...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC04" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      </svg>
+                      Koble til med Google
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
 
-            <div>
-              <label className="text-white text-sm font-medium block mb-2">E-postadresse</label>
-              <input
-                type="email"
-                value={emailAddress}
-                onChange={(e) => setEmailAddress(e.target.value)}
-                placeholder="support@dinbedrift.no"
-                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-              />
-            </div>
+            {/* Already connected with Gmail */}
+            {channels.email.isConfigured && channels.email.details?.emailAddress && (
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">Gmail tilkoblet</p>
+                    <p className="text-[#A8B4C8] text-sm">{channels.email.details.emailAddress}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            <div>
-              <label className="text-white text-sm font-medium block mb-2">IMAP Server</label>
-              <input
-                type="text"
-                value={emailCredentials.imapServer || ''}
-                onChange={(e) => setEmailCredentials(prev => ({ ...prev, imapServer: e.target.value }))}
-                placeholder="imap.gmail.com"
-                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-              />
-            </div>
+            {/* Divider */}
+            {!channels.email.isConfigured && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/[0.08]" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-3 bg-[#0D0F14] text-[#6B7A94]">eller konfigurer manuelt</span>
+                </div>
+              </div>
+            )}
 
-            <div>
-              <label className="text-white text-sm font-medium block mb-2">SMTP Server</label>
-              <input
-                type="text"
-                value={emailCredentials.smtpServer || ''}
-                onChange={(e) => setEmailCredentials(prev => ({ ...prev, smtpServer: e.target.value }))}
-                placeholder="smtp.gmail.com"
-                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-              />
-            </div>
+            {/* Manual Configuration */}
+            {!channels.email.isConfigured && (
+              <>
+                <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+                  <p className="text-[#6B7A94] text-sm">
+                    Du kan også bruke SendGrid eller Mailgun for å sende e-post. Dette krever at du setter opp en konto hos en av leverandørene.
+                  </p>
+                </div>
 
-            <div>
-              <label className="text-white text-sm font-medium block mb-2">Passord / App-passord</label>
-              <input
-                type="password"
-                value={emailCredentials.password || ''}
-                onChange={(e) => setEmailCredentials(prev => ({ ...prev, password: e.target.value }))}
-                placeholder="Skriv inn passord..."
-                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-              />
-              <p className="text-[#6B7A94] text-xs mt-1.5">
-                For Gmail/Google Workspace, bruk et app-passord fra Google-kontoen din
-              </p>
-            </div>
+                <div>
+                  <label className="text-white text-sm font-medium block mb-2">E-postadresse</label>
+                  <input
+                    type="email"
+                    value={emailAddress}
+                    onChange={(e) => setEmailAddress(e.target.value)}
+                    placeholder="support@dinbedrift.no"
+                    className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white text-sm font-medium block mb-3">Leverandør</label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setEmailCredentials(prev => ({ ...prev, provider: 'sendgrid' }))}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                        emailCredentials.provider === 'sendgrid'
+                          ? 'bg-botsy-lime text-gray-900'
+                          : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      SendGrid
+                    </button>
+                    <button
+                      onClick={() => setEmailCredentials(prev => ({ ...prev, provider: 'mailgun' }))}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                        emailCredentials.provider === 'mailgun'
+                          ? 'bg-botsy-lime text-gray-900'
+                          : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      Mailgun
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-white text-sm font-medium block mb-2">API Key</label>
+                  <input
+                    type="password"
+                    value={emailCredentials.apiKey || ''}
+                    onChange={(e) => setEmailCredentials(prev => ({ ...prev, apiKey: e.target.value }))}
+                    placeholder="Skriv inn API key..."
+                    className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+                  />
+                </div>
+
+                {emailCredentials.provider === 'mailgun' && (
+                  <div>
+                    <label className="text-white text-sm font-medium block mb-2">Domain</label>
+                    <input
+                      type="text"
+                      value={emailCredentials.domain || ''}
+                      onChange={(e) => setEmailCredentials(prev => ({ ...prev, domain: e.target.value }))}
+                      placeholder="mg.dinbedrift.no"
+                      className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )
 

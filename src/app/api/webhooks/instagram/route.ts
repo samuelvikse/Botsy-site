@@ -407,3 +407,4 @@ EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
 
   return 'Beklager, jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen senere.'
 }
+

@@ -1,9 +1,11 @@
 /**
  * Email Service Layer
- * Handles sending emails via various providers (SendGrid, Mailgun, SMTP)
+ * Handles sending emails via various providers (SendGrid, Mailgun, SMTP, Gmail)
  */
 
-export type EmailProvider = 'sendgrid' | 'mailgun' | 'smtp'
+import { sendEmailViaGmail, refreshAccessToken } from '@/lib/google-oauth'
+
+export type EmailProvider = 'sendgrid' | 'mailgun' | 'smtp' | 'gmail'
 
 export interface EmailCredentials {
   provider: EmailProvider
@@ -13,6 +15,10 @@ export interface EmailCredentials {
   smtpPort?: string
   smtpUser?: string
   smtpPass?: string
+  // Gmail OAuth credentials
+  accessToken?: string
+  refreshToken?: string
+  expiresAt?: number
 }
 
 export interface EmailMessage {
@@ -108,12 +114,56 @@ async function sendViaMailgun(apiKey: string, domain: string, message: EmailMess
 }
 
 /**
+ * Send email via Gmail API
+ */
+async function sendViaGmail(
+  credentials: EmailCredentials,
+  message: EmailMessage
+): Promise<{ success: boolean; messageId?: string; error?: string; newAccessToken?: string }> {
+  let accessToken = credentials.accessToken
+
+  // Check if token is expired or will expire soon (5 min buffer)
+  if (credentials.expiresAt && credentials.expiresAt < Date.now() + 5 * 60 * 1000) {
+    if (!credentials.refreshToken) {
+      return { success: false, error: 'Gmail refresh token mangler. Vennligst koble til Gmail på nytt.' }
+    }
+
+    try {
+      const refreshed = await refreshAccessToken(credentials.refreshToken)
+      accessToken = refreshed.access_token
+    } catch (error) {
+      console.error('[Email] Gmail token refresh failed:', error)
+      return { success: false, error: 'Kunne ikke fornye Gmail-tilgang. Vennligst koble til Gmail på nytt.' }
+    }
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Gmail access token mangler' }
+  }
+
+  const result = await sendEmailViaGmail({
+    accessToken,
+    to: message.to,
+    from: message.from,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+    replyTo: message.replyTo,
+  })
+
+  return {
+    ...result,
+    newAccessToken: accessToken !== credentials.accessToken ? accessToken : undefined,
+  }
+}
+
+/**
  * Send email using configured provider
  */
 export async function sendEmail(
   credentials: EmailCredentials,
   message: EmailMessage
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; newAccessToken?: string }> {
   switch (credentials.provider) {
     case 'sendgrid':
       if (!credentials.apiKey) {
@@ -127,8 +177,11 @@ export async function sendEmail(
       }
       return sendViaMailgun(credentials.apiKey, credentials.domain, message)
 
+    case 'gmail':
+      return sendViaGmail(credentials, message)
+
     case 'smtp':
-      return { success: false, error: 'SMTP er ikke støttet ennå. Bruk SendGrid eller Mailgun.' }
+      return { success: false, error: 'SMTP er ikke støttet ennå. Bruk SendGrid, Mailgun eller Gmail.' }
 
     default:
       return { success: false, error: `Ukjent e-postleverandør: ${credentials.provider}` }
