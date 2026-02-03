@@ -67,6 +67,7 @@ export function getAuthUrl(params: {
   authUrl.searchParams.set('scope', scopes.join(','))
   authUrl.searchParams.set('state', state)
   authUrl.searchParams.set('response_type', 'code')
+  authUrl.searchParams.set('auth_type', 'rerequest') // Force re-request of permissions
 
   return authUrl.toString()
 }
