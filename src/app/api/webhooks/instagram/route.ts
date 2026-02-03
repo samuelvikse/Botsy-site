@@ -219,6 +219,7 @@ async function processInstagramMessage(
     }
 
     // Get context for AI response
+    console.log('[Instagram] Fetching context for AI response...')
     const [businessProfile, faqs, instructions, history, knowledgeDocs] = await Promise.all([
       getBusinessProfile(companyId),
       getFAQs(companyId),
@@ -226,6 +227,7 @@ async function processInstagramMessage(
       getInstagramHistory(companyId, senderId, 10),
       getKnowledgeDocuments(companyId),
     ])
+    console.log('[Instagram] Context fetched, generating AI response...')
 
     // Generate AI response
     const aiResponse = await generateAIResponse({
@@ -236,14 +238,17 @@ async function processInstagramMessage(
       history,
       knowledgeDocs,
     })
+    console.log('[Instagram] AI response generated:', aiResponse.substring(0, 100))
 
     // Send response via Instagram
     if (channel.credentials.pageAccessToken) {
+      console.log('[Instagram] Sending response via Instagram API...')
       const result = await sendInstagramMessage(
         channel.credentials.pageAccessToken,
         senderId,
         aiResponse
       )
+      console.log('[Instagram] Send result:', result)
 
       if (result.success) {
         await saveInstagramMessage(companyId, senderId, {
@@ -253,7 +258,10 @@ async function processInstagramMessage(
           timestamp: new Date(),
           messageId: result.messageId || `ig-${Date.now()}`,
         })
+        console.log('[Instagram] Response saved to history')
       }
+    } else {
+      console.error('[Instagram] No pageAccessToken found!')
     }
   } catch (error) {
     console.error('[Instagram] Error processing message:', error)
