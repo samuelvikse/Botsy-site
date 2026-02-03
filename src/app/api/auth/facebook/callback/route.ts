@@ -113,18 +113,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Prepare channel data
+    console.log('[Facebook OAuth Callback] Preparing channel data with pageAccessToken length:', pageAccessToken?.length || 0)
     let channelData: Record<string, unknown> = {
       isActive: true,
       isVerified: true,
       pageId: selectedPage.id,
       pageName: selectedPage.name,
       credentials: {
-        pageAccessToken,
+        pageAccessToken: pageAccessToken,
         appSecret: process.env.FACEBOOK_APP_SECRET || '',
       },
       connectedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }
+    console.log('[Facebook OAuth Callback] Channel data prepared:', JSON.stringify({
+      ...channelData,
+      credentials: { pageAccessToken: pageAccessToken ? 'TOKEN_EXISTS' : 'MISSING', appSecret: channelData.credentials ? 'EXISTS' : 'MISSING' }
+    }))
 
     // For Instagram, get the Instagram Business Account
     if (channel === 'instagram') {
@@ -154,6 +159,11 @@ export async function GET(request: NextRequest) {
       throw new Error('Database not initialized')
     }
 
+    console.log('[Facebook OAuth Callback] Final channelData to save:', JSON.stringify({
+      ...channelData,
+      credentials: channelData.credentials ? { hasToken: !!(channelData.credentials as Record<string, unknown>).pageAccessToken } : 'NO_CREDENTIALS'
+    }))
+
     await setDoc(
       doc(db, 'companies', companyId),
       {
@@ -165,7 +175,7 @@ export async function GET(request: NextRequest) {
       { merge: true }
     )
 
-    console.log('[Facebook OAuth Callback] Channel saved to Firestore')
+    console.log('[Facebook OAuth Callback] Channel saved to Firestore successfully')
 
     // Redirect back to admin with success
     const adminUrl = new URL('/admin', request.nextUrl.origin)
