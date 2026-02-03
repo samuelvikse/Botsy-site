@@ -4,15 +4,34 @@
     return;
   }
 
-  // Don't run on admin, login, onboarding, or widget preview pages
+  // Check if we're on an excluded page
   const excludedPaths = ['/admin', '/login', '/onboarding', '/invite', '/transfer', '/widget'];
-  const currentPath = window.location.pathname;
-  if (excludedPaths.some(path => currentPath.startsWith(path))) {
-    // Also remove any existing widget iframe on excluded pages
-    const existingIframe = document.getElementById('botsy-widget-iframe');
-    if (existingIframe) {
-      existingIframe.remove();
+  const isExcludedPath = (path) => excludedPaths.some(excluded => path.startsWith(excluded));
+
+  // Hide widget on excluded pages, show on others
+  function updateWidgetVisibility() {
+    const widgetIframe = document.getElementById('botsy-widget-iframe');
+    if (widgetIframe) {
+      if (isExcludedPath(window.location.pathname)) {
+        widgetIframe.style.display = 'none';
+      } else {
+        widgetIframe.style.display = '';
+      }
     }
+  }
+
+  // Don't create widget on excluded pages, but still set up listeners
+  if (isExcludedPath(window.location.pathname)) {
+    // Set up navigation listeners even on excluded pages
+    window.addEventListener('popstate', updateWidgetVisibility);
+    let lastUrl = window.location.href;
+    const observer = new MutationObserver(function() {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        updateWidgetVisibility();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
     return;
   }
 
@@ -163,27 +182,15 @@
   });
 
   // Handle client-side navigation (for Next.js/React apps)
-  // Check if we should remove the widget when pathname changes
-  function checkAndRemoveOnExcludedPaths() {
-    const excludedPaths = ['/admin', '/login', '/onboarding', '/invite', '/transfer', '/widget'];
-    const currentPath = window.location.pathname;
-    if (excludedPaths.some(path => currentPath.startsWith(path))) {
-      const widgetIframe = document.getElementById('botsy-widget-iframe');
-      if (widgetIframe) {
-        widgetIframe.remove();
-      }
-    }
-  }
-
   // Listen for popstate (back/forward navigation)
-  window.addEventListener('popstate', checkAndRemoveOnExcludedPaths);
+  window.addEventListener('popstate', updateWidgetVisibility);
 
   // Use MutationObserver to detect URL changes (for pushState/replaceState)
   let lastUrl = window.location.href;
   const observer = new MutationObserver(function() {
     if (window.location.href !== lastUrl) {
       lastUrl = window.location.href;
-      checkAndRemoveOnExcludedPaths();
+      updateWidgetVisibility();
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
