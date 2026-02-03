@@ -43,7 +43,7 @@ function detectHumanHandoff(message: string): boolean {
 }
 
 // Webhook verification token
-const VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || 'botsy-instagram-verify'
+const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'botsy_webhook_secret_2024'
 
 /**
  * GET - Webhook verification (Facebook/Instagram sends this to verify your endpoint)
@@ -55,7 +55,15 @@ export async function GET(request: NextRequest) {
   const token = searchParams.get('hub.verify_token')
   const challenge = searchParams.get('hub.challenge')
 
-  console.log('[Instagram Webhook] Verification request:', { mode, token, challenge })
+  // Debug logging
+  console.log('[Instagram Webhook] Verification request:', {
+    mode,
+    token,
+    challenge,
+    expectedToken: VERIFY_TOKEN,
+    envToken: process.env.WEBHOOK_VERIFY_TOKEN,
+    tokenMatch: token === VERIFY_TOKEN
+  })
 
   // Check if this is a verification request
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
@@ -63,7 +71,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(challenge, { status: 200 })
   }
 
-  console.log('[Instagram Webhook] Verification failed')
+  console.log('[Instagram Webhook] Verification failed - token mismatch')
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 })
 }
 
