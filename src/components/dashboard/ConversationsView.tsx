@@ -75,11 +75,39 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
   const [manualMode, setManualMode] = useState(false)
   const [hasOpenedInitial, setHasOpenedInitial] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
+  const previousConversationId = useRef<string | null>(null)
 
-  // Scroll to bottom when messages change
+  // Check if user is near bottom of messages
+  const checkIfNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current
+    if (!container) return true
+    const threshold = 100 // pixels from bottom
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold
+  }, [])
+
+  // Handle scroll events to track if user scrolled up
+  const handleMessagesScroll = useCallback(() => {
+    setShouldAutoScroll(checkIfNearBottom())
+  }, [checkIfNearBottom])
+
+  // Scroll to bottom only when opening a new conversation or when near bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    const isNewConversation = selectedConversation?.id !== previousConversationId.current
+
+    if (isNewConversation) {
+      // Always scroll to bottom when opening a new conversation
+      previousConversationId.current = selectedConversation?.id || null
+      setShouldAutoScroll(true)
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
+      }, 50)
+    } else if (shouldAutoScroll && messages.length > 0) {
+      // Only scroll if user is near bottom
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, selectedConversation?.id, shouldAutoScroll])
 
   // Handle selecting a conversation - also resolves escalation if needed
   const handleSelectConversation = useCallback(async (conv: Conversation) => {
@@ -764,7 +792,11 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-auto p-4 space-y-4">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleMessagesScroll}
+              className="flex-1 overflow-auto p-4 space-y-4"
+            >
               {isLoadingMessages ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="h-6 w-6 text-botsy-lime animate-spin" />
