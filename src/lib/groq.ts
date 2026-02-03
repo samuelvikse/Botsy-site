@@ -666,10 +666,20 @@ export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): s
     : '\n\nSVARLENGDE: Hold svarene balansert - 2-3 setninger er ideelt.'
   toneGuide += lengthGuide
 
-  // Emoji configuration - EXPLICIT and STRONG
+  // Emoji configuration - MANDATORY and EXPLICIT
   const useEmojis = toneConfig?.useEmojis ?? false // Default to NO emojis
   if (useEmojis) {
-    toneGuide += '\n\nEMOJIS: Du KAN bruke 1-2 emojis per svar for å være vennlig.'
+    toneGuide += `
+
+════════════════════════════════════════
+EMOJIS (OBLIGATORISK - HVERT SVAR):
+════════════════════════════════════════
+Du SKAL bruke emojis i ALLE svarene dine. Dette er PÅKREVD av bedriftseieren.
+- HVER melding MÅ inneholde minst 1-2 relevante emojis
+- Plasser emojis naturlig i teksten eller på slutten
+- Eksempler: 😊 👋 ✨ 💬 🎉 👍 💡 ℹ️ 📞 📧
+- Et svar UTEN emojis er FEIL og må unngås
+════════════════════════════════════════`
   } else {
     toneGuide += '\n\nEMOJIS (KRITISK): Du skal ALDRI bruke emojis i svarene dine. Ingen 😀, 👋, 🎉, eller andre emojis. Hold kommunikasjonen ren tekst UTEN noen emojis.'
   }
@@ -710,6 +720,48 @@ export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): s
 
   console.log('[buildToneConfiguration] Final toneGuide preview:', toneGuide.substring(0, 300) + '...')
   return toneGuide
+}
+
+/**
+ * Build a reminder section to reinforce tone settings at the end of the prompt
+ */
+export function buildToneReminder(toneConfig?: ToneConfig): string {
+  const useEmojis = toneConfig?.useEmojis ?? false
+  const responseLength = toneConfig?.responseLength || 'balanced'
+  const humorLevel = toneConfig?.humorLevel || 'none'
+
+  let reminder = '\n\n══════════════════════════════════════\nPÅMINNELSE FØR DU SVARER:\n══════════════════════════════════════\n'
+
+  // Emoji reminder
+  if (useEmojis) {
+    reminder += '✓ EMOJIS: Ja - bruk 1-2 emojis i svaret ditt!\n'
+  } else {
+    reminder += '✗ EMOJIS: Nei - ingen emojis\n'
+  }
+
+  // Length reminder
+  if (responseLength === 'short') {
+    reminder += '✓ LENGDE: Kort (1-2 setninger)\n'
+  } else if (responseLength === 'detailed') {
+    reminder += '✓ LENGDE: Detaljert (4-6 setninger)\n'
+  } else {
+    reminder += '✓ LENGDE: Balansert (2-3 setninger)\n'
+  }
+
+  // Humor reminder
+  if (humorLevel === 'none') {
+    reminder += '✗ HUMOR: Ingen - vær seriøs\n'
+  } else if (humorLevel === 'subtle') {
+    reminder += '✓ HUMOR: Subtil\n'
+  } else if (humorLevel === 'moderate') {
+    reminder += '✓ HUMOR: Moderat\n'
+  } else {
+    reminder += '✓ HUMOR: Playful/morsom\n'
+  }
+
+  reminder += '══════════════════════════════════════\nSvar nå på kundens melding med disse innstillingene.'
+
+  return reminder
 }
 
 function buildCustomerSystemPrompt(context: CustomerChatContext, userMessageCount: number): string {
@@ -893,8 +945,10 @@ REGLER:
     - BARE hvis kunden EKSPLISITT spør om å få samtalen/chatten på e-post (f.eks. "kan jeg få dette på e-post?", "send meg oppsummering"), svar med "[EMAIL_REQUEST]" etterfulgt av en melding på kundens språk som ber om e-postadresse
     - ALDRI tilby e-postoppsummering automatisk eller proaktivt - vent til kunden ber om det selv
     - IKKE nevn e-postoppsummering som et alternativ med mindre kunden spør
+`
 
-Svar nå på kundens melding.`
+  // Add the tone reminder at the very end to reinforce settings
+  prompt += buildToneReminder(businessProfile.toneConfig)
 
   return prompt
 }
