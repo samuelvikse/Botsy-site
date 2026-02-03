@@ -69,9 +69,9 @@ export async function getInstagramChannel(companyId: string): Promise<InstagramC
 }
 
 /**
- * Find company by Instagram Page ID
+ * Find company by Instagram Account ID (the ID received in webhooks)
  */
-export async function findCompanyByInstagramPageId(pageId: string): Promise<string | null> {
+export async function findCompanyByInstagramPageId(instagramAccountId: string): Promise<string | null> {
   try {
     const query = {
       structuredQuery: {
@@ -82,9 +82,9 @@ export async function findCompanyByInstagramPageId(pageId: string): Promise<stri
             filters: [
               {
                 fieldFilter: {
-                  field: { fieldPath: 'channels.instagram.pageId' },
+                  field: { fieldPath: 'channels.instagram.instagramAccountId' },
                   op: 'EQUAL',
-                  value: { stringValue: pageId }
+                  value: { stringValue: instagramAccountId }
                 }
               },
               {
