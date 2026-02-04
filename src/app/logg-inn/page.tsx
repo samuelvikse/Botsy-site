@@ -490,6 +490,7 @@ export default function LoginPage() {
               alt="Botsy"
               width={48}
               height={48}
+              loading="lazy"
             />
           </div>
           <h2 className="text-2xl font-bold text-white mb-4">

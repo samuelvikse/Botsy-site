@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import {
   MessageSquare,
@@ -33,7 +33,7 @@ interface AnalyticsData {
   isLoading: boolean
 }
 
-export function AnalyticsView({ companyId }: AnalyticsViewProps) {
+export const AnalyticsView = memo(function AnalyticsView({ companyId }: AnalyticsViewProps) {
   const toast = useToast()
   const { canManageTeam } = usePermissions()
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90'>('7')
@@ -388,7 +388,7 @@ export function AnalyticsView({ companyId }: AnalyticsViewProps) {
       )}
     </div>
   )
-}
+})
 
 function StatCard({
   title,

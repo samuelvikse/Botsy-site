@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
@@ -64,7 +64,7 @@ interface ChatMessage {
   isManual?: boolean
 }
 
-export function ConversationsView({ companyId, initialConversationId, onConversationOpened }: ConversationsViewProps) {
+export const ConversationsView = memo(function ConversationsView({ companyId, initialConversationId, onConversationOpened }: ConversationsViewProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -987,7 +987,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
       />
     </div>
   )
-}
+})
 
 // Message Bubble Component
 function MessageBubble({ message }: { message: ChatMessage }) {

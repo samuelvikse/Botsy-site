@@ -5,6 +5,9 @@ import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+// Force dynamic rendering (uses request.url)
+export const dynamic = 'force-dynamic'
+
 // GET - Fetch instructions for a company
 export async function GET(request: NextRequest) {
   try {
@@ -59,7 +62,11 @@ export async function GET(request: NextRequest) {
         return bTime - aTime
       })
 
-    return NextResponse.json({ instructions })
+    return NextResponse.json({ instructions }, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60',
+      }
+    })
 
   } catch {
     return NextResponse.json(

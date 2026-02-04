@@ -161,6 +161,9 @@ export default function RootLayout({
         {/* DNS prefetch for external resources */}
         <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
         <link rel="dns-prefetch" href="https://storage.googleapis.com" />
+        {/* Preconnect to Firebase Auth for faster login */}
+        <link rel="preconnect" href="https://identitytoolkit.googleapis.com" />
+        <link rel="preconnect" href="https://securetoken.googleapis.com" />
         <OrganizationJsonLd />
         <WebsiteJsonLd />
         <SoftwareApplicationJsonLd />

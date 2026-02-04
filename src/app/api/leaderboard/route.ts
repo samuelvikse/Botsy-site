@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getLeaderboard, getAllPerformances, getCurrentMonth } from '@/lib/leaderboard-firestore'
 
+// Force dynamic rendering (uses request.url)
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -23,6 +26,10 @@ export async function GET(request: NextRequest) {
         performances,
         month,
         monthName: getMonthName(month)
+      }, {
+        headers: {
+          'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+        }
       })
     }
 
@@ -31,6 +38,10 @@ export async function GET(request: NextRequest) {
       leaderboard,
       month,
       monthName: getMonthName(month)
+    }, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120',
+      }
     })
   } catch (error) {
     console.error('Error fetching leaderboard:', error)

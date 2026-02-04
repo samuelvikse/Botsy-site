@@ -523,6 +523,7 @@ export default function FAQPage() {
                 alt="Botsy"
                 width={100}
                 height={32}
+                loading="lazy"
                 className="h-8 w-auto"
               />
             </Link>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -11,27 +11,37 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [showContent, setShowContent] = useState(false)
+  const [initialCheckDone, setInitialCheckDone] = useState(false)
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/logg-inn')
+    if (!loading) {
+      setInitialCheckDone(true)
+      if (!user) {
+        router.push('/logg-inn')
+      } else {
+        setShowContent(true)
+      }
     }
   }, [user, loading, router])
 
-  if (loading) {
+  // Show a minimal loading state only on initial load (very fast)
+  // This prevents flash of content before auth state is determined
+  if (!initialCheckDone) {
     return (
       <div className="min-h-screen bg-botsy-dark flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 border-4 border-botsy-lime/20 border-t-botsy-lime rounded-full animate-spin" />
-          <p className="text-[#6B7A94] text-sm">Laster...</p>
+          <div className="h-10 w-10 border-3 border-botsy-lime/20 border-t-botsy-lime rounded-full animate-spin" />
         </div>
       </div>
     )
   }
 
+  // If no user after check, don't render anything (redirect happening)
   if (!user) {
     return null
   }
 
+  // Render content immediately once we know user is authenticated
   return <>{children}</>
 }
