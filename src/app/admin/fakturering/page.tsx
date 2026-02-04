@@ -666,30 +666,6 @@ function BillingContent() {
                   </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                  {[
-                    { label: 'Meldinger', value: 'Ubegrenset', icon: MessageSquare },
-                    { label: 'Kanaler', value: 'Alle (5+)', icon: Zap },
-                    { label: 'Team', value: 'Opptil 10', icon: Users },
-                    { label: 'Analyser', value: 'Inkludert', icon: BarChart3 },
-                  ].map((stat, index) => (
-                    <motion.div
-                      key={stat.label}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <stat.icon className="h-4 w-4 text-botsy-lime" />
-                        <span className="text-[#6B7A94] text-sm">{stat.label}</span>
-                      </div>
-                      <p className="text-white font-semibold text-lg">{stat.value}</p>
-                    </motion.div>
-                  ))}
-                </div>
-
                 {/* Actions */}
                 <div className="flex flex-wrap gap-3">
                   <Button
