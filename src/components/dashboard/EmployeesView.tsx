@@ -21,6 +21,7 @@ import {
   Medal,
   MessageCircle,
   ThumbsUp,
+  LogOut,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -56,6 +57,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
   const [permissionsModalOpen, setPermissionsModalOpen] = useState(false)
   const [transferModalOpen, setTransferModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [cancelInviteId, setCancelInviteId] = useState<string | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -156,6 +158,38 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
     }
   }
 
+  const handleLeaveCompany = async () => {
+    const myMembership = members.find(m => m.membership.userId === user?.uid)
+    if (!myMembership || !user?.uid) return
+
+    setActionLoading('leave')
+    try {
+      const response = await fetch('/api/memberships/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.uid,
+          membershipId: myMembership.membership.id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Du har forlatt bedriften', 'Du kan nå bli med i en annen bedrift')
+        // Redirect to home/dashboard after leaving
+        window.location.href = '/'
+      } else {
+        throw new Error(data.error || 'Failed to leave company')
+      }
+    } catch (error) {
+      toast.error('Kunne ikke forlate bedriften', error instanceof Error ? error.message : 'Prøv igjen senere')
+    } finally {
+      setActionLoading(null)
+      setLeaveModalOpen(false)
+    }
+  }
+
   const handleCancelTransfer = async () => {
     if (!pendingTransfer) return
 
@@ -231,6 +265,12 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
     return true
   }
 
+  // Check if current user can leave the company (not an owner)
+  const canLeaveCompany = (): boolean => {
+    const myMembership = members.find(m => m.membership.userId === user?.uid)
+    return !!myMembership && myMembership.membership.role !== 'owner'
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -250,6 +290,16 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
           </p>
         </div>
         <div className="flex gap-3">
+          {canLeaveCompany() && (
+            <Button
+              variant="outline"
+              onClick={() => setLeaveModalOpen(true)}
+              className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
+            >
+              <LogOut className="h-4 w-4 mr-1.5" />
+              Forlat bedrift
+            </Button>
+          )}
           {isOwner && (
             <Button variant="outline" onClick={() => setTransferModalOpen(true)}>
               <Crown className="h-4 w-4 mr-1.5" />
@@ -718,6 +768,17 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
         confirmText="Kanseller"
         variant="warning"
         isLoading={!!cancelInviteId && actionLoading === cancelInviteId}
+      />
+
+      <ConfirmDialog
+        isOpen={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        onConfirm={handleLeaveCompany}
+        title="Forlat bedriften?"
+        description="Er du sikker på at du vil forlate denne bedriften? Du vil miste tilgang til alle data og samtaler. Du kan bli med i en ny bedrift senere hvis du blir invitert."
+        confirmText="Forlat bedrift"
+        variant="danger"
+        isLoading={actionLoading === 'leave'}
       />
     </div>
   )

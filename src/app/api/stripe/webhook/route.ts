@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
-import { updateDocumentRest, queryDocumentsRest, addDocumentRest } from '@/lib/firebase-rest'
+import { updateDocumentRest, queryDocumentsRest, addDocumentRest, getDocumentRest } from '@/lib/firebase-rest'
+import { sendSubscriptionConfirmationEmail, sendSubscriptionCancelledEmail } from '@/lib/botsy-emails'
+import { logSubscriptionEvent } from '@/lib/audit-log'
 import Stripe from 'stripe'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
+
+// Track which subscriptions we've already sent welcome emails for (in-memory, resets on deploy)
+const sentWelcomeEmails = new Set<string>()
 
 /**
  * POST - Handle Stripe webhook events
@@ -171,6 +176,79 @@ async function updateCompanySubscription(companyId: string, subscription: Stripe
   ])
 
   console.log(`[Stripe Webhook] Updated subscription for company: ${companyId}, status: ${subscription.status}`)
+
+  // Log audit event
+  await logSubscriptionEvent({
+    action: subscription.status === 'trialing' ? 'subscription.created' : 'subscription.updated',
+    companyId,
+    subscriptionId: subscription.id,
+    status: subscription.status,
+  })
+
+  // Send welcome/confirmation email for new subscriptions
+  const isNewSubscription = subscription.status === 'trialing' || subscription.status === 'active'
+  const emailKey = `${subscription.id}-${subscription.status}`
+
+  if (isNewSubscription && !sentWelcomeEmails.has(emailKey)) {
+    sentWelcomeEmails.add(emailKey)
+
+    try {
+      // Get company and customer details
+      const companyData = await getDocumentRest('companies', companyId)
+      const customerId = typeof subscription.customer === 'string'
+        ? subscription.customer
+        : subscription.customer.id
+
+      // Get customer email from Stripe
+      let customerEmail: string | null = null
+      let customerName: string | null = null
+
+      if (stripe) {
+        const customer = await stripe.customers.retrieve(customerId)
+        if (customer && !customer.deleted) {
+          customerEmail = customer.email || null
+          customerName = customer.name || null
+        }
+      }
+
+      if (customerEmail) {
+        const trialEndDate = subscription.trial_end
+          ? new Date(subscription.trial_end * 1000).toLocaleDateString('nb-NO', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })
+          : null
+
+        const nextBillingDate = firstItem?.current_period_end
+          ? new Date(firstItem.current_period_end * 1000).toLocaleDateString('nb-NO', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })
+          : 'Ukjent'
+
+        const price = firstItem?.price.unit_amount
+          ? (firstItem.price.unit_amount / 100).toString()
+          : '699'
+
+        await sendSubscriptionConfirmationEmail({
+          to: customerEmail,
+          customerName: customerName || 'Kunde',
+          companyName: (companyData?.name as string) || 'Din bedrift',
+          price,
+          currency: firstItem?.price.currency?.toUpperCase() || 'NOK',
+          trialEndDate,
+          nextBillingDate,
+        })
+
+        console.log(`[Stripe Webhook] Sent subscription confirmation email to ${customerEmail}`)
+      }
+    } catch (emailError) {
+      // Don't fail the webhook if email fails
+      console.error('[Stripe Webhook] Failed to send confirmation email:', emailError)
+    }
+  }
 }
 
 /**
@@ -195,12 +273,54 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   }
 
   const companyId = companies[0].id
+  const companyData = companies[0].data as Record<string, unknown>
+
+  // Get period end for access until date
+  const firstItem = subscription.items.data[0]
+  const accessUntil = firstItem?.current_period_end
+    ? new Date(firstItem.current_period_end * 1000)
+    : new Date()
 
   await updateDocumentRest('companies', companyId, {
     subscriptionStatus: 'canceled',
     subscriptionCanceledAt: new Date(),
     subscriptionUpdatedAt: new Date(),
   }, ['subscriptionStatus', 'subscriptionCanceledAt', 'subscriptionUpdatedAt'])
+
+  // Log audit event
+  await logSubscriptionEvent({
+    action: 'subscription.cancelled',
+    companyId,
+    subscriptionId: subscription.id,
+    status: 'canceled',
+  })
+
+  // Send cancellation email
+  try {
+    if (stripe) {
+      const customer = await stripe.customers.retrieve(customerId)
+      if (customer && !customer.deleted && customer.email) {
+        await sendSubscriptionCancelledEmail({
+          to: customer.email,
+          customerName: customer.name || 'Kunde',
+          companyName: (companyData.name as string) || 'Din bedrift',
+          cancellationDate: new Date().toLocaleDateString('nb-NO', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          }),
+          accessUntil: accessUntil.toLocaleDateString('nb-NO', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          }),
+        })
+        console.log(`[Stripe Webhook] Sent cancellation email to ${customer.email}`)
+      }
+    }
+  } catch (emailError) {
+    console.error('[Stripe Webhook] Failed to send cancellation email:', emailError)
+  }
 
   console.log(`[Stripe Webhook] Subscription canceled for company: ${companyId}`)
 }
@@ -240,6 +360,14 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
     createdAt: new Date(),
   })
 
+  // Log audit event
+  await logSubscriptionEvent({
+    action: 'subscription.payment_succeeded',
+    companyId,
+    amount: invoice.amount_paid,
+    currency: invoice.currency,
+  })
+
   console.log(`[Stripe Webhook] Invoice payment succeeded for company: ${companyId}`)
 }
 
@@ -269,6 +397,14 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     subscriptionStatus: 'past_due',
     lastPaymentFailedAt: new Date(),
   }, ['subscriptionStatus', 'lastPaymentFailedAt'])
+
+  // Log audit event
+  await logSubscriptionEvent({
+    action: 'subscription.payment_failed',
+    companyId,
+    amount: invoice.amount_due,
+    currency: invoice.currency,
+  })
 
   console.log(`[Stripe Webhook] Invoice payment failed for company: ${companyId}`)
 }

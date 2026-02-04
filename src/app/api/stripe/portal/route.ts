@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { verifyIdTokenRest, getDocumentRest } from '@/lib/firebase-rest'
+import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
+import { formatStripeError } from '@/lib/stripe-errors'
 
 /**
  * POST - Create a Stripe Customer Portal session
@@ -19,6 +21,29 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(
+      getRateLimitIdentifier(user.uid),
+      RATE_LIMITS.portal
+    )
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          error: 'For mange forespørsler',
+          errorCode: 'Rate Limit',
+          retryAfter: rateLimitResult.retryAfter,
+          recoverable: true,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimitResult.retryAfter),
+          },
+        }
+      )
     }
 
     if (!stripe) {
@@ -47,7 +72,12 @@ export async function POST(request: NextRequest) {
 
     if (!stripeCustomerId) {
       return NextResponse.json(
-        { error: 'No subscription found. Please subscribe first.' },
+        {
+          error: 'Ingen abonnement funnet',
+          errorCode: 'No Subscription',
+          recoverable: false,
+          suggestion: 'Start et abonnement først for å få tilgang til kundeportalen.',
+        },
         { status: 400 }
       )
     }
@@ -67,7 +97,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Stripe Portal] Error:', error)
     return NextResponse.json(
-      { error: 'Failed to create portal session' },
+      formatStripeError(error),
       { status: 500 }
     )
   }

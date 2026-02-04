@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
+import { sendWelcomeToTeamEmail } from '@/lib/botsy-emails'
+import { logMembershipChange } from '@/lib/audit-log'
 import type { Invitation, EmployeePermissions, AdminPermissions } from '@/types'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
@@ -287,6 +289,52 @@ export async function POST(
         }),
       }
     )
+
+    // Get user data for the email
+    let userEmail = parsed.email as string
+    let userName = ''
+    try {
+      const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${userId}`)
+      if (userResponse.ok) {
+        const userData = await userResponse.json()
+        if (userData.fields) {
+          const userParsed = parseFirestoreFields(userData.fields)
+          userEmail = (userParsed.email as string) || userEmail
+          userName = (userParsed.displayName as string) || ''
+        }
+      }
+    } catch {
+      // Ignore errors fetching user data
+    }
+
+    // Send welcome email
+    try {
+      await sendWelcomeToTeamEmail({
+        to: userEmail,
+        memberName: userName || userEmail.split('@')[0],
+        companyName: parsed.companyName as string,
+        role: parsed.role as 'admin' | 'employee',
+        inviterName: parsed.inviterName as string,
+      })
+      console.log(`[Invitation] Sent welcome email to ${userEmail}`)
+    } catch (emailError) {
+      console.error('[Invitation] Failed to send welcome email:', emailError)
+    }
+
+    // Log audit event
+    try {
+      await logMembershipChange({
+        action: 'member.joined',
+        actorId: userId,
+        actorEmail: userEmail,
+        targetId: userId,
+        targetEmail: userEmail,
+        companyId: parsed.companyId as string,
+        newRole: parsed.role as string,
+      })
+    } catch (auditError) {
+      console.error('[Invitation] Failed to log audit event:', auditError)
+    }
 
     return NextResponse.json({
       success: true,

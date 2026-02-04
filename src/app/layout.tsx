@@ -3,6 +3,7 @@ import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/toast'
 import { CookieConsent } from '@/components/ui/cookie-consent'
+import { SessionTimeoutWarning } from '@/components/SessionTimeoutWarning'
 import { OrganizationJsonLd, WebsiteJsonLd, SoftwareApplicationJsonLd } from '@/components/seo/JsonLd'
 import { WidgetScript } from '@/components/WidgetScript'
 
@@ -147,6 +148,7 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             {children}
+            <SessionTimeoutWarning timeoutMinutes={30} warningMinutes={5} />
             <CookieConsent />
           </ToastProvider>
         </AuthProvider>

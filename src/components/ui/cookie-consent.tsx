@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Cookie, X, Check, Settings } from 'lucide-react'
+import { Cookie, X, Settings } from 'lucide-react'
 import { Button } from './button'
 import Link from 'next/link'
 
@@ -86,11 +86,12 @@ export function CookieConsent() {
     <AnimatePresence>
       {showBanner && (
         <motion.div
-          initial={{ opacity: 0, y: 100 }}
+          key="cookie-banner"
+          initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 100 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed bottom-0 left-0 right-0 z-[100] p-4 sm:p-6"
+          exit={{ opacity: 0, y: 50 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-[99999]"
         >
           <div className="max-w-2xl mx-auto bg-[#1a1a2e] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
             {!showSettings ? (

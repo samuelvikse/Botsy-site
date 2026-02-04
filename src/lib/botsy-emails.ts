@@ -11,6 +11,11 @@ import { TeamInvitationEmail } from '@/emails/TeamInvitationEmail'
 import { OwnershipTransferRequestEmail } from '@/emails/OwnershipTransferRequestEmail'
 import { OwnershipTransferOfferEmail } from '@/emails/OwnershipTransferOfferEmail'
 import { OwnershipTransferCompleteEmail } from '@/emails/OwnershipTransferCompleteEmail'
+import { SubscriptionConfirmationEmail } from '@/emails/SubscriptionConfirmationEmail'
+import { TrialExpiringEmail } from '@/emails/TrialExpiringEmail'
+import { SubscriptionCancelledEmail } from '@/emails/SubscriptionCancelledEmail'
+import { WelcomeToTeamEmail } from '@/emails/WelcomeToTeamEmail'
+import { WeeklySummaryEmail } from '@/emails/WeeklySummaryEmail'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -253,4 +258,265 @@ export async function sendOwnershipTransferCompleteEmails(params: {
   ])
 
   return { previousOwnerResult, newOwnerResult }
+}
+
+/**
+ * Send subscription confirmation email
+ */
+export async function sendSubscriptionConfirmationEmail(params: {
+  to: string
+  customerName: string
+  companyName: string
+  planName?: string
+  price: string
+  currency?: string
+  billingPeriod?: string
+  trialEndDate?: string | null
+  nextBillingDate: string
+  invoiceUrl?: string | null
+}): Promise<SendEmailResult> {
+  try {
+    const html = await render(
+      SubscriptionConfirmationEmail({
+        customerName: params.customerName,
+        companyName: params.companyName,
+        planName: params.planName || 'Botsy Standard',
+        price: params.price,
+        currency: params.currency || 'NOK',
+        billingPeriod: params.billingPeriod || 'månedlig',
+        trialEndDate: params.trialEndDate,
+        nextBillingDate: params.nextBillingDate,
+        invoiceUrl: params.invoiceUrl,
+        dashboardUrl: 'https://botsy.no/admin',
+      })
+    )
+
+    const isTrialing = !!params.trialEndDate
+    const subject = isTrialing
+      ? `Velkommen til Botsy! Din prøveperiode er startet`
+      : `Betalingsbekreftelse - Ditt Botsy-abonnement er aktivt`
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: params.to,
+      subject,
+      html,
+    })
+
+    if (error) {
+      console.error('Failed to send subscription confirmation email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, id: data?.id }
+  } catch (error) {
+    console.error('Error sending subscription confirmation email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Send trial expiring reminder email
+ */
+export async function sendTrialExpiringEmail(params: {
+  to: string
+  customerName: string
+  companyName: string
+  daysLeft: number
+  trialEndDate: string
+  price?: string
+  currency?: string
+}): Promise<SendEmailResult> {
+  try {
+    const html = await render(
+      TrialExpiringEmail({
+        customerName: params.customerName,
+        companyName: params.companyName,
+        daysLeft: params.daysLeft,
+        trialEndDate: params.trialEndDate,
+        price: params.price || '699',
+        currency: params.currency || 'NOK',
+        billingUrl: 'https://botsy.no/admin/fakturering',
+      })
+    )
+
+    const isUrgent = params.daysLeft <= 1
+    const subject = isUrgent
+      ? `⚠️ Din prøveperiode utløper ${params.daysLeft === 0 ? 'i dag' : 'i morgen'} - ${params.companyName}`
+      : `⏰ ${params.daysLeft} dager igjen av prøveperioden - ${params.companyName}`
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: params.to,
+      subject,
+      html,
+    })
+
+    if (error) {
+      console.error('Failed to send trial expiring email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, id: data?.id }
+  } catch (error) {
+    console.error('Error sending trial expiring email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Send subscription cancelled email
+ */
+export async function sendSubscriptionCancelledEmail(params: {
+  to: string
+  customerName: string
+  companyName: string
+  cancellationDate: string
+  accessUntil: string
+  reason?: string
+}): Promise<SendEmailResult> {
+  try {
+    const html = await render(
+      SubscriptionCancelledEmail({
+        customerName: params.customerName,
+        companyName: params.companyName,
+        cancellationDate: params.cancellationDate,
+        accessUntil: params.accessUntil,
+        reason: params.reason,
+        reactivateUrl: 'https://botsy.no/admin/fakturering',
+      })
+    )
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: params.to,
+      subject: `Abonnementet er kansellert - ${params.companyName}`,
+      html,
+    })
+
+    if (error) {
+      console.error('Failed to send cancellation email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, id: data?.id }
+  } catch (error) {
+    console.error('Error sending cancellation email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Send welcome to team email
+ */
+export async function sendWelcomeToTeamEmail(params: {
+  to: string
+  memberName: string
+  companyName: string
+  role: 'admin' | 'employee'
+  inviterName: string
+}): Promise<SendEmailResult> {
+  try {
+    const html = await render(
+      WelcomeToTeamEmail({
+        memberName: params.memberName,
+        companyName: params.companyName,
+        role: params.role,
+        inviterName: params.inviterName,
+        dashboardUrl: 'https://botsy.no/admin',
+      })
+    )
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: params.to,
+      subject: `Velkommen til ${params.companyName} på Botsy! 🎉`,
+      html,
+    })
+
+    if (error) {
+      console.error('Failed to send welcome email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, id: data?.id }
+  } catch (error) {
+    console.error('Error sending welcome email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Send weekly summary email
+ */
+export async function sendWeeklySummaryEmail(params: {
+  to: string
+  recipientName: string
+  companyName: string
+  weekNumber: number
+  weekDateRange: string
+  stats: {
+    totalConversations: number
+    conversationsChange: number
+    resolvedByBot: number
+    resolvedByBotChange: number
+    escalatedToHuman: number
+    avgResponseTime: string
+    customerSatisfaction?: number
+  }
+  topPerformers?: Array<{
+    name: string
+    points: number
+    conversationsHandled: number
+    avatarUrl?: string
+  }>
+  insights?: string[]
+}): Promise<SendEmailResult> {
+  try {
+    const html = await render(
+      WeeklySummaryEmail({
+        recipientName: params.recipientName,
+        companyName: params.companyName,
+        weekNumber: params.weekNumber,
+        weekDateRange: params.weekDateRange,
+        stats: params.stats,
+        topPerformers: params.topPerformers || [],
+        insights: params.insights || [],
+        dashboardUrl: 'https://botsy.no/admin',
+        unsubscribeUrl: 'https://botsy.no/admin/innstillinger?tab=notifications',
+      })
+    )
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: params.to,
+      subject: `📊 Ukentlig oppsummering uke ${params.weekNumber} - ${params.companyName}`,
+      html,
+    })
+
+    if (error) {
+      console.error('Failed to send weekly summary email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, id: data?.id }
+  } catch (error) {
+    console.error('Error sending weekly summary email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
 }

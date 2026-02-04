@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
 import { verifyIdTokenRest, getDocumentRest, updateDocumentRest } from '@/lib/firebase-rest'
+import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
+import { formatStripeError } from '@/lib/stripe-errors'
 
 /**
  * POST - Create a subscription with embedded payment
@@ -19,6 +21,31 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    // Rate limiting - strict for checkout
+    const rateLimitResult = checkRateLimit(
+      getRateLimitIdentifier(user.uid),
+      RATE_LIMITS.checkout
+    )
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          error: 'For mange forsøk på å starte abonnement',
+          errorCode: 'Rate Limit',
+          retryAfter: rateLimitResult.retryAfter,
+          recoverable: true,
+          suggestion: `Vent ${rateLimitResult.retryAfter} sekunder før du prøver igjen.`,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimitResult.retryAfter),
+            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+          },
+        }
+      )
     }
 
     if (!stripe) {
@@ -54,6 +81,18 @@ export async function POST(request: NextRequest) {
     // Check if company already has a Stripe customer
     const companyData = await getDocumentRest('companies', companyId)
     let stripeCustomerId = companyData?.stripeCustomerId as string | undefined
+
+    // Check if user already has an active subscription
+    if (companyData?.subscriptionStatus === 'active' || companyData?.subscriptionStatus === 'trialing') {
+      return NextResponse.json(
+        {
+          error: 'Du har allerede et aktivt abonnement',
+          errorCode: 'Already Subscribed',
+          recoverable: false,
+        },
+        { status: 400 }
+      )
+    }
 
     // Create Stripe customer if doesn't exist
     if (!stripeCustomerId) {
@@ -123,7 +162,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Stripe Create Subscription] Error:', error)
     return NextResponse.json(
-      { error: 'Failed to create subscription' },
+      formatStripeError(error),
       { status: 500 }
     )
   }

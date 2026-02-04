@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { verifyIdTokenRest, getDocumentRest, updateDocumentRest } from '@/lib/firebase-rest'
+import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
+import { formatStripeError } from '@/lib/stripe-errors'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
@@ -21,6 +23,30 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(
+      getRateLimitIdentifier(user.uid),
+      RATE_LIMITS.general
+    )
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          error: 'For mange forespørsler',
+          errorCode: 'Rate Limit',
+          retryAfter: rateLimitResult.retryAfter,
+          recoverable: true,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimitResult.retryAfter),
+            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+          },
+        }
+      )
     }
 
     const userId = user.uid
@@ -50,8 +76,13 @@ export async function GET(request: NextRequest) {
         currentPeriodEnd: companyData?.subscriptionCurrentPeriodEnd || null,
         trialEnd: companyData?.subscriptionTrialEnd || null,
         cancelAtPeriodEnd: companyData?.subscriptionCancelAtPeriodEnd || false,
+        pausedAt: companyData?.subscriptionPausedAt || null,
+        resumesAt: companyData?.subscriptionResumesAt || null,
+        paymentProvider: companyData?.paymentProvider || null,
+        vippsAgreementStatus: companyData?.vippsAgreementStatus || null,
       },
       invoices,
+      companyId,
       hasStripeCustomer: !!companyData?.stripeCustomerId,
     })
   } catch (error) {
@@ -79,6 +110,29 @@ export async function DELETE(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(
+      getRateLimitIdentifier(user.uid),
+      RATE_LIMITS.subscription
+    )
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          error: 'For mange forespørsler',
+          errorCode: 'Rate Limit',
+          retryAfter: rateLimitResult.retryAfter,
+          recoverable: true,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimitResult.retryAfter),
+          },
+        }
+      )
     }
 
     if (!stripe) {
@@ -129,7 +183,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('[Stripe Subscription] Cancel error:', error)
     return NextResponse.json(
-      { error: 'Failed to cancel subscription' },
+      formatStripeError(error),
       { status: 500 }
     )
   }
@@ -151,6 +205,29 @@ export async function PUT(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    // Rate limiting
+    const rateLimitResult = checkRateLimit(
+      getRateLimitIdentifier(user.uid),
+      RATE_LIMITS.subscription
+    )
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          error: 'For mange forespørsler',
+          errorCode: 'Rate Limit',
+          retryAfter: rateLimitResult.retryAfter,
+          recoverable: true,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimitResult.retryAfter),
+          },
+        }
+      )
     }
 
     if (!stripe) {
@@ -201,7 +278,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('[Stripe Subscription] Resume error:', error)
     return NextResponse.json(
-      { error: 'Failed to resume subscription' },
+      formatStripeError(error),
       { status: 500 }
     )
   }
