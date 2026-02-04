@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatWithCustomer } from '@/lib/groq'
+import { isSubscriptionActive, getInactiveSubscriptionMessage } from '@/lib/subscription-check'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore'
 import { createEscalation, getEscalation } from '@/lib/escalation-firestore'
@@ -191,6 +192,21 @@ export async function POST(
 
     // Demo mode - use demo data
     const isDemo = companyId === 'demo'
+
+    // Check subscription status (skip for demo)
+    if (!isDemo) {
+      const hasActiveSubscription = await isSubscriptionActive(companyId)
+      if (!hasActiveSubscription) {
+        return NextResponse.json(
+          {
+            success: true,
+            response: getInactiveSubscriptionMessage('no'),
+            subscriptionInactive: true,
+          },
+          { headers: corsHeaders }
+        )
+      }
+    }
 
     let businessProfile: BusinessProfile
     let instructions: Instruction[] = []

@@ -14,6 +14,7 @@ import { sendInstagramMessage } from '@/lib/instagram'
 import { buildToneConfiguration } from '@/lib/groq'
 import { createEscalation } from '@/lib/escalation-firestore'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
+import { isSubscriptionActive, getInactiveSubscriptionMessage } from '@/lib/subscription-check'
 import type { ToneConfig } from '@/types'
 
 // Phrases that indicate user wants human assistance
@@ -144,6 +145,22 @@ async function processInstagramMessage(
 
     if (!companyId) {
       console.log('[Instagram] No company found for Instagram account:', instagramAccountId)
+      return
+    }
+
+    // Check subscription status
+    const hasActiveSubscription = await isSubscriptionActive(companyId)
+    if (!hasActiveSubscription) {
+      console.log('[Instagram] Subscription inactive for company:', companyId)
+      // Send polite message that service is unavailable
+      const channel = await getInstagramChannel(companyId)
+      if (channel?.credentials?.pageAccessToken) {
+        await sendInstagramMessage(
+          channel.credentials.pageAccessToken,
+          senderId,
+          getInactiveSubscriptionMessage('no')
+        )
+      }
       return
     }
 

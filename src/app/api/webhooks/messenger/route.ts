@@ -19,6 +19,7 @@ import {
 import { buildToneConfiguration } from '@/lib/groq'
 import { createEscalation } from '@/lib/escalation-firestore'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
+import { isSubscriptionActive, getInactiveSubscriptionMessage } from '@/lib/subscription-check'
 import type { ToneConfig } from '@/types'
 
 // Phrases that indicate user wants human assistance
@@ -120,6 +121,23 @@ async function processMessage(
     const companyId = await findCompanyByPageId(message.recipientId)
 
     if (!companyId) {
+      return
+    }
+
+    // Check subscription status
+    const hasActiveSubscription = await isSubscriptionActive(companyId)
+    if (!hasActiveSubscription) {
+      console.log('[Messenger] Subscription inactive for company:', companyId)
+      const channel = await getMessengerChannel(companyId)
+      if (channel?.credentials?.pageAccessToken && channel?.credentials?.appSecret) {
+        await sendMessengerMessage(
+          channel.credentials as { pageAccessToken: string; appSecret: string },
+          {
+            recipientId: message.senderId,
+            text: getInactiveSubscriptionMessage('no'),
+          }
+        )
+      }
       return
     }
 

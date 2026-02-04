@@ -8,6 +8,7 @@ import {
 } from '@/lib/sms-firestore'
 import { getCompany, getInstructions } from '@/lib/firestore'
 import { chatWithCustomer } from '@/lib/groq'
+import { isSubscriptionActive, getInactiveSubscriptionMessage } from '@/lib/subscription-check'
 import type { SMSMessage, SMSProvider } from '@/types'
 
 export async function POST(request: NextRequest) {
@@ -51,6 +52,20 @@ export async function POST(request: NextRequest) {
         { error: 'SMS not configured for this company' },
         { status: 404 }
       )
+    }
+
+    // Check subscription status
+    const hasActiveSubscription = await isSubscriptionActive(companyId)
+    if (!hasActiveSubscription) {
+      console.log('[SMS] Subscription inactive for company:', companyId)
+      // Send polite message that service is unavailable
+      const smsProviderInstance = getSMSProvider(smsChannel.provider, smsChannel.credentials)
+      await smsProviderInstance.sendSMS(
+        formatPhoneNumber(tempMessage.from),
+        toPhone,
+        getInactiveSubscriptionMessage('no')
+      )
+      return NextResponse.json({ success: true, message: 'Subscription inactive' })
     }
 
     // Now validate webhook with actual credentials

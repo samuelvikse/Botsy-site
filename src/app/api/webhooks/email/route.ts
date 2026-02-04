@@ -17,6 +17,7 @@ import {
   getEmailHistory,
 } from '@/lib/email-firestore'
 import { buildToneConfiguration } from '@/lib/groq'
+import { isSubscriptionActive, getInactiveSubscriptionMessage } from '@/lib/subscription-check'
 import type { ToneConfig } from '@/types'
 
 /**
@@ -82,6 +83,26 @@ async function processEmail(
     const companyId = await findCompanyByEmail(toAddress)
 
     if (!companyId) {
+      return
+    }
+
+    // Check subscription status
+    const hasActiveSubscription = await isSubscriptionActive(companyId)
+    if (!hasActiveSubscription) {
+      console.log('[Email] Subscription inactive for company:', companyId)
+      // Get channel to send response
+      const channel = await getEmailChannel(companyId)
+      if (channel?.credentials && channel?.provider) {
+        await sendEmail(
+          { ...channel.credentials, provider: channel.provider } as EmailCredentials,
+          {
+            to: fromAddress,
+            from: toAddress,
+            subject: formatReplySubject(email.subject),
+            text: getInactiveSubscriptionMessage('no'),
+          }
+        )
+      }
       return
     }
 
