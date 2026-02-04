@@ -26,6 +26,7 @@ export default function SecuritySettingsView() {
   const [showDisableModal, setShowDisableModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
   const [setupStep, setSetupStep] = useState<'phone' | 'verify'>('phone')
@@ -160,7 +161,7 @@ export default function SecuritySettingsView() {
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== 'SLETT KONTOEN MIN') return
 
-    clearError()
+    setDeleteError(null)
     setIsProcessing(true)
 
     try {
@@ -175,13 +176,15 @@ export default function SecuritySettingsView() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Kunne ikke slette kontoen')
+        setDeleteError(data.error || 'Kunne ikke slette kontoen')
+        return
       }
 
       // Redirect to homepage after successful deletion
       window.location.href = '/'
     } catch (err) {
       console.error('Delete account error:', err)
+      setDeleteError(err instanceof Error ? err.message : 'Kunne ikke slette kontoen. Prøv igjen senere.')
     } finally {
       setIsProcessing(false)
     }
@@ -360,7 +363,7 @@ export default function SecuritySettingsView() {
           <Button
             variant="outline"
             className="w-full justify-start text-red-400 border-red-500/20 hover:bg-red-500/10 hover:text-red-300"
-            onClick={() => setShowDeleteModal(true)}
+            onClick={() => { setDeleteError(null); setShowDeleteModal(true); }}
           >
             <Trash2 className="h-5 w-5 mr-2" />
             Slett kontoen min
@@ -598,10 +601,10 @@ export default function SecuritySettingsView() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-botsy-dark-card border border-white/[0.06] rounded-2xl p-6 max-w-md w-full"
+              className="bg-botsy-dark-card border border-white/[0.06] rounded-2xl p-6 max-w-md w-full relative"
             >
               <button
-                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }}
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); setDeleteError(null); }}
                 className="absolute top-4 right-4 text-[#6B7A94] hover:text-white transition-colors"
               >
                 <X className="h-5 w-5" />
@@ -638,9 +641,9 @@ export default function SecuritySettingsView() {
                 className="w-full h-12 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-red-500/50 transition-colors mb-4"
               />
 
-              {error && (
+              {deleteError && (
                 <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <p className="text-red-400 text-sm">{error}</p>
+                  <p className="text-red-400 text-sm">{deleteError}</p>
                 </div>
               )}
 
@@ -648,7 +651,7 @@ export default function SecuritySettingsView() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }}
+                  onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); setDeleteError(null); }}
                 >
                   Avbryt
                 </Button>

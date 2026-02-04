@@ -144,6 +144,7 @@ async function deleteCompanyData(companyId: string) {
     'faqs',
     'chats',
     'messengerChats',
+    'instagramChats',
     'smsChats',
     'emailChats',
     'escalations',
@@ -152,6 +153,7 @@ async function deleteCompanyData(companyId: string) {
     'syncJobs',
     'conflicts',
     'documents',
+    'channels',
   ]
 
   for (const subcollection of subcollections) {

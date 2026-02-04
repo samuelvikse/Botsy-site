@@ -24,7 +24,7 @@ import { getSMSChannel } from '@/lib/sms-firestore'
 import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
 import { getAllEmailChats, getEmailHistory } from '@/lib/email-firestore'
 import { getSMSProvider } from '@/lib/sms'
-import { Facebook, Mail } from 'lucide-react'
+import { Facebook, Mail, Instagram } from 'lucide-react'
 import type { SMSMessage } from '@/types'
 
 // Polling intervals in milliseconds
@@ -37,14 +37,14 @@ interface ConversationsViewProps {
   onConversationOpened?: () => void
 }
 
-type ChannelFilter = 'all' | 'sms' | 'widget' | 'messenger' | 'email'
+type ChannelFilter = 'all' | 'sms' | 'widget' | 'messenger' | 'instagram' | 'email'
 
 interface Conversation {
   id: string
   name: string
   phone?: string
   email?: string
-  channel: 'sms' | 'widget' | 'messenger' | 'email'
+  channel: 'sms' | 'widget' | 'messenger' | 'instagram' | 'email'
   lastMessage: string
   lastMessageAt: Date
   messageCount: number
@@ -219,6 +219,38 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
         // Error fetching Messenger chats
       }
 
+      // Fetch Instagram chats via API
+      try {
+        const instagramResponse = await fetch(`/api/instagram/chats?companyId=${companyId}`)
+        if (instagramResponse.ok) {
+          const instagramData = await instagramResponse.json()
+          if (instagramData.success && instagramData.chats) {
+            instagramData.chats.forEach((chat: {
+              senderId: string
+              lastMessage: { text: string; direction?: 'inbound' | 'outbound' } | null
+              lastMessageAt: string
+              messageCount: number
+              isManualMode?: boolean
+            }) => {
+              convos.push({
+                id: `instagram-${chat.senderId}`,
+                name: `Instagram ${chat.senderId.slice(-6)}`,
+                phone: chat.senderId,
+                channel: 'instagram' as const,
+                lastMessage: chat.lastMessage?.text || 'Ingen meldinger',
+                lastMessageAt: new Date(chat.lastMessageAt),
+                messageCount: chat.messageCount,
+                status: 'active' as const,
+                isManualMode: chat.isManualMode || false,
+                lastMessageRole: chat.lastMessage?.direction === 'inbound' ? 'user' : 'assistant',
+              })
+            })
+          }
+        }
+      } catch {
+        // Error fetching Instagram chats
+      }
+
       // Fetch Email chats
       try {
         const emailChats = await getAllEmailChats(companyId)
@@ -345,6 +377,27 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
             }))
           }
         }
+      } else if (conversation.channel === 'instagram') {
+        // Fetch Instagram messages via API
+        const instagramResponse = await fetch(
+          `/api/instagram/chats?companyId=${companyId}&senderId=${conversation.phone}`
+        )
+        if (instagramResponse.ok) {
+          const instagramData = await instagramResponse.json()
+          if (instagramData.success && instagramData.messages) {
+            msgs = instagramData.messages.map((msg: {
+              id: string
+              direction: 'inbound' | 'outbound'
+              text: string
+              timestamp: string
+            }) => ({
+              id: msg.id,
+              role: msg.direction === 'inbound' ? 'user' : 'assistant',
+              content: msg.text,
+              timestamp: new Date(msg.timestamp),
+            }))
+          }
+        }
       } else {
         // Fetch widget chat messages
         const widgetHistory = await getWidgetChatHistory(companyId, conversation.phone)
@@ -401,11 +454,14 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
     const newMode = !manualMode
     try {
       // Use different API endpoint based on channel
-      const apiUrl = selectedConversation.channel === 'messenger'
-        ? '/api/messenger/manual'
-        : '/api/chat/manual'
+      let apiUrl = '/api/chat/manual'
+      if (selectedConversation.channel === 'messenger') {
+        apiUrl = '/api/messenger/manual'
+      } else if (selectedConversation.channel === 'instagram') {
+        apiUrl = '/api/instagram/manual'
+      }
 
-      const bodyData = selectedConversation.channel === 'messenger'
+      const bodyData = (selectedConversation.channel === 'messenger' || selectedConversation.channel === 'instagram')
         ? { companyId, senderId: selectedConversation.phone, isManual: newMode }
         : { companyId, sessionId: selectedConversation.phone, isManual: newMode }
 
@@ -524,6 +580,44 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
         } else {
           throw new Error(data.error)
         }
+      } else if (selectedConversation.channel === 'instagram') {
+        // Instagram - send via API
+        const response = await fetch('/api/instagram/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companyId,
+            senderId: selectedConversation.phone,
+            message: newMessage,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}`,
+              role: 'assistant',
+              content: newMessage,
+              timestamp: new Date(),
+              isManual: true,
+            },
+          ])
+          // Update conversation to show we've replied
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === selectedConversation.id
+                ? { ...c, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const }
+                : c
+            )
+          )
+          setSelectedConversation((prev) =>
+            prev ? { ...prev, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const } : null
+          )
+        } else {
+          throw new Error(data.error)
+        }
       } else {
         // Widget chat - send via API
         const response = await fetch('/api/chat/manual', {
@@ -590,6 +684,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
     sms: { icon: Phone, color: '#CDFF4D', label: 'SMS' },
     widget: { icon: MessageCircle, color: '#3B82F6', label: 'Widget' },
     messenger: { icon: Facebook, color: '#1877F2', label: 'Messenger' },
+    instagram: { icon: Instagram, color: '#E4405F', label: 'Instagram' },
     email: { icon: Mail, color: '#EA4335', label: 'E-post' },
   }
 
@@ -612,7 +707,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
 
           {/* Channel Filter */}
           <div className="flex gap-2 flex-wrap">
-            {(['all', 'sms', 'widget', 'messenger', 'email'] as const).map((filter) => (
+            {(['all', 'sms', 'widget', 'messenger', 'instagram', 'email'] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setChannelFilter(filter)}
@@ -622,7 +717,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                     : 'bg-white/[0.03] text-[#6B7A94] hover:text-white'
                 }`}
               >
-                {filter === 'all' ? 'Alle' : filter === 'sms' ? 'SMS' : filter === 'widget' ? 'Widget' : filter === 'messenger' ? 'Messenger' : 'E-post'}
+                {filter === 'all' ? 'Alle' : filter === 'sms' ? 'SMS' : filter === 'widget' ? 'Widget' : filter === 'messenger' ? 'Messenger' : filter === 'instagram' ? 'Instagram' : 'E-post'}
               </button>
             ))}
             <div className="ml-auto flex items-center gap-2">
@@ -736,6 +831,11 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                     <Facebook
                       className="h-5 w-5"
                       style={{ color: channelConfig.messenger.color }}
+                    />
+                  ) : selectedConversation.channel === 'instagram' ? (
+                    <Instagram
+                      className="h-5 w-5"
+                      style={{ color: channelConfig.instagram.color }}
                     />
                   ) : selectedConversation.channel === 'email' ? (
                     <Mail
