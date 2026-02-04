@@ -25,8 +25,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+
+// Blur placeholder for images - matches the dark Botsy theme
+const blurDataURL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgEDAwUBAAAAAAAAAAAAAQIDAAQRBRIhBhMxQVFh/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAZEQACAwEAAAAAAAAAAAAAAAABAgADESH/2gAMAwEAAhEDEQA/ANR1PqKytNPiuLe4EssaiWJYo23KpAypY+AfJ9VqKdc2P1f+UpTJts5MCQV3/9k='
 
 // Animation variants
 const fadeInUp = {
@@ -242,10 +245,13 @@ export default function LandingPage() {
             >
               <Image
                 src="/images/1.png"
-                alt="Botsy Dashboard"
+                alt="Botsy Dashboard - AI kundeservice for norske bedrifter"
                 width={780}
                 height={560}
                 priority
+                placeholder="blur"
+                blurDataURL={blurDataURL}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 780px"
                 className="w-full h-auto feathered-image scale-105"
               />
             </motion.div>
@@ -366,9 +372,13 @@ export default function LandingPage() {
             >
               <Image
                 src="/images/bransjekompetanse.png"
-                alt="Botsy lærer bransjekompetanse"
+                alt="Botsy lærer bransjekompetanse automatisk fra nettsiden din"
                 width={600}
                 height={500}
+                loading="lazy"
+                placeholder="blur"
+                blurDataURL={blurDataURL}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
                 className="w-full h-auto feathered-image"
               />
             </motion.div>
@@ -450,7 +460,7 @@ export default function LandingPage() {
 
           {/* Step 1 */}
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 lg:mb-32">
-            <motion.div 
+            <motion.div
               variants={slideInLeft}
               initial="hidden"
               whileInView="visible"
@@ -458,9 +468,13 @@ export default function LandingPage() {
             >
               <Image
                 src="/images/2.png"
-                alt="Registrer bedriften din"
+                alt="Registrer bedriften din hos Botsy"
                 width={600}
                 height={450}
+                loading="lazy"
+                placeholder="blur"
+                blurDataURL={blurDataURL}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
                 className="w-full h-auto feathered-image"
               />
             </motion.div>
@@ -494,7 +508,7 @@ export default function LandingPage() {
 
           {/* Step 2 */}
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24 lg:mb-32">
-            <motion.div 
+            <motion.div
               variants={slideInLeft}
               initial="hidden"
               whileInView="visible"
@@ -503,9 +517,13 @@ export default function LandingPage() {
             >
               <Image
                 src="/images/6.png"
-                alt="Tren Botsy"
+                alt="Tren Botsy med din bedriftsinformasjon"
                 width={600}
                 height={450}
+                loading="lazy"
+                placeholder="blur"
+                blurDataURL={blurDataURL}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
                 className="w-full h-auto feathered-image"
               />
             </motion.div>
@@ -539,7 +557,7 @@ export default function LandingPage() {
 
           {/* Step 3 */}
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <motion.div 
+            <motion.div
               variants={slideInLeft}
               initial="hidden"
               whileInView="visible"
@@ -547,9 +565,13 @@ export default function LandingPage() {
             >
               <Image
                 src="/images/4.png"
-                alt="La Botsy jobbe"
+                alt="La Botsy jobbe for deg 24/7"
                 width={600}
                 height={450}
+                loading="lazy"
+                placeholder="blur"
+                blurDataURL={blurDataURL}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
                 className="w-full h-auto feathered-image"
               />
             </motion.div>
@@ -861,7 +883,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-botsy-dark-deep/30 to-transparent" />
         <div className="container relative">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <motion.div 
+            <motion.div
               variants={slideInLeft}
               initial="hidden"
               whileInView="visible"
@@ -869,9 +891,13 @@ export default function LandingPage() {
             >
               <Image
                 src="/images/3.png"
-                alt="Sikkerhet og personvern"
+                alt="Sikkerhet og personvern - GDPR-compliant"
                 width={600}
                 height={500}
+                loading="lazy"
+                placeholder="blur"
+                blurDataURL={blurDataURL}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
                 className="w-full h-auto feathered-image"
               />
             </motion.div>

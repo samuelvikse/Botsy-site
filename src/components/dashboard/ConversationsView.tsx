@@ -15,6 +15,7 @@ import {
   CheckCheck,
   AlertCircle,
   ArrowLeft,
+  Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -25,6 +26,7 @@ import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
 import { getAllEmailChats, getEmailHistory } from '@/lib/email-firestore'
 import { getSMSProvider } from '@/lib/sms'
 import { Facebook, Mail, Instagram } from 'lucide-react'
+import { ExportConversations } from './ExportConversations'
 import type { SMSMessage } from '@/types'
 
 // Polling intervals in milliseconds
@@ -74,6 +76,7 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
   const [isSending, setIsSending] = useState(false)
   const [manualMode, setManualMode] = useState(false)
   const [hasOpenedInitial, setHasOpenedInitial] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
@@ -726,6 +729,13 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
                 Live
               </span>
               <button
+                onClick={() => setShowExportModal(true)}
+                className="p-1.5 text-[#6B7A94] hover:text-botsy-lime transition-colors"
+                title="Eksporter samtaler"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+              <button
                 onClick={() => fetchConversations()}
                 className="p-1.5 text-[#6B7A94] hover:text-white transition-colors"
                 title="Oppdater nå"
@@ -968,6 +978,13 @@ export function ConversationsView({ companyId, initialConversationId, onConversa
           </div>
         )}
       </Card>
+
+      {/* Export Modal */}
+      <ExportConversations
+        companyId={companyId}
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
     </div>
   )
 }

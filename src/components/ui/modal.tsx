@@ -52,13 +52,15 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
     <AnimatePresence>
       {isOpen && (
         <Fragment>
-          {/* Backdrop */}
+          {/* Backdrop - optimized with will-change for opacity */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999]"
+            style={{ willChange: 'opacity' }}
           />
 
           {/* Modal */}
@@ -74,6 +76,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              style={{ willChange: 'transform, opacity' }}
               className={`w-full ${sizeClasses[size]} bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden`}
             >
               {/* Header */}

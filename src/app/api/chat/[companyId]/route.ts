@@ -6,6 +6,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where,
 import { createEscalation, getEscalation } from '@/lib/escalation-firestore'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
 import { incrementPositiveFeedback } from '@/lib/leaderboard-firestore'
+import { logError } from '@/lib/error-logger'
 import type { BusinessProfile, Instruction } from '@/types'
 
 // Phrases that indicate user wants human assistance
@@ -66,6 +67,31 @@ function detectPositiveFeedback(message: string): boolean {
   // Longer messages might just mention "takk" in passing
   if (lowerMessage.length > 100) return false
   return POSITIVE_FEEDBACK_PHRASES.some(phrase => lowerMessage.includes(phrase))
+}
+
+// Phrases that indicate the bot couldn't answer properly
+const UNANSWERED_PHRASES = [
+  'jeg har dessverre ikke',
+  'jeg har ikke informasjon',
+  'jeg er usikker',
+  'jeg vet ikke',
+  'jeg kan dessverre ikke',
+  'jeg finner ikke',
+  'har ikke nok informasjon',
+  'har ikke tilgang til',
+  'anbefaler at du kontakter',
+  'bør kontakte',
+  'ta direkte kontakt',
+  'jeg kan ikke svare på',
+  'finner ingen informasjon om',
+  'unfortunately i don\'t have',
+  'i\'m not sure',
+  'i don\'t have information',
+]
+
+function detectUnansweredQuestion(response: string): boolean {
+  const lowerResponse = response.toLowerCase()
+  return UNANSWERED_PHRASES.some(phrase => lowerResponse.includes(phrase))
 }
 
 // Force dynamic rendering - never cache this route
@@ -465,6 +491,26 @@ export async function POST(
         knowledgeDocuments: knowledgeDocuments.length > 0 ? knowledgeDocuments : undefined,
       })
 
+      // Check if bot couldn't answer and save to unansweredQuestions
+      if (detectUnansweredQuestion(reply)) {
+        try {
+          const unansweredRef = collection(db, 'companies', companyId, 'unansweredQuestions')
+          await setDoc(doc(unansweredRef), {
+            question: message,
+            botResponse: reply,
+            customerIdentifier: `Besøkende ${sessionId.slice(-6)}`,
+            channel: 'widget',
+            conversationId: `widget-${sessionId}`,
+            sessionId,
+            createdAt: new Date(),
+            resolved: false,
+          })
+          console.log('[Chat API] Saved unanswered question:', message)
+        } catch (unansweredError) {
+          console.error('[Chat API] Error saving unanswered question:', unansweredError)
+        }
+      }
+
       // Count user messages (including current one)
       const userMessageCount = history.filter(m => m.role === 'user').length + 1
 
@@ -546,6 +592,15 @@ export async function POST(
       reply,
     }, { headers: corsHeaders })
   } catch (error) {
+    // Log error with context
+    await logError(error, {
+      page: '/api/chat/[companyId]',
+      action: 'chat_message',
+      additionalData: {
+        method: 'POST',
+      },
+    })
+
     const errorMessage =
       error instanceof Error ? error.message : 'En ukjent feil oppstod'
     return NextResponse.json(
@@ -609,6 +664,15 @@ export async function GET(
       },
     })
   } catch (error) {
+    // Log error with context
+    await logError(error, {
+      page: '/api/chat/[companyId]',
+      action: 'get_widget_config',
+      additionalData: {
+        method: 'GET',
+      },
+    })
+
     const errorMessage = error instanceof Error ? error.message : 'Ukjent feil'
     return NextResponse.json(
       { success: false, error: `Kunne ikke hente konfigurasjon: ${errorMessage}` },

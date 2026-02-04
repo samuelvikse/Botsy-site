@@ -6,6 +6,9 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+// Blur placeholder for images
+const blurDataURL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgEDAwUBAAAAAAAAAAAAAQIDAAQRBRIhBhMxQVFh/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAZEQACAwEAAAAAAAAAAAAAAAABAgADESH/2gAMAwEAAhEDEQA/ANR1PqKytNPiuLe4EssaiWJYo23KpAypY+AfJ9VqKdc2P1f+UpTJts5MCQV3/9k='
+
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-botsy-dark flex items-center justify-center">
@@ -89,6 +92,9 @@ export default function NotFound() {
                 width={600}
                 height={500}
                 priority
+                placeholder="blur"
+                blurDataURL={blurDataURL}
+                sizes="(max-width: 768px) 100vw, 600px"
                 className="w-full h-auto"
               />
             </motion.div>

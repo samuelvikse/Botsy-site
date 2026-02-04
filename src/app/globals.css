@@ -1,8 +1,21 @@
+/* Use Google Fonts with font-display: swap for better performance */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ===== REDUCED MOTION SUPPORT ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ===== BOTSY DESIGN SYSTEM ===== */
 
@@ -152,6 +165,7 @@ p {
 }
 
 /* ===== ANIMATIONS ===== */
+/* All animations use transform and opacity for GPU acceleration */
 
 @keyframes shimmer {
   0% {
@@ -171,9 +185,10 @@ p {
   );
   background-size: 200% 100%;
   animation: shimmer 3s ease-in-out infinite;
+  will-change: background-position;
 }
 
-/* Skeleton loading pulse */
+/* Skeleton loading pulse - uses opacity for GPU acceleration */
 @keyframes skeleton-pulse {
   0%, 100% {
     opacity: 0.4;
@@ -185,9 +200,10 @@ p {
 
 .animate-pulse {
   animation: skeleton-pulse 1.5s ease-in-out infinite;
+  will-change: opacity;
 }
 
-/* Fade in animation */
+/* Fade in animation - uses opacity for GPU acceleration */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -199,9 +215,10 @@ p {
 
 .animate-fade-in {
   animation: fade-in 0.3s ease-out forwards;
+  will-change: opacity;
 }
 
-/* Fade up animation */
+/* Fade up animation - uses transform and opacity for GPU acceleration */
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -215,9 +232,10 @@ p {
 
 .animate-fade-up {
   animation: fade-up 0.4s ease-out forwards;
+  will-change: transform, opacity;
 }
 
-/* Slide in from right */
+/* Slide in from right - uses transform and opacity for GPU acceleration */
 @keyframes slide-in-right {
   from {
     opacity: 0;
@@ -231,12 +249,14 @@ p {
 
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out forwards;
+  will-change: transform, opacity;
 }
 
 /* Staggered children animation */
 .stagger-children > * {
   opacity: 0;
   animation: fade-up 0.4s ease-out forwards;
+  will-change: transform, opacity;
 }
 
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
@@ -246,7 +266,7 @@ p {
 .stagger-children > *:nth-child(5) { animation-delay: 200ms; }
 .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
 
-/* Scale pulse for status indicators */
+/* Scale pulse for status indicators - uses transform and opacity for GPU acceleration */
 @keyframes status-pulse {
   0%, 100% {
     transform: scale(1);
@@ -260,6 +280,17 @@ p {
 
 .animate-status-pulse {
   animation: status-pulse 2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Performance hints for animated elements */
+.will-animate {
+  will-change: transform, opacity;
+}
+
+/* Clean up will-change after animation completes */
+.animation-complete {
+  will-change: auto;
 }
 
 /* ===== IMAGE STYLES ===== */

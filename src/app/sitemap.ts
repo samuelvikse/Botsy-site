@@ -2,84 +2,87 @@ import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://botsy.no'
+  const currentDate = new Date()
 
-  // Hovedsider med høy prioritet
+  // Hovedsider - hoyeste prioritet for SEO
+  // Fokus pa hovedkeywords: AI kundeservice, chatbot, kundeservicebot, automatisk kundeservice, Botsy
   const mainPages = [
     {
       url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
+      lastModified: currentDate,
+      changeFrequency: 'daily' as const,
       priority: 1.0,
     },
     {
       url: `${baseUrl}/funksjoner`,
-      lastModified: new Date(),
+      lastModified: currentDate,
       changeFrequency: 'weekly' as const,
-      priority: 0.9,
+      priority: 0.95,
     },
     {
       url: `${baseUrl}/prov-gratis`,
-      lastModified: new Date(),
+      lastModified: currentDate,
       changeFrequency: 'weekly' as const,
-      priority: 0.9,
+      priority: 0.95,
     },
     {
       url: `${baseUrl}/kontakt`,
-      lastModified: new Date(),
+      lastModified: currentDate,
       changeFrequency: 'monthly' as const,
-      priority: 0.8,
+      priority: 0.85,
     },
   ]
 
-  // Auth-sider
-  const authPages = [
+  // Konverteringssider - hoye prioriteter for a drive trafikk
+  const conversionPages = [
+    {
+      url: `${baseUrl}/registrer`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly' as const,
+      priority: 0.9,
+    },
     {
       url: `${baseUrl}/logg-inn`,
-      lastModified: new Date(),
+      lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.6,
     },
     {
-      url: `${baseUrl}/registrer`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.7,
-    },
-    {
       url: `${baseUrl}/glemt-passord`,
-      lastModified: new Date(),
+      lastModified: currentDate,
       changeFrequency: 'yearly' as const,
       priority: 0.3,
     },
   ]
 
-  // Juridiske sider
+  // Juridiske sider - lavere prioritet men viktig for tillit
   const legalPages = [
     {
       url: `${baseUrl}/vilkar`,
-      lastModified: new Date(),
+      lastModified: currentDate,
       changeFrequency: 'yearly' as const,
-      priority: 0.4,
+      priority: 0.5,
     },
     {
       url: `${baseUrl}/personvern`,
-      lastModified: new Date(),
+      lastModified: currentDate,
+      changeFrequency: 'yearly' as const,
+      priority: 0.5,
+    },
+    // English versions for international users
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: currentDate,
       changeFrequency: 'yearly' as const,
       priority: 0.4,
     },
     {
-      url: `${baseUrl}/terms`,
-      lastModified: new Date(),
-      changeFrequency: 'yearly' as const,
-      priority: 0.3,
-    },
-    {
       url: `${baseUrl}/privacy`,
-      lastModified: new Date(),
+      lastModified: currentDate,
       changeFrequency: 'yearly' as const,
-      priority: 0.3,
+      priority: 0.4,
     },
   ]
 
-  return [...mainPages, ...authPages, ...legalPages]
+  return [...mainPages, ...conversionPages, ...legalPages]
 }

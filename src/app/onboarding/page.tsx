@@ -21,6 +21,9 @@ import {
   Phone,
   Loader2
 } from 'lucide-react'
+
+// Blur placeholder for images
+const blurDataURL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgEDAwUBAAAAAAAAAAAAAQIDAAQRBRIhBhMxQVFh/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAZEQACAwEAAAAAAAAAAAAAAAABAgADESH/2gAMAwEAAhEDEQA/ANR1PqKytNPiuLe4EssaiWJYo23KpAypY+AfJ9VqKdc2P1f+UpTJts5MCQV3/9k='
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WebsiteAnalysisStep } from '@/components/onboarding/WebsiteAnalysisStep'
@@ -736,11 +739,14 @@ export default function OnboardingPage() {
                 <div className="hidden lg:flex items-center justify-center">
                   <Image
                     src="/images/klarskjerm.png"
-                    alt="Botsy er klar"
+                    alt="Botsy er klar til bruk"
                     width={500}
                     height={500}
                     className="w-full h-auto max-w-lg"
                     priority
+                    placeholder="blur"
+                    blurDataURL={blurDataURL}
+                    sizes="(max-width: 1024px) 0vw, 500px"
                   />
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
 import { updateDocumentRest, queryDocumentsRest, addDocumentRest, getDocumentRest } from '@/lib/firebase-rest'
 import { sendSubscriptionConfirmationEmail, sendSubscriptionCancelledEmail } from '@/lib/botsy-emails'
 import { logSubscriptionEvent } from '@/lib/audit-log'
+import { logError } from '@/lib/error-logger'
 import Stripe from 'stripe'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
@@ -90,6 +91,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true })
   } catch (error) {
+    // Log error with context for monitoring
+    await logError(error, {
+      page: '/api/stripe/webhook',
+      action: 'stripe_webhook',
+      additionalData: {
+        type: 'webhook_handler_error',
+      },
+    })
+
     console.error('[Stripe Webhook] Error:', error)
     return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
   }

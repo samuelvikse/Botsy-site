@@ -37,6 +37,9 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { useState } from 'react'
 
+// Blur placeholder for images - matches the dark Botsy theme
+const blurDataURL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAIhAAAgEDAwUBAAAAAAAAAAAAAQIDAAQRBRIhBhMxQVFh/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAZEQACAwEAAAAAAAAAAAAAAAABAgADESH/2gAMAwEAAhEDEQA/ANR1PqKytNPiuLe4EssaiWJYo23KpAypY+AfJ9VqKdc2P1f+UpTJts5MCQV3/9k='
+
 // Animation variants - same as main page
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -528,9 +531,13 @@ export default function FeaturesPage() {
             >
               <Image
                 src="/images/skysystem.png"
-                alt="Sikkerhet og personvern"
+                alt="Sikkerhet og personvern - GDPR-compliant hosting"
                 width={600}
                 height={500}
+                loading="lazy"
+                placeholder="blur"
+                blurDataURL={blurDataURL}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
                 className="w-full h-auto feathered-image"
               />
             </motion.div>

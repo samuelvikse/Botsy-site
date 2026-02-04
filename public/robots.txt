@@ -1,10 +1,20 @@
 # Botsy - AI Kundeservice for Norske Bedrifter
 # https://botsy.no
+# Hovedkeywords: AI kundeservice, chatbot, kundeservicebot, automatisk kundeservice, Botsy
 
+# Tillat alle soekemotorer
 User-agent: *
 Allow: /
 
-# Ikke indekser admin-sider og widget
+# Hovedsider som skal indekseres (hoey prioritet)
+Allow: /funksjoner
+Allow: /prov-gratis
+Allow: /kontakt
+Allow: /registrer
+Allow: /vilkar
+Allow: /personvern
+
+# Ikke indekser admin-sider og interne systemer
 Disallow: /admin
 Disallow: /admin/*
 Disallow: /widget
@@ -13,6 +23,50 @@ Disallow: /onboarding
 Disallow: /onboarding/*
 Disallow: /api
 Disallow: /api/*
+Disallow: /invite
+Disallow: /invite/*
+Disallow: /transfer
+Disallow: /transfer/*
 
-# Sitemap
+# Ikke indekser soek og filter-sider
+Disallow: /*?*
+Disallow: /*.json$
+
+# Spesifikke regler for Googlebot
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /widget
+Disallow: /widget/*
+Disallow: /onboarding
+Disallow: /api
+Disallow: /api/*
+
+# Spesifikke regler for Googlebot-Image
+User-agent: Googlebot-Image
+Allow: /images/
+Allow: /brand/
+Allow: /og-image.png
+Allow: /icons/
+
+# Spesifikke regler for Bingbot
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /widget
+Disallow: /widget/*
+Disallow: /onboarding
+Disallow: /api
+Disallow: /api/*
+
+# Crawl-delay for hoeflige bots (valgfritt)
+User-agent: *
+Crawl-delay: 1
+
+# Sitemap lokasjon
 Sitemap: https://botsy.no/sitemap.xml
+
+# Host (for Yandex)
+Host: https://botsy.no
