@@ -253,7 +253,7 @@ export default function TransferPage() {
                 <p className="text-[#6B7A94] text-sm text-center">
                   Du må være logget inn for å bekrefte.
                 </p>
-                <Link href={`/login?redirect=/transfer/${token}?type=${userType}`}>
+                <Link href={`/logg-inn?redirect=/transfer/${token}?type=${userType}`}>
                   <Button className="w-full">Logg inn</Button>
                 </Link>
               </div>

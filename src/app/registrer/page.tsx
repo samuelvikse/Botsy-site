@@ -309,7 +309,7 @@ function RegisterContent() {
 
               <p className="text-center text-[#6B7A94] mt-8">
                 Har du allerede en konto?{' '}
-                <Link href="/login" className="text-botsy-lime hover:underline">
+                <Link href="/logg-inn" className="text-botsy-lime hover:underline">
                   Logg inn
                 </Link>
               </p>

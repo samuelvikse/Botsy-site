@@ -270,7 +270,7 @@ export default function InvitePage() {
                         Denne invitasjonen er sendt til {invitation.email}. Du er logget inn som {user.email}.
                       </p>
                     </div>
-                    <Button variant="outline" onClick={() => router.push('/login')} className="w-full">
+                    <Button variant="outline" onClick={() => router.push('/logg-inn')} className="w-full">
                       Logg inn med riktig konto
                     </Button>
                   </>
@@ -281,7 +281,7 @@ export default function InvitePage() {
                 <p className="text-[#6B7A94] text-sm text-center">
                   Logg inn eller opprett en konto for å akseptere invitasjonen.
                 </p>
-                <Link href={`/login?redirect=/invite/${token}`}>
+                <Link href={`/logg-inn?redirect=/invite/${token}`}>
                   <Button className="w-full">Logg inn</Button>
                 </Link>
                 <Link href={`/register?redirect=/invite/${token}&email=${encodeURIComponent(invitation.email)}`}>

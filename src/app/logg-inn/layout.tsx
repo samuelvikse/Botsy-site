@@ -10,10 +10,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Logg Inn – Botsy Dashboard',
     description: 'Logg inn på Botsy for å administrere din AI-chatbot.',
-    url: 'https://botsy.no/login',
+    url: 'https://botsy.no/logg-inn',
   },
   alternates: {
-    canonical: 'https://botsy.no/login',
+    canonical: 'https://botsy.no/logg-inn',
   },
 }
 

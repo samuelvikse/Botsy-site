@@ -34,7 +34,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Auth-sider
   const authPages = [
     {
-      url: `${baseUrl}/login`,
+      url: `${baseUrl}/logg-inn`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
       priority: 0.6,

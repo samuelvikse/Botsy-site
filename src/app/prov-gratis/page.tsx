@@ -82,7 +82,7 @@ export default function TryFreePage() {
           </Link>
 
           <div className="hidden lg:flex items-center gap-3">
-            <Link href="/login">
+            <Link href="/logg-inn">
               <Button variant="ghost" size="sm" className="text-[#A8B4C8] hover:text-white">
                 Logg inn
               </Button>
@@ -111,7 +111,7 @@ export default function TryFreePage() {
             className="lg:hidden bg-botsy-dark/95 backdrop-blur-xl border-t border-white/[0.06]"
           >
             <div className="container py-6 flex flex-col gap-2">
-              <Link href="/login"><Button variant="outline" className="w-full">Logg inn</Button></Link>
+              <Link href="/logg-inn"><Button variant="outline" className="w-full">Logg inn</Button></Link>
               <Link href="/registrer"><Button className="w-full shadow-lg shadow-botsy-lime/20">Opprett konto</Button></Link>
             </div>
           </motion.div>

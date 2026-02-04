@@ -120,7 +120,7 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                <Link href="/login">
+                <Link href="/logg-inn">
                   <Button variant="ghost" size="sm" className="text-[#A8B4C8] hover:text-white">
                     Logg inn
                   </Button>
@@ -167,7 +167,7 @@ export default function LandingPage() {
                 </Link>
               ) : (
                 <>
-                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}><Button variant="outline" className="w-full">Logg inn</Button></Link>
+                  <Link href="/logg-inn" onClick={() => setMobileMenuOpen(false)}><Button variant="outline" className="w-full">Logg inn</Button></Link>
                   <Link href="/prov-gratis" onClick={() => setMobileMenuOpen(false)}><Button className="w-full shadow-lg shadow-botsy-lime/20">Prøv gratis</Button></Link>
                 </>
               )}
@@ -1003,7 +1003,7 @@ export default function LandingPage() {
                   <li><Link href="/admin" className="text-[#6B7A94] hover:text-white transition-colors">Admin</Link></li>
                 ) : (
                   <>
-                    <li><Link href="/login" className="text-[#6B7A94] hover:text-white transition-colors">Logg inn</Link></li>
+                    <li><Link href="/logg-inn" className="text-[#6B7A94] hover:text-white transition-colors">Logg inn</Link></li>
                     <li><Link href="/registrer" className="text-[#6B7A94] hover:text-white transition-colors">Registrer</Link></li>
                   </>
                 )}

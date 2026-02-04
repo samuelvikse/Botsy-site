@@ -8,7 +8,7 @@ export function WidgetScript({ companyId }: { companyId: string }) {
   const pathname = usePathname()
 
   // Don't show widget on admin pages, login, onboarding, invite pages, or widget preview
-  const excludedPaths = ['/admin', '/login', '/onboarding', '/invite', '/transfer', '/widget']
+  const excludedPaths = ['/admin', '/logg-inn', '/onboarding', '/invite', '/transfer', '/widget']
   const shouldHide = !pathname || excludedPaths.some(path => pathname.startsWith(path))
 
   // Hide/show widget iframe based on current path (don't remove, just hide)

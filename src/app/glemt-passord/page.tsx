@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
 
         {!submitted ? (
           <>
-            <Link href="/login" className="text-[#6B7A94] hover:text-white text-sm mb-6 flex items-center gap-1">
+            <Link href="/logg-inn" className="text-[#6B7A94] hover:text-white text-sm mb-6 flex items-center gap-1">
               <ArrowLeft className="h-4 w-4" />
               Tilbake til innlogging
             </Link>
@@ -112,7 +112,7 @@ export default function ForgotPasswordPage() {
               Vi har sendt en tilbakestillingslenke til <span className="text-white">{email}</span>.
               Lenken er gyldig i 1 time.
             </p>
-            <Link href="/login">
+            <Link href="/logg-inn">
               <Button variant="outline" size="lg">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Tilbake til innlogging

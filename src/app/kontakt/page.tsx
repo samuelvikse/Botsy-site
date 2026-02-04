@@ -137,7 +137,7 @@ export default function ContactPage() {
           </div>
 
           <div className="hidden lg:flex items-center gap-3">
-            <Link href="/login">
+            <Link href="/logg-inn">
               <Button variant="ghost" size="sm" className="text-[#A8B4C8] hover:text-white">
                 Logg inn
               </Button>
@@ -171,7 +171,7 @@ export default function ContactPage() {
               <Link href="/#how-it-works" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Slik fungerer det</Link>
               <Link href="/kontakt" className="text-white py-3 px-4 rounded-xl bg-white/[0.05]" onClick={() => setMobileMenuOpen(false)}>Kontakt</Link>
               <div className="h-px bg-white/[0.06] my-2" />
-              <Link href="/login"><Button variant="outline" className="w-full">Logg inn</Button></Link>
+              <Link href="/logg-inn"><Button variant="outline" className="w-full">Logg inn</Button></Link>
               <Link href="/prov-gratis"><Button className="w-full shadow-lg shadow-botsy-lime/20">Prøv gratis</Button></Link>
             </div>
           </motion.div>
