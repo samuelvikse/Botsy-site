@@ -15,6 +15,13 @@ import {
   ArrowRight,
   Mail,
   ExternalLink,
+  UserPlus,
+  Shield,
+  Hash,
+  Webhook,
+  CheckCircle2,
+  Circle,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -140,6 +147,8 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
 
   // SMS guide states
   const [showSmsGuide, setShowSmsGuide] = useState(false)
+  const [smsWizardStep, setSmsWizardStep] = useState(0)
+  const [completedSmsSteps, setCompletedSmsSteps] = useState<number[]>([])
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://botsy.no'
 
@@ -521,150 +530,574 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
 
     switch (activeChannel) {
       case 'sms':
+        const twilioSteps = [
+          {
+            id: 0,
+            title: 'Opprett Twilio-konto',
+            icon: UserPlus,
+            description: 'Gratis å starte - betal kun for SMS du sender',
+            content: (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[#F22F46]/5 to-transparent border border-[#F22F46]/20">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#F22F46]/10 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="w-5 h-5 text-[#F22F46]" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm mb-1">Ny bruker?</p>
+                      <p className="text-[#A8B4C8] text-xs leading-relaxed">
+                        Twilio gir deg gratis kreditt når du registrerer deg. Du trenger kun e-post og telefonnummer.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">1</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Gå til Twilio og klikk <span className="text-white font-medium">"Sign up"</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">2</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Fyll ut e-post, passord og verifiser telefonnummer</p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">3</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Velg <span className="text-white font-medium">"SMS"</span> når de spør hva du skal bruke Twilio til</p>
+                  </div>
+                </div>
+
+                <a
+                  href="https://www.twilio.com/try-twilio"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-[#F22F46] hover:bg-[#d91c3a] text-white font-medium rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Opprett Twilio-konto
+                </a>
+              </div>
+            ),
+          },
+          {
+            id: 1,
+            title: 'Hent API-nøkler',
+            icon: Shield,
+            description: 'Account SID og Auth Token fra dashboardet',
+            content: (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[#CDFF4D]/5 to-transparent border border-[#CDFF4D]/20">
+                  <p className="text-[#A8B4C8] text-sm leading-relaxed">
+                    Når du logger inn på Twilio Console, ser du <span className="text-white font-medium">Account SID</span> og <span className="text-white font-medium">Auth Token</span> rett på forsiden under "Account Info".
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">1</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Logg inn på <span className="text-white font-medium">console.twilio.com</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">2</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Finn <span className="text-white font-medium">"Account Info"</span>-boksen på Dashboard</p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">3</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Kopier <span className="text-white font-medium">Account SID</span> (starter med AC...)</p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">4</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Klikk øye-ikonet ved <span className="text-white font-medium">Auth Token</span> og kopier</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="text-white text-sm font-medium block mb-2">Account SID</label>
+                    <input
+                      type="text"
+                      value={smsCredentials.accountSid || ''}
+                      onChange={(e) => setSmsCredentials(prev => ({ ...prev, accountSid: e.target.value }))}
+                      placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm font-mono focus:outline-none focus:border-[#CDFF4D]/50 focus:ring-1 focus:ring-[#CDFF4D]/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white text-sm font-medium block mb-2">Auth Token</label>
+                    <input
+                      type="password"
+                      value={smsCredentials.authToken || ''}
+                      onChange={(e) => setSmsCredentials(prev => ({ ...prev, authToken: e.target.value }))}
+                      placeholder="••••••••••••••••••••••••••••••••"
+                      className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm font-mono focus:outline-none focus:border-[#CDFF4D]/50 focus:ring-1 focus:ring-[#CDFF4D]/20 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <a
+                  href="https://console.twilio.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-white/[0.05] hover:bg-white/[0.08] text-white font-medium rounded-xl border border-white/[0.1] transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Åpne Twilio Console
+                </a>
+              </div>
+            ),
+          },
+          {
+            id: 2,
+            title: 'Kjøp telefonnummer',
+            icon: Hash,
+            description: 'Velg et norsk nummer for SMS',
+            content: (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/5 to-transparent border border-blue-500/20">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm mb-1">Norske numre</p>
+                      <p className="text-[#A8B4C8] text-xs leading-relaxed">
+                        Velg et norsk nummer (+47) slik at kundene dine ser et kjent nummer. Koster ca. $1/mnd.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">1</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Gå til <span className="text-white font-medium">Phone Numbers → Manage → Buy a number</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">2</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Velg <span className="text-white font-medium">Norway (+47)</span> som land</p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">3</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Huk av for <span className="text-white font-medium">SMS</span>-kapabilitet</p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">4</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Velg et nummer og klikk <span className="text-white font-medium">"Buy"</span></p>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <label className="text-white text-sm font-medium block mb-2">Ditt Twilio-nummer</label>
+                  <input
+                    type="tel"
+                    value={smsPhone}
+                    onChange={(e) => setSmsPhone(e.target.value)}
+                    placeholder="+47 XXX XX XXX"
+                    className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm font-mono focus:outline-none focus:border-[#CDFF4D]/50 focus:ring-1 focus:ring-[#CDFF4D]/20 transition-all"
+                  />
+                  <p className="text-[#6B7A94] text-xs mt-1.5">Kopier nummeret fra Twilio inkludert landskode</p>
+                </div>
+
+                <a
+                  href="https://console.twilio.com/us1/develop/phone-numbers/manage/search"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-white/[0.05] hover:bg-white/[0.08] text-white font-medium rounded-xl border border-white/[0.1] transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Kjøp nummer i Twilio
+                </a>
+              </div>
+            ),
+          },
+          {
+            id: 3,
+            title: 'Konfigurer webhook',
+            icon: Webhook,
+            description: 'Koble Twilio til Botsy',
+            content: (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[#CDFF4D]/5 to-transparent border border-[#CDFF4D]/20">
+                  <p className="text-[#A8B4C8] text-sm leading-relaxed">
+                    Dette siste steget forteller Twilio hvor den skal sende innkommende SMS - nemlig til Botsy!
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">1</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Gå til <span className="text-white font-medium">Phone Numbers → Manage → Active numbers</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">2</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Klikk på nummeret du nettopp kjøpte</p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">3</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Scroll til <span className="text-white font-medium">"Messaging Configuration"</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">4</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Lim inn webhook-URL under <span className="text-white font-medium">"A message comes in"</span></p>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <label className="text-white text-sm font-medium block mb-2">Din Webhook URL</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-11 px-4 bg-black/30 border border-white/[0.08] rounded-xl flex items-center overflow-hidden">
+                      <code className="text-[#CDFF4D] text-xs font-mono truncate">
+                        {baseUrl}/api/webhooks/sms?provider=twilio
+                      </code>
+                    </div>
+                    <button
+                      onClick={() => handleCopyWebhook(`${baseUrl}/api/webhooks/sms?provider=twilio`)}
+                      className="h-11 w-11 flex items-center justify-center bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] rounded-xl transition-all"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-[#CDFF4D]" /> : <Copy className="w-4 h-4 text-[#A8B4C8]" />}
+                    </button>
+                  </div>
+                  <p className="text-[#6B7A94] text-xs mt-1.5">Kopier og lim inn i Twilio</p>
+                </div>
+
+                <a
+                  href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-white/[0.05] hover:bg-white/[0.08] text-white font-medium rounded-xl border border-white/[0.1] transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Åpne Active Numbers
+                </a>
+              </div>
+            ),
+          },
+        ]
+
+        const messagebirdSteps = [
+          {
+            id: 0,
+            title: 'Opprett MessageBird-konto',
+            icon: UserPlus,
+            description: 'Europeisk leverandør med gode priser',
+            content: (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">1</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Gå til MessageBird og klikk <span className="text-white font-medium">"Sign up"</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">2</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Fyll ut informasjonen og verifiser kontoen</p>
+                  </div>
+                </div>
+                <a
+                  href="https://dashboard.messagebird.com/en/sign-up"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-[#2481D7] hover:bg-[#1a6fc2] text-white font-medium rounded-xl transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Opprett MessageBird-konto
+                </a>
+              </div>
+            ),
+          },
+          {
+            id: 1,
+            title: 'Hent API Key',
+            icon: Shield,
+            description: 'Fra Developers-seksjonen',
+            content: (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">1</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Gå til <span className="text-white font-medium">Developers → API access</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">2</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Kopier <span className="text-white font-medium">Live API Key</span></p>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <label className="text-white text-sm font-medium block mb-2">API Key</label>
+                  <input
+                    type="password"
+                    value={smsCredentials.apiKey || ''}
+                    onChange={(e) => setSmsCredentials(prev => ({ ...prev, apiKey: e.target.value }))}
+                    placeholder="••••••••••••••••••••••••••••••••"
+                    className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm font-mono focus:outline-none focus:border-[#CDFF4D]/50 focus:ring-1 focus:ring-[#CDFF4D]/20 transition-all"
+                  />
+                </div>
+                <a
+                  href="https://dashboard.messagebird.com/en/developers/access"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-white/[0.05] hover:bg-white/[0.08] text-white font-medium rounded-xl border border-white/[0.1] transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Åpne API Access
+                </a>
+              </div>
+            ),
+          },
+          {
+            id: 2,
+            title: 'Kjøp telefonnummer',
+            icon: Hash,
+            description: 'Velg et norsk nummer',
+            content: (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">1</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Gå til <span className="text-white font-medium">Numbers → Buy a number</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">2</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Velg <span className="text-white font-medium">Norway</span> og kjøp</p>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <label className="text-white text-sm font-medium block mb-2">Ditt telefonnummer</label>
+                  <input
+                    type="tel"
+                    value={smsPhone}
+                    onChange={(e) => setSmsPhone(e.target.value)}
+                    placeholder="+47 XXX XX XXX"
+                    className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm font-mono focus:outline-none focus:border-[#CDFF4D]/50 focus:ring-1 focus:ring-[#CDFF4D]/20 transition-all"
+                  />
+                </div>
+                <a
+                  href="https://dashboard.messagebird.com/en/numbers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-white/[0.05] hover:bg-white/[0.08] text-white font-medium rounded-xl border border-white/[0.1] transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Kjøp nummer
+                </a>
+              </div>
+            ),
+          },
+          {
+            id: 3,
+            title: 'Konfigurer webhook',
+            icon: Webhook,
+            description: 'Koble MessageBird til Botsy',
+            content: (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">1</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Gå til <span className="text-white font-medium">Flow Builder → Create new flow</span></p>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="w-6 h-6 rounded-full bg-[#CDFF4D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#CDFF4D] text-xs font-bold">2</span>
+                    </div>
+                    <p className="text-[#A8B4C8] text-sm">Legg til <span className="text-white font-medium">HTTP Request</span> og lim inn webhook-URL</p>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <label className="text-white text-sm font-medium block mb-2">Din Webhook URL</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-11 px-4 bg-black/30 border border-white/[0.08] rounded-xl flex items-center overflow-hidden">
+                      <code className="text-[#CDFF4D] text-xs font-mono truncate">
+                        {baseUrl}/api/webhooks/sms?provider=messagebird
+                      </code>
+                    </div>
+                    <button
+                      onClick={() => handleCopyWebhook(`${baseUrl}/api/webhooks/sms?provider=messagebird`)}
+                      className="h-11 w-11 flex items-center justify-center bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] rounded-xl transition-all"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-[#CDFF4D]" /> : <Copy className="w-4 h-4 text-[#A8B4C8]" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ),
+          },
+        ]
+
+        const steps = smsProvider === 'twilio' ? twilioSteps : messagebirdSteps
+        const currentStep = steps[smsWizardStep]
+        const StepIcon = currentStep?.icon || Circle
+
         return (
           <div className="space-y-5">
+            {/* Provider Selection */}
             <div>
               <label className="text-white text-sm font-medium block mb-3">Velg leverandør</label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2">
                 {SMS_PROVIDERS.map((provider) => (
                   <button
                     key={provider.value}
                     onClick={() => {
                       setSmsProvider(provider.value)
                       setSmsCredentials({})
+                      setSmsWizardStep(0)
+                      setCompletedSmsSteps([])
                     }}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    className={`flex-1 p-3 rounded-xl text-sm font-medium transition-all border ${
                       smsProvider === provider.value
-                        ? 'bg-botsy-lime text-gray-900'
-                        : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                        ? 'bg-[#CDFF4D]/10 border-[#CDFF4D]/50 text-[#CDFF4D]'
+                        : 'bg-white/[0.02] border-white/[0.06] text-[#A8B4C8] hover:bg-white/[0.05] hover:text-white'
                     }`}
                   >
-                    {provider.name}
-                    {provider.recommended && ' ✓'}
+                    <div className="flex items-center justify-center gap-2">
+                      {provider.name}
+                      {provider.recommended && (
+                        <span className="px-1.5 py-0.5 bg-[#CDFF4D]/20 text-[#CDFF4D] text-[10px] font-bold rounded">
+                          Anbefalt
+                        </span>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* SMS Guide Section */}
-            <div className="p-4 bg-[#CDFF4D]/5 border border-[#CDFF4D]/20 rounded-xl">
-              <button
-                onClick={() => setShowSmsGuide(!showSmsGuide)}
-                className="w-full flex items-center justify-between text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📋</span>
-                  <span className="text-white font-medium text-sm">Slik finner du credentials</span>
-                </div>
-                <ChevronRight className={`h-4 w-4 text-[#CDFF4D] transition-transform ${showSmsGuide ? 'rotate-90' : ''}`} />
-              </button>
+            {/* Step Progress Indicator */}
+            <div className="flex items-center gap-1 p-1 bg-white/[0.02] rounded-xl">
+              {steps.map((step, index) => {
+                const isCompleted = completedSmsSteps.includes(step.id)
+                const isCurrent = smsWizardStep === index
+                const isPast = index < smsWizardStep
 
-              <AnimatePresence>
-                {showSmsGuide && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
+                return (
+                  <button
+                    key={step.id}
+                    onClick={() => setSmsWizardStep(index)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-2 rounded-lg transition-all ${
+                      isCurrent
+                        ? 'bg-[#CDFF4D]/10 text-[#CDFF4D]'
+                        : isCompleted || isPast
+                          ? 'text-[#CDFF4D]/70 hover:bg-white/[0.03]'
+                          : 'text-[#6B7A94] hover:bg-white/[0.03]'
+                    }`}
                   >
-                    <div className="pt-4 space-y-3">
-                      {smsProvider === 'twilio' ? (
-                        <>
-                          <div className="flex items-start gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">1</span>
-                            <p className="text-[#A8B4C8] text-sm">
-                              Logg inn på <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer" className="text-[#CDFF4D] hover:underline">console.twilio.com</a>
-                            </p>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">2</span>
-                            <p className="text-[#A8B4C8] text-sm">
-                              Finn <strong className="text-white">Account SID</strong> og <strong className="text-white">Auth Token</strong> på forsiden (Dashboard)
-                            </p>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">3</span>
-                            <p className="text-[#A8B4C8] text-sm">
-                              Gå til <strong className="text-white">"Phone Numbers"</strong> → <strong className="text-white">"Manage"</strong> → <strong className="text-white">"Active numbers"</strong> for å finne telefonnummeret ditt
-                            </p>
-                          </div>
-                          <a
-                            href="https://console.twilio.com/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[#F22F46]/10 border border-[#F22F46]/30 rounded-lg text-[#F22F46] text-sm font-medium hover:bg-[#F22F46]/20 transition-colors"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            Åpne Twilio Console
-                          </a>
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex items-start gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">1</span>
-                            <p className="text-[#A8B4C8] text-sm">
-                              Logg inn på <a href="https://dashboard.messagebird.com/" target="_blank" rel="noopener noreferrer" className="text-[#CDFF4D] hover:underline">dashboard.messagebird.com</a>
-                            </p>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">2</span>
-                            <p className="text-[#A8B4C8] text-sm">
-                              Gå til <strong className="text-white">"Developers"</strong> → <strong className="text-white">"API access"</strong> i sidemenyen
-                            </p>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#CDFF4D]/20 text-[#CDFF4D] text-xs font-bold flex items-center justify-center">3</span>
-                            <p className="text-[#A8B4C8] text-sm">
-                              Kopier din <strong className="text-white">API Key</strong> (Live key for produksjon)
-                            </p>
-                          </div>
-                          <a
-                            href="https://dashboard.messagebird.com/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[#2481D7]/10 border border-[#2481D7]/30 rounded-lg text-[#2481D7] text-sm font-medium hover:bg-[#2481D7]/20 transition-colors"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            Åpne MessageBird Dashboard
-                          </a>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : (
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                        isCurrent
+                          ? 'bg-[#CDFF4D] text-gray-900'
+                          : 'bg-white/[0.1] text-current'
+                      }`}>
+                        {index + 1}
+                      </span>
+                    )}
+                    <span className="text-xs font-medium hidden sm:inline truncate">{step.title}</span>
+                  </button>
+                )
+              })}
             </div>
 
-            <div>
-              <label className="text-white text-sm font-medium block mb-2">
-                Telefonnummer (E.164 format)
-              </label>
-              <input
-                type="tel"
-                value={smsPhone}
-                onChange={(e) => setSmsPhone(e.target.value)}
-                placeholder="+4712345678"
-                className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-              />
-              <p className="text-[#6B7A94] text-xs mt-1.5">
-                Telefonnummeret du har kjøpt hos {smsProvider === 'twilio' ? 'Twilio' : 'MessageBird'}
-              </p>
-            </div>
+            {/* Current Step Content */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={smsWizardStep}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl"
+              >
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-[#CDFF4D]/10 flex items-center justify-center flex-shrink-0">
+                    <StepIcon className="w-5 h-5 text-[#CDFF4D]" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-semibold">{currentStep?.title}</h4>
+                    <p className="text-[#6B7A94] text-sm">{currentStep?.description}</p>
+                  </div>
+                </div>
+                {currentStep?.content}
+              </motion.div>
+            </AnimatePresence>
 
-            {SMS_PROVIDERS.find(p => p.value === smsProvider)?.fields.map((field) => (
-              <div key={field.key}>
-                <label className="text-white text-sm font-medium block mb-2">
-                  {field.label}
-                </label>
-                <input
-                  type={field.type}
-                  value={smsCredentials[field.key] || ''}
-                  onChange={(e) => setSmsCredentials(prev => ({ ...prev, [field.key]: e.target.value }))}
-                  placeholder={`Skriv inn ${field.label.toLowerCase()}...`}
-                  className="w-full h-11 px-4 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 focus:ring-1 focus:ring-botsy-lime/20"
-                />
-              </div>
-            ))}
+            {/* Navigation */}
+            <div className="flex items-center gap-3">
+              {smsWizardStep > 0 && (
+                <button
+                  onClick={() => setSmsWizardStep(prev => prev - 1)}
+                  className="flex items-center gap-2 py-2.5 px-4 text-[#A8B4C8] hover:text-white transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180" />
+                  Forrige
+                </button>
+              )}
+              <div className="flex-1" />
+              {smsWizardStep < steps.length - 1 ? (
+                <button
+                  onClick={() => {
+                    setCompletedSmsSteps(prev => [...new Set([...prev, smsWizardStep])])
+                    setSmsWizardStep(prev => prev + 1)
+                  }}
+                  className="flex items-center gap-2 py-2.5 px-5 bg-[#CDFF4D] hover:bg-[#d4ff66] text-gray-900 font-medium rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Neste steg
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setCompletedSmsSteps(prev => [...new Set([...prev, smsWizardStep])])
+                  }}
+                  className="flex items-center gap-2 py-2.5 px-5 bg-[#CDFF4D] hover:bg-[#d4ff66] text-gray-900 font-medium rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Check className="w-4 h-4" />
+                  Ferdig
+                </button>
+              )}
+            </div>
           </div>
         )
 
