@@ -23,6 +23,17 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
+import dynamic from 'next/dynamic'
+
+// Dynamic import to avoid SSR issues with Stripe
+const StripeCheckout = dynamic(() => import('@/components/stripe/StripeCheckout'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-8 w-8 animate-spin text-botsy-lime" />
+    </div>
+  ),
+})
 
 interface Invoice {
   id: string
@@ -63,6 +74,7 @@ function BillingContent() {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null)
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [showCheckoutForm, setShowCheckoutForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Get user initials
@@ -107,37 +119,23 @@ function BillingContent() {
     fetchSubscription()
   }, [user])
 
-  // Start checkout session
-  const handleStartSubscription = async () => {
-    if (!user) return
-
-    setActionLoading(true)
+  // Show embedded checkout form
+  const handleStartSubscription = () => {
+    setShowCheckoutForm(true)
     setError(null)
+  }
 
-    try {
-      const token = await user.getIdToken()
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+  // Handle successful payment
+  const handleCheckoutSuccess = () => {
+    setShowCheckoutForm(false)
+    setShowSuccessMessage(true)
+    // Refresh subscription data
+    window.location.reload()
+  }
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Kunne ikke starte betaling')
-      }
-
-      // Redirect to Stripe checkout
-      if (data.url) {
-        window.location.href = data.url
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Noe gikk galt')
-    } finally {
-      setActionLoading(false)
-    }
+  // Handle checkout cancel
+  const handleCheckoutCancel = () => {
+    setShowCheckoutForm(false)
   }
 
   // Open customer portal
@@ -331,63 +329,77 @@ function BillingContent() {
             <Loader2 className="h-8 w-8 animate-spin text-botsy-lime" />
           </div>
         ) : !isActive ? (
-          /* No Subscription - Show CTA */
-          <Card className="p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-botsy-lime/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-
-            <div className="relative text-center max-w-lg mx-auto">
-              <div className="h-16 w-16 rounded-2xl bg-botsy-lime/10 flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="h-8 w-8 text-botsy-lime" />
+          /* No Subscription - Show CTA or Checkout Form */
+          showCheckoutForm ? (
+            /* Embedded Stripe Checkout */
+            <Card className="p-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-botsy-lime/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+              <div className="relative max-w-lg mx-auto">
+                <StripeCheckout
+                  onSuccess={handleCheckoutSuccess}
+                  onCancel={handleCheckoutCancel}
+                />
               </div>
+            </Card>
+          ) : (
+            /* Subscription CTA */
+            <Card className="p-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-botsy-lime/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
 
-              <h2 className="text-2xl font-bold text-white mb-2">Start ditt Botsy-abonnement</h2>
-              <p className="text-[#A8B4C8] mb-6">
-                Få tilgang til alle funksjoner med 14 dagers gratis prøveperiode.
-                Ingen binding, kanseller når som helst.
-              </p>
+              <div className="relative text-center max-w-lg mx-auto">
+                <div className="h-16 w-16 rounded-2xl bg-botsy-lime/10 flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="h-8 w-8 text-botsy-lime" />
+                </div>
 
-              <div className="bg-white/[0.02] rounded-2xl p-6 mb-6">
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <span className="text-[#6B7A94] line-through text-lg">1499 kr</span>
-                  <span className="text-4xl font-bold text-white">699 kr</span>
-                  <span className="text-[#6B7A94]">/mnd</span>
+                <h2 className="text-2xl font-bold text-white mb-2">Start ditt Botsy-abonnement</h2>
+                <p className="text-[#A8B4C8] mb-6">
+                  Få tilgang til alle funksjoner med 14 dagers gratis prøveperiode.
+                  Ingen binding, kanseller når som helst.
+                </p>
+
+                <div className="bg-white/[0.02] rounded-2xl p-6 mb-6">
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <span className="text-[#6B7A94] line-through text-lg">1499 kr</span>
+                    <span className="text-4xl font-bold text-white">699 kr</span>
+                    <span className="text-[#6B7A94]">/mnd</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {[
+                      'Ubegrenset meldinger',
+                      'Alle kanaler inkludert',
+                      'Opptil 10 teammedlemmer',
+                      'Ubegrenset FAQs',
+                      'AI-drevet chatbot',
+                      'Analyser og innsikt',
+                    ].map((feature) => (
+                      <div key={feature} className="flex items-center gap-2 text-[#A8B4C8]">
+                        <Check className="h-4 w-4 text-botsy-lime flex-shrink-0" />
+                        {feature}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  {[
-                    'Ubegrenset meldinger',
-                    'Alle kanaler inkludert',
-                    'Opptil 10 teammedlemmer',
-                    'Ubegrenset FAQs',
-                    'AI-drevet chatbot',
-                    'Analyser og innsikt',
-                  ].map((feature) => (
-                    <div key={feature} className="flex items-center gap-2 text-[#A8B4C8]">
-                      <Check className="h-4 w-4 text-botsy-lime flex-shrink-0" />
-                      {feature}
-                    </div>
-                  ))}
-                </div>
+
+                <Button
+                  onClick={handleStartSubscription}
+                  disabled={actionLoading}
+                  className="w-full h-12 text-base"
+                >
+                  {actionLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Sparkles className="h-5 w-5 mr-2" />
+                      Start 14 dagers gratis prøveperiode
+                    </>
+                  )}
+                </Button>
+                <p className="text-[#6B7A94] text-sm mt-3">
+                  Du belastes ikke før prøveperioden er over
+                </p>
               </div>
-
-              <Button
-                onClick={handleStartSubscription}
-                disabled={actionLoading}
-                className="w-full h-12 text-base"
-              >
-                {actionLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <>
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    Start 14 dagers gratis prøveperiode
-                  </>
-                )}
-              </Button>
-              <p className="text-[#6B7A94] text-sm mt-3">
-                Du belastes ikke før prøveperioden er over
-              </p>
-            </div>
-          </Card>
+            </Card>
+          )
         ) : (
           <>
             {/* Current Plan */}
