@@ -50,6 +50,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { SubscriptionGate } from '@/components/SubscriptionGate'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions, PermissionProvider } from '@/contexts/PermissionContext'
 import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext'
@@ -79,10 +80,12 @@ export default function AdminPanel() {
   return (
     <ProtectedRoute>
       <PermissionProvider>
-        <UnsavedChangesProvider>
-          <AdminContent />
-          <FloatingSaveButton />
-        </UnsavedChangesProvider>
+        <SubscriptionGate>
+          <UnsavedChangesProvider>
+            <AdminContent />
+            <FloatingSaveButton />
+          </UnsavedChangesProvider>
+        </SubscriptionGate>
       </PermissionProvider>
     </ProtectedRoute>
   )
