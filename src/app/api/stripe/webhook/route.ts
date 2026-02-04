@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
-import { adminDb } from '@/lib/firebase-admin'
+import { updateDocumentRest, queryDocumentsRest, addDocumentRest } from '@/lib/firebase-rest'
 import Stripe from 'stripe'
+
+const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
+const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
 /**
  * POST - Handle Stripe webhook events
@@ -99,8 +102,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   console.log(`[Stripe Webhook] Checkout completed for company: ${companyId}`)
-
-  // The subscription update will be handled by customer.subscription.created event
 }
 
 /**
@@ -115,19 +116,20 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       ? subscription.customer
       : subscription.customer.id
 
-    const companiesSnapshot = await adminDb
-      ?.collection('companies')
-      .where('stripeCustomerId', '==', customerId)
-      .limit(1)
-      .get()
+    const companies = await queryDocumentsRest(
+      'companies',
+      'stripeCustomerId',
+      'EQUAL',
+      customerId,
+      1
+    )
 
-    if (!companiesSnapshot || companiesSnapshot.empty) {
+    if (companies.length === 0) {
       console.error('[Stripe Webhook] Could not find company for subscription')
       return
     }
 
-    const companyDoc = companiesSnapshot.docs[0]
-    await updateCompanySubscription(companyDoc.id, subscription)
+    await updateCompanySubscription(companies[0].id, subscription)
   } else {
     await updateCompanySubscription(companyId, subscription)
   }
@@ -143,7 +145,7 @@ async function updateCompanySubscription(companyId: string, subscription: Stripe
   const subscriptionData = {
     stripeSubscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
-    subscriptionPriceId: firstItem?.price.id,
+    subscriptionPriceId: firstItem?.price.id || null,
     subscriptionCurrentPeriodStart: firstItem?.current_period_start
       ? new Date(firstItem.current_period_start * 1000)
       : null,
@@ -157,7 +159,16 @@ async function updateCompanySubscription(companyId: string, subscription: Stripe
     subscriptionUpdatedAt: new Date(),
   }
 
-  await adminDb?.collection('companies').doc(companyId).update(subscriptionData)
+  await updateDocumentRest('companies', companyId, subscriptionData, [
+    'stripeSubscriptionId',
+    'subscriptionStatus',
+    'subscriptionPriceId',
+    'subscriptionCurrentPeriodStart',
+    'subscriptionCurrentPeriodEnd',
+    'subscriptionTrialEnd',
+    'subscriptionCancelAtPeriodEnd',
+    'subscriptionUpdatedAt',
+  ])
 
   console.log(`[Stripe Webhook] Updated subscription for company: ${companyId}, status: ${subscription.status}`)
 }
@@ -170,24 +181,26 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     ? subscription.customer
     : subscription.customer.id
 
-  const companiesSnapshot = await adminDb
-    ?.collection('companies')
-    .where('stripeCustomerId', '==', customerId)
-    .limit(1)
-    .get()
+  const companies = await queryDocumentsRest(
+    'companies',
+    'stripeCustomerId',
+    'EQUAL',
+    customerId,
+    1
+  )
 
-  if (!companiesSnapshot || companiesSnapshot.empty) {
+  if (companies.length === 0) {
     console.error('[Stripe Webhook] Could not find company for deleted subscription')
     return
   }
 
-  const companyId = companiesSnapshot.docs[0].id
+  const companyId = companies[0].id
 
-  await adminDb?.collection('companies').doc(companyId).update({
+  await updateDocumentRest('companies', companyId, {
     subscriptionStatus: 'canceled',
     subscriptionCanceledAt: new Date(),
     subscriptionUpdatedAt: new Date(),
-  })
+  }, ['subscriptionStatus', 'subscriptionCanceledAt', 'subscriptionUpdatedAt'])
 
   console.log(`[Stripe Webhook] Subscription canceled for company: ${companyId}`)
 }
@@ -202,18 +215,20 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
   if (!customerId) return
 
-  const companiesSnapshot = await adminDb
-    ?.collection('companies')
-    .where('stripeCustomerId', '==', customerId)
-    .limit(1)
-    .get()
+  const companies = await queryDocumentsRest(
+    'companies',
+    'stripeCustomerId',
+    'EQUAL',
+    customerId,
+    1
+  )
 
-  if (!companiesSnapshot || companiesSnapshot.empty) return
+  if (companies.length === 0) return
 
-  const companyId = companiesSnapshot.docs[0].id
+  const companyId = companies[0].id
 
   // Store invoice record
-  await adminDb?.collection('companies').doc(companyId).collection('invoices').add({
+  await addDocumentRest('companies', companyId, 'invoices', {
     stripeInvoiceId: invoice.id,
     amountPaid: invoice.amount_paid,
     currency: invoice.currency,
@@ -238,22 +253,22 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
   if (!customerId) return
 
-  const companiesSnapshot = await adminDb
-    ?.collection('companies')
-    .where('stripeCustomerId', '==', customerId)
-    .limit(1)
-    .get()
+  const companies = await queryDocumentsRest(
+    'companies',
+    'stripeCustomerId',
+    'EQUAL',
+    customerId,
+    1
+  )
 
-  if (!companiesSnapshot || companiesSnapshot.empty) return
+  if (companies.length === 0) return
 
-  const companyId = companiesSnapshot.docs[0].id
+  const companyId = companies[0].id
 
-  await adminDb?.collection('companies').doc(companyId).update({
+  await updateDocumentRest('companies', companyId, {
     subscriptionStatus: 'past_due',
     lastPaymentFailedAt: new Date(),
-  })
+  }, ['subscriptionStatus', 'lastPaymentFailedAt'])
 
   console.log(`[Stripe Webhook] Invoice payment failed for company: ${companyId}`)
-
-  // TODO: Send email notification about payment failure
 }

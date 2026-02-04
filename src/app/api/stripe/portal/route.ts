@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { verifyIdToken } from '@/lib/auth-server'
-import { adminDb } from '@/lib/firebase-admin'
+import { verifyIdTokenRest, getDocumentRest } from '@/lib/firebase-rest'
 
 /**
  * POST - Create a Stripe Customer Portal session
@@ -16,9 +15,9 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await verifyIdToken(token)
+    const user = await verifyIdTokenRest(token)
 
-    if (!decodedToken) {
+    if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
@@ -29,12 +28,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const userId = decodedToken.uid
+    const userId = user.uid
 
     // Get user data to find company
-    const userDoc = await adminDb?.collection('users').doc(userId).get()
-    const userData = userDoc?.data()
-    const companyId = userData?.companyId
+    const userData = await getDocumentRest('users', userId)
+    const companyId = userData?.companyId as string | undefined
 
     if (!companyId) {
       return NextResponse.json(
@@ -44,9 +42,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get company's Stripe customer ID
-    const companyDoc = await adminDb?.collection('companies').doc(companyId).get()
-    const companyData = companyDoc?.data()
-    const stripeCustomerId = companyData?.stripeCustomerId
+    const companyData = await getDocumentRest('companies', companyId)
+    const stripeCustomerId = companyData?.stripeCustomerId as string | undefined
 
     if (!stripeCustomerId) {
       return NextResponse.json(

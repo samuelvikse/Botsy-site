@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { verifyIdToken } from '@/lib/auth-server'
-import { adminDb } from '@/lib/firebase-admin'
+import { verifyIdTokenRest, getDocumentRest, updateDocumentRest } from '@/lib/firebase-rest'
+
+const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
+const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
 /**
  * GET - Get current subscription status
@@ -15,18 +17,17 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await verifyIdToken(token)
+    const user = await verifyIdTokenRest(token)
 
-    if (!decodedToken) {
+    if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const userId = decodedToken.uid
+    const userId = user.uid
 
     // Get user data to find company
-    const userDoc = await adminDb?.collection('users').doc(userId).get()
-    const userData = userDoc?.data()
-    const companyId = userData?.companyId
+    const userData = await getDocumentRest('users', userId)
+    const companyId = userData?.companyId as string | undefined
 
     if (!companyId) {
       return NextResponse.json(
@@ -36,33 +37,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company subscription data
-    const companyDoc = await adminDb?.collection('companies').doc(companyId).get()
-    const companyData = companyDoc?.data()
+    const companyData = await getDocumentRest('companies', companyId)
 
-    // Get invoices
-    const invoicesSnapshot = await adminDb
-      ?.collection('companies')
-      .doc(companyId)
-      .collection('invoices')
-      .orderBy('createdAt', 'desc')
-      .limit(12)
-      .get()
-
-    const invoices = invoicesSnapshot?.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.()?.toISOString(),
-      periodStart: doc.data().periodStart?.toDate?.()?.toISOString(),
-      periodEnd: doc.data().periodEnd?.toDate?.()?.toISOString(),
-    })) || []
+    // Get invoices from subcollection
+    const invoices = await getInvoicesRest(companyId)
 
     return NextResponse.json({
       subscription: {
         status: companyData?.subscriptionStatus || null,
         priceId: companyData?.subscriptionPriceId || null,
-        currentPeriodStart: companyData?.subscriptionCurrentPeriodStart?.toDate?.()?.toISOString(),
-        currentPeriodEnd: companyData?.subscriptionCurrentPeriodEnd?.toDate?.()?.toISOString(),
-        trialEnd: companyData?.subscriptionTrialEnd?.toDate?.()?.toISOString(),
+        currentPeriodStart: companyData?.subscriptionCurrentPeriodStart || null,
+        currentPeriodEnd: companyData?.subscriptionCurrentPeriodEnd || null,
+        trialEnd: companyData?.subscriptionTrialEnd || null,
         cancelAtPeriodEnd: companyData?.subscriptionCancelAtPeriodEnd || false,
       },
       invoices,
@@ -89,9 +75,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await verifyIdToken(token)
+    const user = await verifyIdTokenRest(token)
 
-    if (!decodedToken) {
+    if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
@@ -102,12 +88,11 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const userId = decodedToken.uid
+    const userId = user.uid
 
     // Get user data to find company
-    const userDoc = await adminDb?.collection('users').doc(userId).get()
-    const userData = userDoc?.data()
-    const companyId = userData?.companyId
+    const userData = await getDocumentRest('users', userId)
+    const companyId = userData?.companyId as string | undefined
 
     if (!companyId) {
       return NextResponse.json(
@@ -117,8 +102,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get company subscription
-    const companyDoc = await adminDb?.collection('companies').doc(companyId).get()
-    const companyData = companyDoc?.data()
+    const companyData = await getDocumentRest('companies', companyId)
 
     if (!companyData?.stripeSubscriptionId) {
       return NextResponse.json(
@@ -128,15 +112,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Cancel at period end (don't cancel immediately)
-    await stripe.subscriptions.update(companyData.stripeSubscriptionId, {
+    await stripe.subscriptions.update(companyData.stripeSubscriptionId as string, {
       cancel_at_period_end: true,
     })
 
     // Update local record
-    await adminDb?.collection('companies').doc(companyId).update({
+    await updateDocumentRest('companies', companyId, {
       subscriptionCancelAtPeriodEnd: true,
       subscriptionUpdatedAt: new Date(),
-    })
+    }, ['subscriptionCancelAtPeriodEnd', 'subscriptionUpdatedAt'])
 
     return NextResponse.json({
       success: true,
@@ -163,9 +147,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await verifyIdToken(token)
+    const user = await verifyIdTokenRest(token)
 
-    if (!decodedToken) {
+    if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
@@ -176,12 +160,11 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const userId = decodedToken.uid
+    const userId = user.uid
 
     // Get user data to find company
-    const userDoc = await adminDb?.collection('users').doc(userId).get()
-    const userData = userDoc?.data()
-    const companyId = userData?.companyId
+    const userData = await getDocumentRest('users', userId)
+    const companyId = userData?.companyId as string | undefined
 
     if (!companyId) {
       return NextResponse.json(
@@ -191,8 +174,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get company subscription
-    const companyDoc = await adminDb?.collection('companies').doc(companyId).get()
-    const companyData = companyDoc?.data()
+    const companyData = await getDocumentRest('companies', companyId)
 
     if (!companyData?.stripeSubscriptionId) {
       return NextResponse.json(
@@ -202,15 +184,15 @@ export async function PUT(request: NextRequest) {
     }
 
     // Resume subscription
-    await stripe.subscriptions.update(companyData.stripeSubscriptionId, {
+    await stripe.subscriptions.update(companyData.stripeSubscriptionId as string, {
       cancel_at_period_end: false,
     })
 
     // Update local record
-    await adminDb?.collection('companies').doc(companyId).update({
+    await updateDocumentRest('companies', companyId, {
       subscriptionCancelAtPeriodEnd: false,
       subscriptionUpdatedAt: new Date(),
-    })
+    }, ['subscriptionCancelAtPeriodEnd', 'subscriptionUpdatedAt'])
 
     return NextResponse.json({
       success: true,
@@ -223,4 +205,53 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * Get invoices from subcollection using REST API
+ */
+async function getInvoicesRest(companyId: string) {
+  try {
+    const response = await fetch(
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/invoices?orderBy=createdAt desc&pageSize=12`
+    )
+
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json()
+    const documents = data.documents || []
+
+    return documents.map((doc: { name: string; fields: Record<string, unknown> }) => {
+      const fields = doc.fields || {}
+      return {
+        id: doc.name.split('/').pop(),
+        stripeInvoiceId: parseValue(fields.stripeInvoiceId),
+        amountPaid: parseValue(fields.amountPaid),
+        currency: parseValue(fields.currency),
+        status: parseValue(fields.status),
+        invoicePdf: parseValue(fields.invoicePdf),
+        hostedInvoiceUrl: parseValue(fields.hostedInvoiceUrl),
+        periodStart: parseValue(fields.periodStart),
+        periodEnd: parseValue(fields.periodEnd),
+        createdAt: parseValue(fields.createdAt),
+      }
+    })
+  } catch (error) {
+    console.error('[Stripe Subscription] Get invoices error:', error)
+    return []
+  }
+}
+
+function parseValue(field: unknown): unknown {
+  if (!field || typeof field !== 'object') return null
+  const f = field as Record<string, unknown>
+  if ('stringValue' in f) return f.stringValue
+  if ('integerValue' in f) return parseInt(f.integerValue as string)
+  if ('doubleValue' in f) return f.doubleValue
+  if ('booleanValue' in f) return f.booleanValue
+  if ('timestampValue' in f) return f.timestampValue
+  if ('nullValue' in f) return null
+  return null
 }
