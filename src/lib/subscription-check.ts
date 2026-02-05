@@ -4,7 +4,7 @@ export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled'
 
 /**
  * Check if a company has an active subscription
- * Returns true if subscription is active or in trial period
+ * Returns true if subscription is active, in trial period, or has lifetime access
  */
 export async function isSubscriptionActive(companyId: string): Promise<boolean> {
   try {
@@ -13,6 +13,12 @@ export async function isSubscriptionActive(companyId: string): Promise<boolean> 
     if (!companyData) {
       console.log(`[Subscription Check] Company not found: ${companyId}`)
       return false
+    }
+
+    // Check for lifetime access first
+    if (companyData.lifetimeAccess === true) {
+      console.log(`[Subscription Check] Company ${companyId} has lifetime access`)
+      return true
     }
 
     const status = companyData.subscriptionStatus as SubscriptionStatus
