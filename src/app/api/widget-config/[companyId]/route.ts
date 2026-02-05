@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getFirestore, doc, getDoc } from 'firebase/firestore'
+import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore'
 
 // Force dynamic rendering - never cache this route
 export const dynamic = 'force-dynamic'
@@ -72,6 +72,19 @@ export async function GET(
     }
 
     const companyData = companyDoc.data()
+
+    // Auto-fix: If widgetSettings.isEnabled is not set, set it to true
+    // This prevents issues with old companies that don't have this field
+    if (companyData?.widgetSettings?.isEnabled === undefined) {
+      try {
+        await updateDoc(companyRef, {
+          'widgetSettings.isEnabled': true,
+        })
+        console.log(`[Widget Config] Auto-fixed widgetSettings.isEnabled for ${companyId}`)
+      } catch {
+        // Non-critical, continue even if fix fails
+      }
+    }
 
     // Return only public widget config (no sensitive data)
     return NextResponse.json({

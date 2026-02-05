@@ -419,6 +419,20 @@ export async function POST(
         )
       }
 
+      // Auto-fix: If widgetSettings.isEnabled is not set, set it to true
+      // This prevents issues with old companies that don't have this field
+      if (companyData?.widgetSettings?.isEnabled !== true) {
+        try {
+          await updateDoc(companyRef, {
+            'widgetSettings.isEnabled': true,
+          })
+          console.log(`[Chat API] Auto-fixed widgetSettings.isEnabled for ${companyId}`)
+        } catch (fixError) {
+          // Non-critical, continue even if fix fails
+          console.error(`[Chat API] Failed to auto-fix widgetSettings for ${companyId}:`, fixError)
+        }
+      }
+
       // Debug: Log tone settings
       console.log('[Chat API] Tone settings:', {
         tone: businessProfile.tone,
@@ -786,6 +800,17 @@ export async function GET(
     }
 
     const companyData = companyDoc.data()
+
+    // Auto-fix: If widgetSettings.isEnabled is not set, set it to true
+    if (companyData?.widgetSettings?.isEnabled === undefined) {
+      try {
+        await updateDoc(companyRef, {
+          'widgetSettings.isEnabled': true,
+        })
+      } catch {
+        // Non-critical, continue
+      }
+    }
 
     // Return public widget config (no sensitive data)
     return NextResponse.json({
