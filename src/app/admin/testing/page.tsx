@@ -942,7 +942,9 @@ function TestingContent() {
                       </div>
                       <div className="flex items-center gap-2">
                         {company.stripeSubscriptionId && (
-                          <CreditCard className="h-4 w-4 text-[#6B7A94]" title="Stripe" />
+                          <span title="Stripe">
+                            <CreditCard className="h-4 w-4 text-[#6B7A94]" />
+                          </span>
                         )}
                         {company.vippsAgreementId && (
                           <span className="text-xs text-[#6B7A94]">Vipps</span>
