@@ -263,9 +263,11 @@ export function NotificationPanel({
 // Simple notification bell with push notification toggle
 export function SimpleNotificationBell({
   companyId,
+  userId,
   onViewConversation
 }: {
   companyId?: string
+  userId?: string
   onViewConversation?: (conversationId: string, channel: string) => void
 }) {
   const toast = useToast()
@@ -378,7 +380,7 @@ export function SimpleNotificationBell({
             await fetch('/api/push/subscribe', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: 'current' }), // Will be replaced with actual userId
+              body: JSON.stringify({ userId }),
             })
           }
         }
@@ -418,8 +420,8 @@ export function SimpleNotificationBell({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: 'current', // Will be replaced with actual userId
-            companyId: 'current', // Will be replaced with actual companyId
+            userId,
+            companyId,
             subscription: subscription.toJSON(),
           }),
         })

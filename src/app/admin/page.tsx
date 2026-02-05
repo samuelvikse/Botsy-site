@@ -352,6 +352,7 @@ function AdminContent() {
           <div className="flex items-center gap-3">
             <SimpleNotificationBell
               companyId={companyId}
+              userId={user?.uid}
               onViewConversation={(conversationId) => {
                 setSelectedConversationId(conversationId)
                 setActiveTab('conversations')

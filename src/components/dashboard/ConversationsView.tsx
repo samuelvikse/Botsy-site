@@ -81,6 +81,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const previousConversationId = useRef<string | null>(null)
+  const justSwitchedConversation = useRef(false)
 
   // Check if user is near bottom of messages
   const checkIfNearBottom = useCallback(() => {
@@ -103,12 +104,15 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
       // Always scroll to bottom when opening a new conversation
       previousConversationId.current = selectedConversation?.id || null
       setShouldAutoScroll(true)
+      justSwitchedConversation.current = true
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
       }, 50)
     } else if (shouldAutoScroll && messages.length > 0) {
-      // Only scroll if user is near bottom
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      // Use instant scroll right after switching conversation (messages just loaded)
+      const behavior = justSwitchedConversation.current ? 'instant' : 'smooth'
+      justSwitchedConversation.current = false
+      messagesEndRef.current?.scrollIntoView({ behavior })
     }
   }, [messages, selectedConversation?.id, shouldAutoScroll])
 
