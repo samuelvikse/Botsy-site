@@ -3,8 +3,8 @@ import { runWebsiteSync } from '@/lib/knowledge-sync/sync-service'
 import { getSyncConfig, saveSyncConfig } from '@/lib/knowledge-sync/firestore'
 import { scrapeWithFAQPage, formatForAnalysis } from '@/lib/scraper'
 import { analyzeWebsiteContent } from '@/lib/groq'
-import { doc, getDoc, updateDoc, getFirestore } from 'firebase/firestore'
-import { getFirebaseApp } from '@/lib/firebase-rest'
+import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import type { BusinessProfile, FAQ } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -31,8 +31,13 @@ export async function POST(request: NextRequest) {
     console.log(`[Sync API] Starting manual sync for company: ${companyId}`)
 
     // First, check if company has a businessProfile
-    const app = getFirebaseApp()
-    const db = getFirestore(app)
+    if (!db) {
+      return NextResponse.json(
+        { success: false, error: 'Database not initialized' },
+        { status: 500 }
+      )
+    }
+    
     const companyRef = doc(db, 'companies', companyId)
     const companyDoc = await getDoc(companyRef)
     
