@@ -7,7 +7,9 @@ import { createEscalation, getEscalation } from '@/lib/escalation-firestore'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
 import { incrementPositiveFeedback } from '@/lib/leaderboard-firestore'
 import { logError } from '@/lib/error-logger'
-import type { BusinessProfile, Instruction } from '@/types'
+import { scrapeWithFAQPage, formatForAnalysis } from '@/lib/scraper'
+import { analyzeWebsiteContent } from '@/lib/groq'
+import type { BusinessProfile, Instruction, FAQ } from '@/types'
 
 // Phrases that indicate user wants human assistance
 const HUMAN_HANDOFF_PHRASES = [
@@ -125,6 +127,114 @@ function getFirebaseApp() {
     return initializeApp(firebaseConfig)
   }
   return getApp()
+}
+
+// Auto-setup business profile from website URL
+async function autoSetupBusinessProfile(
+  companyId: string,
+  websiteUrl: string,
+  businessName: string
+): Promise<BusinessProfile | null> {
+  try {
+    console.log(`[Chat API] Auto-setting up profile for ${companyId} from ${websiteUrl}`)
+    
+    // Scrape the website
+    const scrapedData = await scrapeWithFAQPage(websiteUrl)
+    
+    // Format content for analysis
+    let formattedContent = formatForAnalysis(scrapedData.mainContent)
+    
+    if (scrapedData.faqPage) {
+      formattedContent += '\n\n--- FAQ-SIDE ---\n' + formatForAnalysis(scrapedData.faqPage)
+    }
+    if (scrapedData.aboutPage) {
+      formattedContent += '\n\n--- OM OSS-SIDE ---\n' + formatForAnalysis(scrapedData.aboutPage)
+    }
+    
+    if (!formattedContent || formattedContent.length < 50) {
+      console.log('[Chat API] Not enough content to analyze')
+      return null
+    }
+    
+    // Analyze with AI
+    const analysisResult = await analyzeWebsiteContent(formattedContent, businessName)
+    
+    // Build FAQs
+    const allFaqs: FAQ[] = []
+    const seenQuestions = new Set<string>()
+    
+    // Add FAQs from scraper
+    if (scrapedData.mainContent.rawFaqs) {
+      for (const faq of scrapedData.mainContent.rawFaqs) {
+        const key = faq.question.toLowerCase().slice(0, 50)
+        if (!seenQuestions.has(key)) {
+          seenQuestions.add(key)
+          allFaqs.push({
+            id: `auto-${Date.now()}-${allFaqs.length}`,
+            question: faq.question,
+            answer: faq.answer,
+            source: 'extracted',
+            confirmed: false,
+          })
+        }
+      }
+    }
+    
+    // Add FAQs from AI
+    if (analysisResult.faqs) {
+      for (const faq of analysisResult.faqs) {
+        const key = faq.question.toLowerCase().slice(0, 50)
+        if (!seenQuestions.has(key)) {
+          seenQuestions.add(key)
+          allFaqs.push({
+            id: `auto-ai-${Date.now()}-${allFaqs.length}`,
+            question: faq.question,
+            answer: faq.answer,
+            source: 'generated',
+            confirmed: false,
+          })
+        }
+      }
+    }
+    
+    // Build profile
+    const profile: BusinessProfile = {
+      websiteUrl,
+      businessName: analysisResult.businessName || businessName,
+      industry: analysisResult.industry,
+      contactInfo: analysisResult.contactInfo,
+      pricing: analysisResult.pricing,
+      staff: analysisResult.staff,
+      tone: analysisResult.tone || 'friendly',
+      toneReason: analysisResult.toneReason,
+      language: analysisResult.language,
+      languageName: analysisResult.languageName,
+      targetAudience: analysisResult.targetAudience,
+      brandPersonality: analysisResult.brandPersonality,
+      services: analysisResult.services || [],
+      products: analysisResult.products || [],
+      terminology: analysisResult.terminology || [],
+      description: analysisResult.description,
+      faqs: allFaqs,
+      lastAnalyzed: new Date(),
+    }
+    
+    // Save to Firestore
+    const app = getFirebaseApp()
+    const db = getFirestore(app)
+    const companyRef = doc(db, 'companies', companyId)
+    
+    await updateDoc(companyRef, {
+      businessProfile: profile,
+      'widgetSettings.isEnabled': true,
+    })
+    
+    console.log(`[Chat API] Successfully auto-setup profile for ${companyId}`)
+    return profile
+  } catch (error) {
+    console.error('[Chat API] Auto-setup failed:', error)
+    return null
+  }
 }
 
 interface ChatRequest {
@@ -258,11 +368,47 @@ export async function POST(
 
       const companyData = companyDoc.data()
 
+      // Auto-setup business profile if missing but websiteUrl exists
       if (!companyData?.businessProfile) {
-        return NextResponse.json(
-          { success: false, error: 'Bedriftsprofil ikke konfigurert. Fullfør onboarding først.' },
-          { status: 400, headers: corsHeaders }
-        )
+        const websiteUrl = companyData?.websiteUrl || companyData?.profile?.websiteUrl
+        const businessName = companyData?.businessName || companyData?.profile?.businessName || 'Bedrift'
+        
+        if (websiteUrl) {
+          console.log(`[Chat API] businessProfile missing for ${companyId}, attempting auto-setup`)
+          
+          // Try to auto-setup the profile
+          const autoProfile = await autoSetupBusinessProfile(companyId, websiteUrl, businessName)
+          
+          if (autoProfile) {
+            // Profile was created, continue with this request
+            businessProfile = autoProfile
+          } else {
+            // Auto-setup failed
+            return NextResponse.json(
+              { 
+                success: true,
+                reply: 'Vi setter opp chatten nå. Vennligst prøv igjen om noen sekunder!',
+                isSettingUp: true,
+              },
+              { headers: corsHeaders }
+            )
+          }
+        } else {
+          return NextResponse.json(
+            { 
+              success: true,
+              reply: 'Chatten er ikke ferdig konfigurert ennå. Ta kontakt med bedriften direkte.',
+              notConfigured: true,
+            },
+            { headers: corsHeaders }
+          )
+        }
+      } else {
+        businessProfile = {
+          ...companyData.businessProfile,
+          lastAnalyzed: companyData.businessProfile.lastAnalyzed?.toDate?.() || new Date(),
+          faqs: companyData.businessProfile.faqs || [],
+        }
       }
 
       if (!companyData?.widgetSettings?.isEnabled) {
@@ -270,12 +416,6 @@ export async function POST(
           { success: false, error: 'Chat er ikke aktivert for denne bedriften' },
           { status: 403, headers: corsHeaders }
         )
-      }
-
-      businessProfile = {
-        ...companyData.businessProfile,
-        lastAnalyzed: companyData.businessProfile.lastAnalyzed?.toDate?.() || new Date(),
-        faqs: companyData.businessProfile.faqs || [],
       }
 
       // Debug: Log tone settings

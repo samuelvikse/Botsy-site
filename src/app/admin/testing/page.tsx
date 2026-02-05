@@ -71,6 +71,7 @@ interface CompanyData {
   createdAt?: string
   ownerEmail?: string
   members: MemberData[]
+  hasBusinessProfile?: boolean
 }
 
 interface CompaniesResponse {
@@ -111,6 +112,8 @@ function TestingContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [grantingAccess, setGrantingAccess] = useState<string | null>(null)
   const [syncingCompany, setSyncingCompany] = useState<string | null>(null)
+  const [testingWidget, setTestingWidget] = useState<string | null>(null)
+  const [widgetTestResult, setWidgetTestResult] = useState<Record<string, { status: 'success' | 'error' | 'setup'; message: string }>>({})
   const [editingName, setEditingName] = useState<string | null>(null)
   const [newBusinessName, setNewBusinessName] = useState('')
 
@@ -223,6 +226,7 @@ function TestingContent() {
           createdAt: companyData.createdAt?.toDate?.()?.toISOString() || undefined,
           ownerEmail,
           members,
+          hasBusinessProfile: !!companyData.businessProfile,
         })
       }
 
@@ -363,6 +367,64 @@ function TestingContent() {
       toast.error('Feil', 'Kunne ikke synkronisere nettside')
     } finally {
       setSyncingCompany(null)
+    }
+  }
+
+  // Test widget for a specific company
+  const handleTestWidget = async (targetCompanyId: string, businessName?: string) => {
+    setTestingWidget(targetCompanyId)
+
+    try {
+      const response = await fetch(`/api/chat/${targetCompanyId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: 'Hei, dette er en test!',
+          sessionId: `test-${Date.now()}`
+        }),
+      })
+      const data = await response.json()
+
+      if (data.isSettingUp) {
+        setWidgetTestResult(prev => ({
+          ...prev,
+          [targetCompanyId]: { status: 'setup', message: 'Setter opp bedriftsprofil...' }
+        }))
+        toast.info('Widget', 'Bedriftsprofil opprettes automatisk')
+      } else if (data.notConfigured) {
+        setWidgetTestResult(prev => ({
+          ...prev,
+          [targetCompanyId]: { status: 'error', message: 'Mangler nettside-URL' }
+        }))
+        toast.error('Widget', 'Mangler nettside-URL for denne bedriften')
+      } else if (data.success && data.reply) {
+        setWidgetTestResult(prev => ({
+          ...prev,
+          [targetCompanyId]: { status: 'success', message: data.reply.slice(0, 100) + (data.reply.length > 100 ? '...' : '') }
+        }))
+        toast.success('Widget OK', `${businessName || targetCompanyId} svarer korrekt`)
+      } else if (data.error) {
+        setWidgetTestResult(prev => ({
+          ...prev,
+          [targetCompanyId]: { status: 'error', message: data.error }
+        }))
+        toast.error('Widget feil', data.error)
+      } else {
+        setWidgetTestResult(prev => ({
+          ...prev,
+          [targetCompanyId]: { status: 'error', message: 'Ukjent respons' }
+        }))
+        toast.error('Widget', 'Ukjent respons fra chat API')
+      }
+    } catch (error) {
+      console.error('Error testing widget:', error)
+      setWidgetTestResult(prev => ({
+        ...prev,
+        [targetCompanyId]: { status: 'error', message: 'Nettverksfeil' }
+      }))
+      toast.error('Feil', 'Kunne ikke teste widget')
+    } finally {
+      setTestingWidget(null)
     }
   }
 
@@ -1052,7 +1114,7 @@ function TestingContent() {
                             <p className="text-white">
                               {company.websiteUrl ? (
                                 <a
-                                  href={company.websiteUrl}
+                                  href={company.websiteUrl.startsWith('http') ? company.websiteUrl : `https://${company.websiteUrl}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-botsy-lime hover:underline"
@@ -1067,6 +1129,12 @@ function TestingContent() {
                           <div>
                             <p className="text-[#6B7A94]">Abonnement</p>
                             <p className="text-white">{company.subscriptionTier || 'Standard'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[#6B7A94]">Bedriftsprofil</p>
+                            <p className={company.hasBusinessProfile ? 'text-green-400' : 'text-red-400'}>
+                              {company.hasBusinessProfile ? '✓ Konfigurert' : '✗ Mangler - synk nettside'}
+                            </p>
                           </div>
                           {company.trialEndsAt && (
                             <div>
@@ -1130,7 +1198,58 @@ function TestingContent() {
                             )}
                             Synk nettside
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleTestWidget(company.id, company.businessName)}
+                            disabled={testingWidget === company.id}
+                            className="text-amber-400 border-amber-400/30 hover:bg-amber-400/10"
+                          >
+                            {testingWidget === company.id ? (
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                              <MessageSquare className="h-4 w-4 mr-1" />
+                            )}
+                            Test widget
+                          </Button>
                         </div>
+
+                        {/* Widget test result */}
+                        {widgetTestResult[company.id] && (
+                          <div className={`mb-4 p-3 rounded-lg border ${
+                            widgetTestResult[company.id].status === 'success' 
+                              ? 'bg-green-500/10 border-green-500/30' 
+                              : widgetTestResult[company.id].status === 'setup'
+                              ? 'bg-amber-500/10 border-amber-500/30'
+                              : 'bg-red-500/10 border-red-500/30'
+                          }`}>
+                            <div className="flex items-center gap-2 mb-1">
+                              {widgetTestResult[company.id].status === 'success' ? (
+                                <CheckCircle className="h-4 w-4 text-green-400" />
+                              ) : widgetTestResult[company.id].status === 'setup' ? (
+                                <Loader2 className="h-4 w-4 text-amber-400" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-400" />
+                              )}
+                              <span className={`text-sm font-medium ${
+                                widgetTestResult[company.id].status === 'success' 
+                                  ? 'text-green-400' 
+                                  : widgetTestResult[company.id].status === 'setup'
+                                  ? 'text-amber-400'
+                                  : 'text-red-400'
+                              }`}>
+                                {widgetTestResult[company.id].status === 'success' 
+                                  ? 'Widget fungerer!' 
+                                  : widgetTestResult[company.id].status === 'setup'
+                                  ? 'Setter opp...'
+                                  : 'Widget feilet'}
+                              </span>
+                            </div>
+                            <p className="text-[#6B7A94] text-xs">
+                              {widgetTestResult[company.id].message}
+                            </p>
+                          </div>
+                        )}
 
                         {/* Members list */}
                         {company.members.length > 0 && (
