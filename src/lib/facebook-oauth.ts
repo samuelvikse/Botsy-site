@@ -224,11 +224,11 @@ export async function subscribeWebhook(params: {
 export async function getInstagramBusinessAccount(params: {
   pageId: string
   pageAccessToken: string
-}): Promise<{ id: string; username: string } | null> {
+}): Promise<{ id: string; username: string; profile_picture_url?: string } | null> {
   const { pageId, pageAccessToken } = params
 
   const url = new URL(`${FACEBOOK_GRAPH_URL}/${pageId}`)
-  url.searchParams.set('fields', 'instagram_business_account{id,username}')
+  url.searchParams.set('fields', 'instagram_business_account{id,username,profile_picture_url}')
   url.searchParams.set('access_token', pageAccessToken)
 
   const response = await fetch(url.toString())

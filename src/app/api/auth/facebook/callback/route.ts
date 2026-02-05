@@ -143,8 +143,9 @@ export async function GET(request: NextRequest) {
           ...channelData,
           instagramAccountId: igAccount.id,
           username: igAccount.username || '',
+          profilePictureUrl: igAccount.profile_picture_url || '',
         }
-        console.log('[Facebook OAuth Callback] Instagram account found:', igAccount.username)
+        console.log('[Facebook OAuth Callback] Instagram account found:', igAccount.username, 'with profile picture:', !!igAccount.profile_picture_url)
       } else {
         // No Instagram account linked to this page
         console.error('[Facebook OAuth Callback] No Instagram account linked to page')

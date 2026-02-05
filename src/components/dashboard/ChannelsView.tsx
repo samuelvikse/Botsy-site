@@ -133,6 +133,7 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
 
   const [instagramPageId, setInstagramPageId] = useState('')
   const [instagramUsername, setInstagramUsername] = useState('')
+  const [instagramProfilePicture, setInstagramProfilePicture] = useState('')
   const [instagramCredentials, setInstagramCredentials] = useState<Record<string, string>>({})
 
   const [emailAddress, setEmailAddress] = useState('')
@@ -196,10 +197,15 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
           isConfigured: true,
           isActive: channelsData.instagram.isActive,
           isVerified: channelsData.instagram.isVerified,
-          details: { username: channelsData.instagram.username, pageId: channelsData.instagram.pageId },
+          details: { 
+            username: channelsData.instagram.username, 
+            pageId: channelsData.instagram.pageId,
+            profilePictureUrl: channelsData.instagram.profilePictureUrl,
+          },
         }
         setInstagramPageId(channelsData.instagram.pageId)
         setInstagramUsername(channelsData.instagram.username)
+        setInstagramProfilePicture(channelsData.instagram.profilePictureUrl || '')
       }
 
       if (channelsData.email) {
@@ -1104,6 +1110,37 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'instagram':
         return (
           <div className="space-y-5">
+            {/* Connected Account Display */}
+            {channels.instagram.isConfigured && instagramUsername && (
+              <div className="p-4 bg-gradient-to-r from-[#E4405F]/10 to-[#F77737]/10 border border-[#E4405F]/30 rounded-xl">
+                <div className="flex items-center gap-4">
+                  {instagramProfilePicture ? (
+                    <img 
+                      src={instagramProfilePicture} 
+                      alt={instagramUsername}
+                      className="w-14 h-14 rounded-full border-2 border-[#E4405F]/50"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#E4405F] to-[#F77737] flex items-center justify-center">
+                      <span className="text-white text-xl font-bold">
+                        {instagramUsername.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-white font-semibold text-lg">@{instagramUsername.replace('@', '')}</p>
+                    <p className="text-[#A8B4C8] text-sm">Instagram Business Account</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-flex items-center gap-1 text-xs text-green-400">
+                        <Check className="w-3 h-3" />
+                        Tilkoblet
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Easy Connect Button */}
             {!channels.instagram.isConfigured && (
               <div className="p-4 bg-gradient-to-r from-[#E4405F]/10 to-[#F77737]/10 border border-[#E4405F]/20 rounded-xl">
