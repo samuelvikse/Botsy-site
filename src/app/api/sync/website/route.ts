@@ -58,6 +58,15 @@ export async function POST(request: NextRequest) {
     // Normalize URL
     const normalizedUrl = websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`
 
+    // If businessProfile exists but widget is disabled, enable it
+    const widgetEnabled = companyData?.widgetSettings?.isEnabled === true
+    if (hasBusinessProfile && !widgetEnabled) {
+      console.log(`[Sync API] Enabling widget for ${companyId}`)
+      await updateDoc(companyRef, {
+        'widgetSettings.isEnabled': true,
+      })
+    }
+
     // If no businessProfile exists, create one from the website
     if (!hasBusinessProfile) {
       console.log(`[Sync API] Creating businessProfile for ${companyId}`)
@@ -108,10 +117,11 @@ export async function POST(request: NextRequest) {
           },
         }
 
-        // Save to Firestore
+        // Save to Firestore - also enable the widget since we now have a profile
         await updateDoc(companyRef, {
           businessProfile,
           websiteUrl: normalizedUrl, // Also update the root websiteUrl to be normalized
+          'widgetSettings.isEnabled': true, // Enable widget since profile now exists
         })
 
         console.log(`[Sync API] Created businessProfile with ${faqs.length} FAQs for ${companyId}`)
@@ -119,16 +129,37 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           newFaqsCreated: faqs.length,
+          faqsAdded: faqs.length, // For compatibility with admin panel toast
           businessProfileCreated: true,
+          widgetEnabled: true,
           message: `Opprettet bedriftsprofil med ${faqs.length} FAQs`,
         })
       } catch (profileError) {
         console.error('[Sync API] Error creating businessProfile:', profileError)
-        // Continue with normal sync even if profile creation fails
+        const profileErrorMessage = profileError instanceof Error ? profileError.message : 'Failed to create profile'
+        return NextResponse.json(
+          { success: false, error: `Kunne ikke opprette bedriftsprofil: ${profileErrorMessage}` },
+          { status: 500 }
+        )
       }
     }
 
-    // Run the normal sync process
+    // Company already has businessProfile
+    // Check if there's a sync config set up - if not, just return success
+    const syncConfig = await getSyncConfig(companyId)
+    
+    if (!syncConfig || !syncConfig.enabled) {
+      // No sync config - widget is enabled, profile exists, we're done
+      console.log(`[Sync API] Company ${companyId} has profile but no sync config`)
+      return NextResponse.json({
+        success: true,
+        faqsAdded: 0,
+        message: 'Bedriftsprofil er allerede konfigurert. Chat-widget er aktivert!',
+        widgetEnabled: !widgetEnabled, // Was widget just enabled?
+      })
+    }
+
+    // Company has sync config - run the normal sync process
     const result = await runWebsiteSync(companyId)
 
     return NextResponse.json(result)
