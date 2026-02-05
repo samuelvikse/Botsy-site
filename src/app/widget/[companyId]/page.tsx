@@ -158,6 +158,7 @@ export default function WidgetPage({
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [logoError, setLogoError] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -283,6 +284,10 @@ export default function WidgetPage({
           // Update config but DON'T reset messages or greeting
           setConfig(prev => {
             if (!prev) return data.config
+            // Reset logo error if logoUrl changed
+            if (prev.logoUrl !== data.config.logoUrl) {
+              setLogoError(false)
+            }
             // Only update visual settings, not greeting (to avoid disrupting conversation)
             return {
               ...prev,
@@ -639,13 +644,15 @@ export default function WidgetPage({
             className={`absolute bottom-2 ${config.position === 'bottom-left' ? 'left-2' : 'right-2'} h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-colors overflow-hidden`}
             style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
           >
-            {config.logoUrl ? (
+            {config.logoUrl && !logoError ? (
               <div className="absolute inset-0 rounded-full overflow-hidden">
                 <Image
                   src={config.logoUrl}
                   alt={config.businessName}
                   fill
                   className="object-cover rounded-full"
+                  onError={() => setLogoError(true)}
+                  unoptimized
                 />
               </div>
             ) : (
@@ -654,6 +661,7 @@ export default function WidgetPage({
                 alt="Chat"
                 width={28}
                 height={28}
+                unoptimized
               />
             )}
           </motion.button>
@@ -685,12 +693,14 @@ export default function WidgetPage({
             >
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-gray-900/20 flex items-center justify-center overflow-hidden relative">
-                  {config.logoUrl ? (
+                  {config.logoUrl && !logoError ? (
                     <Image
                       src={config.logoUrl}
                       alt={config.businessName}
                       fill
                       className="object-cover rounded-full"
+                      onError={() => setLogoError(true)}
+                      unoptimized
                     />
                   ) : (
                     <Image
@@ -698,6 +708,7 @@ export default function WidgetPage({
                       alt="Botsy"
                       width={22}
                       height={22}
+                      unoptimized
                     />
                   )}
                 </div>
@@ -856,6 +867,7 @@ export default function WidgetPage({
                   width={40}
                   height={12}
                   className="opacity-50"
+                  unoptimized
                 />
               </a>
             </div>

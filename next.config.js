@@ -25,6 +25,38 @@ const nextConfig = {
   // Performance and security headers
   async headers() {
     return [
+      // Widget routes - allow embedding in iframes on any domain
+      {
+        source: '/widget/:path*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'ALLOWALL',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors *",
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+        ],
+      },
+      // Widget.js script - allow loading from any domain
+      {
+        source: '/widget.js',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600',
+          },
+        ],
+      },
       {
         source: '/:path*',
         headers: [
