@@ -110,6 +110,7 @@ function TestingContent() {
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [grantingAccess, setGrantingAccess] = useState<string | null>(null)
+  const [syncingCompany, setSyncingCompany] = useState<string | null>(null)
   const [editingName, setEditingName] = useState<string | null>(null)
   const [newBusinessName, setNewBusinessName] = useState('')
 
@@ -335,6 +336,33 @@ function TestingContent() {
       toast.error('Feil', 'Kunne ikke gi gratis tilgang')
     } finally {
       setGrantingAccess(null)
+    }
+  }
+
+  // Sync website for a specific company
+  const handleSyncCompanyWebsite = async (targetCompanyId: string, businessName?: string) => {
+    setSyncingCompany(targetCompanyId)
+
+    try {
+      const response = await fetch('/api/sync/website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: targetCompanyId }),
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Synkronisering fullført', `${businessName || targetCompanyId}: ${data.faqsAdded || 0} nye FAQs lagt til`)
+        // Refresh companies list
+        handleFetchCompanies()
+      } else {
+        toast.error('Synkronisering feilet', data.error || 'Ukjent feil')
+      }
+    } catch (error) {
+      console.error('Error syncing website:', error)
+      toast.error('Feil', 'Kunne ikke synkronisere nettside')
+    } finally {
+      setSyncingCompany(null)
     }
   }
 
@@ -1087,6 +1115,20 @@ function TestingContent() {
                               <Infinity className="h-4 w-4 mr-1" />
                             )}
                             Lifetime gratis
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSyncCompanyWebsite(company.id, company.businessName)}
+                            disabled={syncingCompany === company.id}
+                            className="text-purple-400 border-purple-400/30 hover:bg-purple-400/10"
+                          >
+                            {syncingCompany === company.id ? (
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4 mr-1" />
+                            )}
+                            Synk nettside
                           </Button>
                         </div>
 
