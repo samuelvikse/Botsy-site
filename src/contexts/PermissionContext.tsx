@@ -20,20 +20,20 @@ interface PermissionContextType {
 // 'configurable' means it depends on the user's individual permissions
 type AccessValue = boolean | 'configurable'
 
-const ACCESS_MATRIX: Record<PanelName, { owner: AccessValue; admin: AccessValue; employee: AccessValue }> = {
-  dashboard:     { owner: true, admin: true, employee: true },
-  conversations: { owner: true, admin: true, employee: true },
-  knowledge:     { owner: true, admin: true, employee: 'configurable' },
-  documents:     { owner: true, admin: true, employee: 'configurable' },
-  instructions:  { owner: true, admin: true, employee: 'configurable' },
-  widget:        { owner: true, admin: true, employee: false },
-  tone:          { owner: true, admin: true, employee: false },
-  channels:      { owner: true, admin: 'configurable', employee: false },
-  analytics:     { owner: true, admin: true, employee: 'configurable' },
-  security:      { owner: true, admin: true, employee: true },
-  settings:      { owner: true, admin: false, employee: false },
-  employees:     { owner: true, admin: 'configurable', employee: 'configurable' },
-  adminBot:      { owner: true, admin: true, employee: 'configurable' },
+const ACCESS_MATRIX: Record<PanelName, { owner: AccessValue; admin: AccessValue; employee: AccessValue; pending: AccessValue }> = {
+  dashboard:     { owner: true, admin: true, employee: true, pending: false },
+  conversations: { owner: true, admin: true, employee: true, pending: false },
+  knowledge:     { owner: true, admin: true, employee: 'configurable', pending: false },
+  documents:     { owner: true, admin: true, employee: 'configurable', pending: false },
+  instructions:  { owner: true, admin: true, employee: 'configurable', pending: false },
+  widget:        { owner: true, admin: true, employee: false, pending: false },
+  tone:          { owner: true, admin: true, employee: false, pending: false },
+  channels:      { owner: true, admin: 'configurable', employee: false, pending: false },
+  analytics:     { owner: true, admin: true, employee: 'configurable', pending: false },
+  security:      { owner: true, admin: true, employee: true, pending: false },
+  settings:      { owner: true, admin: false, employee: false, pending: false },
+  employees:     { owner: true, admin: 'configurable', employee: 'configurable', pending: false },
+  adminBot:      { owner: true, admin: true, employee: 'configurable', pending: false },
 }
 
 const PermissionContext = createContext<PermissionContextType | undefined>(undefined)
@@ -59,11 +59,13 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         } else {
           // Legacy user without membership - create one based on userData.role
           // This handles migration for existing users
+          // Treat 'pending' users as having no valid membership
+          const role = userData.role === 'pending' ? 'employee' : (userData.role || 'owner')
           const legacyMembership: Membership = {
             id: 'legacy',
             userId: user.uid,
             companyId: userData.companyId,
-            role: userData.role || 'owner',
+            role: role as 'owner' | 'admin' | 'employee',
             permissions: {},
             invitedBy: user.uid,
             joinedAt: new Date(),
@@ -73,11 +75,12 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         }
       } else {
         // Fallback to legacy behavior
+        const role = userData.role === 'pending' ? 'employee' : (userData.role || 'owner')
         const legacyMembership: Membership = {
           id: 'legacy',
           userId: user.uid,
           companyId: userData.companyId,
-          role: userData.role || 'owner',
+          role: role as 'owner' | 'admin' | 'employee',
           permissions: {},
           invitedBy: user.uid,
           joinedAt: new Date(),
@@ -88,11 +91,12 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     } catch {
       // Fallback to legacy behavior on error
       if (userData) {
+        const role = userData.role === 'pending' ? 'employee' : (userData.role || 'owner')
         const legacyMembership: Membership = {
           id: 'legacy',
           userId: user.uid,
           companyId: userData.companyId,
-          role: userData.role || 'owner',
+          role: role as 'owner' | 'admin' | 'employee',
           permissions: {},
           invitedBy: user.uid,
           joinedAt: new Date(),

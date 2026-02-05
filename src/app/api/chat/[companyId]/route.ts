@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatWithCustomer } from '@/lib/groq'
-import { isSubscriptionActive, getInactiveSubscriptionMessage } from '@/lib/subscription-check'
+import { getInactiveSubscriptionMessage } from '@/lib/subscription-check'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore'
 import { createEscalation, getEscalation } from '@/lib/escalation-firestore'
@@ -318,10 +318,10 @@ export async function POST(
       )
     }
 
-    // Check if Groq API key is configured
-    if (!process.env.GROQ_API_KEY) {
+    // Check if at least one AI provider is configured
+    if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'AI-tjenesten er ikke konfigurert. Legg til GROQ_API_KEY.' },
+        { success: false, error: 'AI-tjenesten er ikke konfigurert.' },
         { status: 500, headers: corsHeaders }
       )
     }
@@ -329,10 +329,35 @@ export async function POST(
     // Demo mode - use demo data
     const isDemo = companyId === 'demo'
 
-    // Check subscription status (skip for demo)
-    if (!isDemo) {
-      const hasActiveSubscription = await isSubscriptionActive(companyId)
-      if (!hasActiveSubscription) {
+    if (isDemo) {
+      const reply = await chatWithCustomer(message, {
+        businessProfile: DEMO_PROFILE,
+        faqs: DEMO_PROFILE.faqs,
+        instructions: [],
+        conversationHistory: [],
+      })
+      return NextResponse.json({ success: true, reply }, { headers: corsHeaders })
+    }
+
+    // === PHASE 1: Get company data (single fetch - replaces separate subscription check) ===
+    const app = getFirebaseApp()
+    const db = getFirestore(app)
+    const companyRef = doc(db, 'companies', companyId)
+    const companyDoc = await getDoc(companyRef)
+
+    if (!companyDoc.exists()) {
+      return NextResponse.json(
+        { success: false, error: 'Bedrift ikke funnet. Prøv /widget/demo for testing.' },
+        { status: 404, headers: corsHeaders }
+      )
+    }
+
+    const companyData = companyDoc.data()
+
+    // Check subscription from company data directly (no extra HTTP call)
+    if (!companyData?.lifetimeAccess) {
+      const status = companyData?.subscriptionStatus
+      if (status !== 'active' && status !== 'trialing') {
         return NextResponse.json(
           {
             success: true,
@@ -344,420 +369,236 @@ export async function POST(
       }
     }
 
+    // Check if widget is explicitly disabled
+    if (companyData?.widgetSettings?.isEnabled === false) {
+      return NextResponse.json(
+        { success: false, error: 'Chat er ikke aktivert for denne bedriften' },
+        { status: 403, headers: corsHeaders }
+      )
+    }
+
+    // Auto-fix widgetSettings - fire and forget (don't block response)
+    if (companyData?.widgetSettings?.isEnabled !== true) {
+      updateDoc(companyRef, { 'widgetSettings.isEnabled': true }).catch(() => {})
+    }
+
+    // Auto-setup business profile if missing
     let businessProfile: BusinessProfile
-    let instructions: Instruction[] = []
-    let history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    if (!companyData?.businessProfile) {
+      const websiteUrl = companyData?.websiteUrl || companyData?.profile?.websiteUrl
+      const businessName = companyData?.businessName || companyData?.profile?.businessName || 'Bedrift'
 
-    if (isDemo) {
-      businessProfile = DEMO_PROFILE
-    } else {
-      // Use Firebase Client SDK
-      const app = getFirebaseApp()
-      const db = getFirestore(app)
-
-      // Get company data
-      const companyRef = doc(db, 'companies', companyId)
-      const companyDoc = await getDoc(companyRef)
-
-      if (!companyDoc.exists()) {
-        return NextResponse.json(
-          { success: false, error: 'Bedrift ikke funnet. Prøv /widget/demo for testing.' },
-          { status: 404 }
-        )
-      }
-
-      const companyData = companyDoc.data()
-
-      // Auto-setup business profile if missing but websiteUrl exists
-      if (!companyData?.businessProfile) {
-        const websiteUrl = companyData?.websiteUrl || companyData?.profile?.websiteUrl
-        const businessName = companyData?.businessName || companyData?.profile?.businessName || 'Bedrift'
-        
-        if (websiteUrl) {
-          console.log(`[Chat API] businessProfile missing for ${companyId}, attempting auto-setup`)
-          
-          // Try to auto-setup the profile
-          const autoProfile = await autoSetupBusinessProfile(companyId, websiteUrl, businessName)
-          
-          if (autoProfile) {
-            // Profile was created, continue with this request
-            businessProfile = autoProfile
-          } else {
-            // Auto-setup failed
-            return NextResponse.json(
-              { 
-                success: true,
-                reply: 'Vi setter opp chatten nå. Vennligst prøv igjen om noen sekunder!',
-                isSettingUp: true,
-              },
-              { headers: corsHeaders }
-            )
-          }
+      if (websiteUrl) {
+        const autoProfile = await autoSetupBusinessProfile(companyId, websiteUrl, businessName)
+        if (autoProfile) {
+          businessProfile = autoProfile
         } else {
           return NextResponse.json(
-            { 
-              success: true,
-              reply: 'Chatten er ikke ferdig konfigurert ennå. Ta kontakt med bedriften direkte.',
-              notConfigured: true,
-            },
+            { success: true, reply: 'Vi setter opp chatten nå. Vennligst prøv igjen om noen sekunder!', isSettingUp: true },
             { headers: corsHeaders }
           )
         }
       } else {
-        businessProfile = {
-          ...companyData.businessProfile,
-          lastAnalyzed: companyData.businessProfile.lastAnalyzed?.toDate?.() || new Date(),
-          faqs: companyData.businessProfile.faqs || [],
-        }
-      }
-
-      // Check if widget is explicitly disabled (default to enabled if not set)
-      if (companyData?.widgetSettings?.isEnabled === false) {
         return NextResponse.json(
-          { success: false, error: 'Chat er ikke aktivert for denne bedriften' },
-          { status: 403, headers: corsHeaders }
+          { success: true, reply: 'Chatten er ikke ferdig konfigurert ennå. Ta kontakt med bedriften direkte.', notConfigured: true },
+          { headers: corsHeaders }
         )
       }
+    } else {
+      businessProfile = {
+        ...companyData.businessProfile,
+        lastAnalyzed: companyData.businessProfile.lastAnalyzed?.toDate?.() || new Date(),
+        faqs: companyData.businessProfile.faqs || [],
+      }
+    }
 
-      // Auto-fix: If widgetSettings.isEnabled is not set, set it to true
-      // This prevents issues with old companies that don't have this field
-      if (companyData?.widgetSettings?.isEnabled !== true) {
+    // === PHASE 2: Fetch all supporting data in PARALLEL (was sequential) ===
+    const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
+
+    const [instructionsResult, sessionResult, knowledgeDocsResult] = await Promise.all([
+      // Fetch instructions
+      (async () => {
         try {
-          await updateDoc(companyRef, {
-            'widgetSettings.isEnabled': true,
-          })
-          console.log(`[Chat API] Auto-fixed widgetSettings.isEnabled for ${companyId}`)
-        } catch (fixError) {
-          // Non-critical, continue even if fix fails
-          console.error(`[Chat API] Failed to auto-fix widgetSettings for ${companyId}:`, fixError)
-        }
-      }
+          const instructionsRef = collection(db, 'companies', companyId, 'instructions')
+          const instructionsQuery = query(instructionsRef, where('isActive', '==', true), orderBy('createdAt', 'desc'))
+          const snapshot = await getDocs(instructionsQuery)
+          return snapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: d.data().createdAt?.toDate?.() || new Date(),
+            startsAt: d.data().startsAt?.toDate?.() || null,
+            expiresAt: d.data().expiresAt?.toDate?.() || null,
+          })) as Instruction[]
+        } catch { return [] as Instruction[] }
+      })(),
 
-      // Debug: Log tone settings
-      console.log('[Chat API] Tone settings:', {
-        tone: businessProfile.tone,
-        toneConfig: businessProfile.toneConfig,
-        useEmojis: businessProfile.toneConfig?.useEmojis,
-        humorLevel: businessProfile.toneConfig?.humorLevel,
-        responseLength: businessProfile.toneConfig?.responseLength,
-      })
-
-      // Get instructions
-      try {
-        const instructionsRef = collection(db, 'companies', companyId, 'instructions')
-        const instructionsQuery = query(
-          instructionsRef,
-          where('isActive', '==', true),
-          orderBy('createdAt', 'desc')
-        )
-        const instructionsSnapshot = await getDocs(instructionsQuery)
-
-        instructions = instructionsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-          startsAt: doc.data().startsAt?.toDate?.() || null,
-          expiresAt: doc.data().expiresAt?.toDate?.() || null,
-        })) as Instruction[]
-      } catch {
-        // Silently continue without instructions
-      }
-
-      // Get chat history and check manual mode
-      let isManualMode = false
-      try {
-        const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-        const sessionDoc = await getDoc(sessionRef)
-
-        if (sessionDoc.exists()) {
-          const sessionData = sessionDoc.data()
-          isManualMode = sessionData?.isManualMode || false
-          history = (sessionData?.messages || []).map((msg: { role: 'user' | 'assistant'; content: string }) => ({
-            role: msg.role,
-            content: msg.content,
-          }))
-        }
-      } catch {
-        // Silently continue without history
-      }
-
-      // Save user message
-      try {
-        const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-        const sessionDoc = await getDoc(sessionRef)
-
-        const userMessageData = {
-          role: 'user',
-          content: message,
-          timestamp: new Date(),
-        }
-
-        if (sessionDoc.exists()) {
-          const existingData = sessionDoc.data()
-          await updateDoc(sessionRef, {
-            messages: [
-              ...(existingData?.messages || []),
-              userMessageData,
-            ],
-            updatedAt: new Date(),
-          })
-        } else {
-          await setDoc(sessionRef, {
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            messages: [userMessageData],
-          })
-        }
-      } catch {
-        // Silently continue - message saving is not critical
-      }
-
-      // If in manual mode, check for positive feedback and return waiting message
-      if (isManualMode) {
-        // Check if this is positive feedback for an employee
-        if (detectPositiveFeedback(message)) {
-          try {
-            const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-            const sessionDoc = await getDoc(sessionRef)
-
-            if (sessionDoc.exists()) {
-              const sessionData = sessionDoc.data()
-              const escalationId = sessionData?.escalationId
-
-              if (escalationId) {
-                const escalation = await getEscalation(escalationId)
-                if (escalation && escalation.claimedBy) {
-                  // Track positive feedback for the employee who helped
-                  await incrementPositiveFeedback(escalation.claimedBy, companyId)
-                }
-              }
-            }
-          } catch (feedbackError) {
-            console.error('Error tracking positive feedback:', feedbackError)
-          }
-        }
-
-        return NextResponse.json({
-          success: true,
-          reply: 'En kundebehandler vil svare deg snart.',
-          isManualMode: true,
-        }, { headers: corsHeaders })
-      }
-
-      // Check for human handoff request
-      const isHandoffRequest = detectHumanHandoff(message)
-      console.log('[Chat API] Human handoff check:', { message, isHandoffRequest })
-
-      if (isHandoffRequest) {
+      // Fetch session (ONE read - reused everywhere)
+      (async () => {
         try {
-          console.log('[Chat API] Creating escalation for company:', companyId)
-          // Create escalation - use widget-prefixed ID to match ConversationsView format
-          const escalationId = await createEscalation({
-            companyId,
-            conversationId: `widget-${sessionId}`,
-            channel: 'widget',
-            customerIdentifier: `Besøkende ${sessionId.slice(-6)}`,
-            customerMessage: message,
-            status: 'pending',
-          })
-
-          console.log('[Chat API] Escalation created:', escalationId)
-
-          // Send push notifications to all subscribed employees
-          const notificationsSent = await sendEscalationNotifications(
-            companyId,
-            `Besøkende ${sessionId.slice(0, 8)}`,
-            message,
-            sessionId,
-            'widget'
-          )
-          console.log('[Chat API] Notifications sent:', notificationsSent)
-
-          // Set session to manual mode
-          const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-          await updateDoc(sessionRef, {
-            isManualMode: true,
-            escalationId,
-            updatedAt: new Date(),
-          })
-
-          // Save escalation response
           const sessionDoc = await getDoc(sessionRef)
           if (sessionDoc.exists()) {
-            const sessionData = sessionDoc.data()
-            await updateDoc(sessionRef, {
-              messages: [
-                ...(sessionData?.messages || []),
-                {
-                  role: 'assistant',
-                  content: 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig.',
-                  timestamp: new Date(),
-                },
-              ],
-              updatedAt: new Date(),
-            })
+            return sessionDoc.data()
           }
+          return null
+        } catch { return null }
+      })(),
 
-          return NextResponse.json({
-            success: true,
-            reply: 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig.',
-            isManualMode: true,
-            escalated: true,
-          }, { headers: corsHeaders })
-        } catch (escalationError) {
-          console.error('Error creating escalation:', escalationError)
-          // Continue with normal AI response if escalation fails
-        }
-      }
-
-      // Fetch knowledge documents (include uploadedAt and fileName for prioritization)
-      let knowledgeDocuments: Array<{
-        faqs: Array<{ question: string; answer: string }>
-        rules: string[]
-        policies: string[]
-        importantInfo: string[]
-        uploadedAt: Date
-        fileName: string
-      }> = []
-
-      try {
-        const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
-        const docsQuery = query(docsRef, where('status', '==', 'ready'))
-        const docsSnapshot = await getDocs(docsQuery)
-
-        knowledgeDocuments = docsSnapshot.docs.map(doc => {
-          const data = doc.data()
-          return {
-            ...data.analyzedData,
-            uploadedAt: data.uploadedAt?.toDate?.() || new Date(data.uploadedAt),
-            fileName: data.fileName || 'Ukjent dokument',
-          }
-        })
-      } catch {
-        // Continue without knowledge documents - not critical
-      }
-
-      // Generate response (with or without knowledge documents)
-      let reply = await chatWithCustomer(message, {
-        businessProfile,
-        faqs: businessProfile.faqs,
-        instructions,
-        conversationHistory: history,
-        knowledgeDocuments: knowledgeDocuments.length > 0 ? knowledgeDocuments : undefined,
-      })
-
-      // Check if bot couldn't answer and save to unansweredQuestions
-      if (detectUnansweredQuestion(reply)) {
+      // Fetch knowledge documents
+      (async () => {
         try {
-          const unansweredRef = collection(db, 'companies', companyId, 'unansweredQuestions')
-          await setDoc(doc(unansweredRef), {
-            question: message,
-            botResponse: reply,
-            customerIdentifier: `Besøkende ${sessionId.slice(-6)}`,
-            channel: 'widget',
-            conversationId: `widget-${sessionId}`,
-            sessionId,
-            createdAt: new Date(),
-            resolved: false,
-          })
-          console.log('[Chat API] Saved unanswered question:', message)
-        } catch (unansweredError) {
-          console.error('[Chat API] Error saving unanswered question:', unansweredError)
-        }
-      }
-
-      // Count user messages (including current one)
-      const userMessageCount = history.filter(m => m.role === 'user').length + 1
-
-      // Check if we should offer email summary (every 10th message)
-      let shouldOfferEmail = false
-      try {
-        const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-        const sessionDoc = await getDoc(sessionRef)
-
-        if (sessionDoc.exists()) {
-          const sessionData = sessionDoc.data()
-          const lastEmailOffer = sessionData?.lastEmailOfferAt?.toDate?.() || null
-          const emailOfferedCount = sessionData?.emailOfferedCount || 0
-
-          // Offer email every 10th message, but not if we offered in the last 5 messages
-          if (userMessageCount >= 10 && userMessageCount % 10 === 0) {
-            const messagesSinceLastOffer = userMessageCount - (emailOfferedCount * 10)
-            if (messagesSinceLastOffer >= 10 || emailOfferedCount === 0) {
-              shouldOfferEmail = true
+          const docsRef = collection(db, 'companies', companyId, 'knowledgeDocs')
+          const docsQuery = query(docsRef, where('status', '==', 'ready'))
+          const snapshot = await getDocs(docsQuery)
+          return snapshot.docs.map(d => {
+            const data = d.data()
+            return {
+              ...data.analyzedData,
+              uploadedAt: data.uploadedAt?.toDate?.() || new Date(data.uploadedAt),
+              fileName: data.fileName || 'Ukjent dokument',
             }
+          })
+        } catch { return [] }
+      })(),
+    ])
+
+    const instructions = instructionsResult
+    const sessionData = sessionResult
+    const isManualMode = sessionData?.isManualMode || false
+    const existingMessages = sessionData?.messages || []
+    const history: Array<{ role: 'user' | 'assistant'; content: string }> = existingMessages.map(
+      (msg: { role: 'user' | 'assistant'; content: string }) => ({ role: msg.role, content: msg.content })
+    )
+
+    // Save user message - fire and forget (don't block response)
+    const userMessageData = { role: 'user', content: message, timestamp: new Date() }
+    if (sessionData) {
+      updateDoc(sessionRef, {
+        messages: [...existingMessages, userMessageData],
+        updatedAt: new Date(),
+      }).catch(() => {})
+    } else {
+      setDoc(sessionRef, {
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        messages: [userMessageData],
+      }).catch(() => {})
+    }
+
+    // If in manual mode, return immediately
+    if (isManualMode) {
+      // Fire-and-forget positive feedback tracking
+      if (detectPositiveFeedback(message) && sessionData?.escalationId) {
+        getEscalation(sessionData.escalationId).then(escalation => {
+          if (escalation?.claimedBy) {
+            incrementPositiveFeedback(escalation.claimedBy, companyId).catch(() => {})
           }
-        }
-      } catch {
-        // Silently continue
-      }
-
-      // Append email offer to reply if conditions are met
-      if (shouldOfferEmail && !reply.includes('[EMAIL_REQUEST]')) {
-        reply += '\n\n---\n💡 Vil du ha en oppsummering av denne samtalen på e-post?'
-
-        // Track that we offered email
-        try {
-          const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-          await updateDoc(sessionRef, {
-            lastEmailOfferAt: new Date(),
-            emailOfferedCount: Math.floor(userMessageCount / 10),
-          })
-        } catch {
-          // Silently continue
-        }
-      }
-
-      // Save assistant response
-      try {
-        const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-        const sessionDoc = await getDoc(sessionRef)
-
-        if (sessionDoc.exists()) {
-          const sessionData = sessionDoc.data()
-          await updateDoc(sessionRef, {
-            messages: [
-              ...(sessionData?.messages || []),
-              { role: 'assistant', content: reply, timestamp: new Date() },
-            ],
-            updatedAt: new Date(),
-          })
-        }
-      } catch {
-        // Silently continue - message saving is not critical
+        }).catch(() => {})
       }
 
       return NextResponse.json({
         success: true,
-        reply,
-        shouldOfferEmail, // Let client know if email was offered
+        reply: 'En kundebehandler vil svare deg snart.',
+        isManualMode: true,
       }, { headers: corsHeaders })
     }
 
-    // Generate response (for demo mode only)
-    const reply = await chatWithCustomer(message, {
+    // Check for human handoff request
+    if (detectHumanHandoff(message)) {
+      try {
+        const escalationId = await createEscalation({
+          companyId,
+          conversationId: `widget-${sessionId}`,
+          channel: 'widget',
+          customerIdentifier: `Besøkende ${sessionId.slice(-6)}`,
+          customerMessage: message,
+          status: 'pending',
+        })
+
+        const escalationReply = 'Jeg forstår at du ønsker å snakke med en av våre ansatte. Jeg har varslet teamet vårt, og noen vil ta kontakt med deg så snart som mulig.'
+
+        // Fire-and-forget: notifications + session update + save message
+        sendEscalationNotifications(companyId, `Besøkende ${sessionId.slice(0, 8)}`, message, sessionId, 'widget').catch(() => {})
+        updateDoc(sessionRef, {
+          isManualMode: true,
+          escalationId,
+          messages: [...existingMessages, userMessageData, { role: 'assistant', content: escalationReply, timestamp: new Date() }],
+          updatedAt: new Date(),
+        }).catch(() => {})
+
+        return NextResponse.json({
+          success: true,
+          reply: escalationReply,
+          isManualMode: true,
+          escalated: true,
+        }, { headers: corsHeaders })
+      } catch (escalationError) {
+        console.error('Error creating escalation:', escalationError)
+      }
+    }
+
+    // === PHASE 3: Generate AI response ===
+    let reply = await chatWithCustomer(message, {
       businessProfile,
       faqs: businessProfile.faqs,
       instructions,
       conversationHistory: history,
+      knowledgeDocuments: knowledgeDocsResult.length > 0 ? knowledgeDocsResult : undefined,
     })
+
+    // Check email offer (use already-fetched session data, no extra read)
+    const userMessageCount = history.filter(m => m.role === 'user').length + 1
+    let shouldOfferEmail = false
+    if (sessionData) {
+      const emailOfferedCount = sessionData.emailOfferedCount || 0
+      if (userMessageCount >= 10 && userMessageCount % 10 === 0) {
+        const messagesSinceLastOffer = userMessageCount - (emailOfferedCount * 10)
+        if (messagesSinceLastOffer >= 10 || emailOfferedCount === 0) {
+          shouldOfferEmail = true
+        }
+      }
+    }
+
+    if (shouldOfferEmail && !reply.includes('[EMAIL_REQUEST]')) {
+      reply += '\n\n---\n\u{1F4A1} Vil du ha en oppsummering av denne samtalen på e-post?'
+    }
+
+    // === PHASE 4: Fire-and-forget background saves (don't block response) ===
+    // Save assistant response + unanswered tracking + email offer tracking
+    const bgMessages = [...existingMessages, userMessageData, { role: 'assistant', content: reply, timestamp: new Date() }]
+    const bgUpdate: Record<string, unknown> = { messages: bgMessages, updatedAt: new Date() }
+    if (shouldOfferEmail) {
+      bgUpdate.lastEmailOfferAt = new Date()
+      bgUpdate.emailOfferedCount = Math.floor(userMessageCount / 10)
+    }
+    updateDoc(sessionRef, bgUpdate).catch(() => {})
+
+    if (detectUnansweredQuestion(reply)) {
+      const unansweredRef = collection(db, 'companies', companyId, 'unansweredQuestions')
+      setDoc(doc(unansweredRef), {
+        question: message,
+        botResponse: reply,
+        customerIdentifier: `Besøkende ${sessionId.slice(-6)}`,
+        channel: 'widget',
+        conversationId: `widget-${sessionId}`,
+        sessionId,
+        createdAt: new Date(),
+        resolved: false,
+      }).catch(() => {})
+    }
 
     return NextResponse.json({
       success: true,
       reply,
+      shouldOfferEmail,
     }, { headers: corsHeaders })
   } catch (error) {
-    // Log error with context
-    await logError(error, {
+    logError(error, {
       page: '/api/chat/[companyId]',
       action: 'chat_message',
-      additionalData: {
-        method: 'POST',
-      },
-    })
+      additionalData: { method: 'POST' },
+    }).catch(() => {})
 
-    const errorMessage =
-      error instanceof Error ? error.message : 'En ukjent feil oppstod'
+    const errorMessage = error instanceof Error ? error.message : 'En ukjent feil oppstod'
     return NextResponse.json(
       { success: false, error: errorMessage },
       { status: 500, headers: corsHeaders }
@@ -767,7 +608,7 @@ export async function POST(
 
 // GET endpoint to retrieve widget configuration
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ companyId: string }> }
 ) {
   try {

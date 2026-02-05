@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WebsiteAnalysisStep } from '@/components/onboarding/WebsiteAnalysisStep'
 import { useAuth } from '@/contexts/AuthContext'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { saveBusinessProfile } from '@/lib/firestore'
 import type { BusinessProfile } from '@/types'
@@ -48,7 +48,8 @@ interface ChannelStatus {
 }
 
 export default function OnboardingPage() {
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(0) // Start at step 0 (company creation)
+  const [isCreatingCompany, setIsCreatingCompany] = useState(true)
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null)
   const [personality, setPersonality] = useState({
     tone: 'friendly',
@@ -61,7 +62,7 @@ export default function OnboardingPage() {
   ])
   const [isSaving, setIsSaving] = useState(false)
   const router = useRouter()
-  const { user, userData } = useAuth()
+  const { user, userData, refreshUserData } = useAuth()
 
   // Channel connection state
   const [showSMSModal, setShowSMSModal] = useState(false)
@@ -79,6 +80,73 @@ export default function OnboardingPage() {
   })
 
   const totalSteps = 5
+
+  // Create company at the start of onboarding if user doesn't have one
+  useEffect(() => {
+    const createCompanyIfNeeded = async () => {
+      if (!user || !db) {
+        setIsCreatingCompany(false)
+        return
+      }
+
+      // Check if user already has a company
+      const hasCompany = userData?.companyId && userData.companyId !== ''
+
+      if (hasCompany) {
+        // User already has a company, skip to step 1
+        setIsCreatingCompany(false)
+        setStep(1)
+        return
+      }
+
+      try {
+        // Create the company document with 14-day trial
+        const companyRef = doc(db, 'companies', user.uid)
+        const trialEndDate = new Date()
+        trialEndDate.setDate(trialEndDate.getDate() + 14)
+
+        await setDoc(companyRef, {
+          name: '',
+          industry: '',
+          employeeCount: '',
+          ownerId: user.uid,
+          createdAt: serverTimestamp(),
+          subscriptionStatus: 'trialing',
+          subscriptionTrialEnd: trialEndDate.toISOString(),
+          settings: {
+            botName: 'Botsy',
+            tone: 'friendly',
+            useEmojis: true,
+            useHumor: false,
+            responseLength: 'medium',
+          },
+        })
+
+        // Update user document with companyId and role
+        const userRef = doc(db, 'users', user.uid)
+        await updateDoc(userRef, {
+          companyId: user.uid,
+          role: 'owner',
+        })
+
+        // Refresh user data to get updated companyId
+        if (refreshUserData) {
+          await refreshUserData()
+        }
+
+        // Move to step 1 (website analysis)
+        setStep(1)
+      } catch (error) {
+        console.error('Error creating company:', error)
+        // Still proceed to step 1 even if there's an error
+        setStep(1)
+      } finally {
+        setIsCreatingCompany(false)
+      }
+    }
+
+    createCompanyIfNeeded()
+  }, [user, userData, refreshUserData])
 
   const addFaq = () => {
     setFaqs([...faqs, { question: '', answer: '' }])
@@ -220,17 +288,21 @@ export default function OnboardingPage() {
             className="h-8 w-auto"
           />
           <div className="flex items-center gap-4">
-            <span className="text-[#6B7A94] text-sm">Steg {step} av {totalSteps}</span>
-            <div className="flex gap-1">
-              {Array.from({ length: totalSteps }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-2 w-8 rounded-full transition-colors ${
-                    i < step ? 'bg-botsy-lime' : 'bg-white/[0.1]'
-                  }`}
-                />
-              ))}
-            </div>
+            {step > 0 && (
+              <>
+                <span className="text-[#6B7A94] text-sm">Steg {step} av {totalSteps}</span>
+                <div className="flex gap-1">
+                  {Array.from({ length: totalSteps }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-2 w-8 rounded-full transition-colors ${
+                        i < step ? 'bg-botsy-lime' : 'bg-white/[0.1]'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -238,6 +310,25 @@ export default function OnboardingPage() {
       {/* Content */}
       <div className="container mx-auto py-12 px-4">
         <AnimatePresence mode="wait">
+          {/* Step 0: Creating Company (Loading) */}
+          {step === 0 && isCreatingCompany && (
+            <motion.div
+              key="step0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center min-h-[60vh]"
+            >
+              <Loader2 className="h-12 w-12 text-botsy-lime animate-spin mb-6" />
+              <h2 className="text-xl font-semibold text-white mb-2">
+                Setter opp kontoen din...
+              </h2>
+              <p className="text-[#A8B4C8]">
+                Starter din 14 dagers gratis prøveperiode
+              </p>
+            </motion.div>
+          )}
+
           {/* Step 1: Website Analysis (NEW) */}
           {step === 1 && (
             <motion.div

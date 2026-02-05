@@ -60,6 +60,7 @@ import { ChannelsView } from '@/components/dashboard/ChannelsView'
 import SecuritySettingsView from '@/components/dashboard/SecuritySettingsView'
 import { EmployeesView } from '@/components/dashboard/EmployeesView'
 import { ProfileDropdown } from '@/components/dashboard/ProfileDropdown'
+import { WelcomeView } from '@/components/dashboard/WelcomeView'
 import { SimpleNotificationBell } from '@/components/ui/notification-panel'
 import { ConfirmDialog, InputDialog, Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
@@ -73,15 +74,39 @@ type Tab = 'dashboard' | 'conversations' | 'knowledge' | 'documents' | 'instruct
 export default function AdminPanel() {
   return (
     <ProtectedRoute>
-      <PermissionProvider>
-        <SubscriptionGate>
-          <UnsavedChangesProvider>
-            <AdminContent />
-            <FloatingSaveButton />
-          </UnsavedChangesProvider>
-        </SubscriptionGate>
-      </PermissionProvider>
+      <AdminWrapper />
     </ProtectedRoute>
+  )
+}
+
+function AdminWrapper() {
+  const { user, userData } = useAuth()
+
+  // Check if user has a company
+  const hasCompany = userData?.companyId && userData.companyId !== ''
+
+  // Show welcome view for users without a company
+  if (!hasCompany) {
+    return (
+      <div className="min-h-screen bg-botsy-dark">
+        <WelcomeView
+          userEmail={user?.email || ''}
+          userName={userData?.displayName || user?.displayName || ''}
+        />
+      </div>
+    )
+  }
+
+  // User has a company - show normal admin content
+  return (
+    <PermissionProvider>
+      <SubscriptionGate>
+        <UnsavedChangesProvider>
+          <AdminContent />
+          <FloatingSaveButton />
+        </UnsavedChangesProvider>
+      </SubscriptionGate>
+    </PermissionProvider>
   )
 }
 

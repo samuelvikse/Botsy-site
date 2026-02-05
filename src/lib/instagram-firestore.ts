@@ -393,6 +393,31 @@ export async function getAllInstagramChats(
 }
 
 /**
+ * Clear the manual mode flag on an Instagram chat
+ * Called when an employee handles the conversation
+ */
+export async function clearInstagramChatManualMode(
+  companyId: string,
+  senderId: string
+): Promise<void> {
+  try {
+    const docPath = `${FIRESTORE_BASE_URL}/companies/${companyId}/instagramChats/${senderId}`
+
+    await fetch(`${docPath}?updateMask.fieldPaths=isManualMode`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          isManualMode: { booleanValue: false }
+        }
+      })
+    })
+  } catch (error) {
+    console.error('[Instagram Firestore] Error clearing manual mode:', error)
+  }
+}
+
+/**
  * Check if an Instagram chat is in manual mode
  */
 export async function getInstagramChatManualMode(

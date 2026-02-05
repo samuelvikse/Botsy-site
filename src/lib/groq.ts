@@ -680,8 +680,7 @@ function buildIndustryExpertise(industry: string | undefined): string {
 }
 
 export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): string {
-  // Debug logging
-  console.log('[buildToneConfiguration] Input:', { tone, toneConfig })
+  // Debug logging removed for performance
 
   // Base tone guide - STRONG and explicit
   let toneGuide = tone === 'formal'
@@ -751,7 +750,6 @@ Du SKAL bruke emojis i ALLE svarene dine. Dette er PÅKREVD av bedriftseieren.
     }
   }
 
-  console.log('[buildToneConfiguration] Final toneGuide preview:', toneGuide.substring(0, 300) + '...')
   return toneGuide
 }
 
@@ -770,120 +768,24 @@ interface ReminderContext {
  * Reinforces tone settings, available knowledge, and active instructions
  */
 export function buildContextReminder(context: ReminderContext): string {
-  const { toneConfig, faqs, instructions, knowledgeDocuments } = context
+  const { toneConfig, faqs, instructions } = context
   const useEmojis = toneConfig?.useEmojis ?? false
   const responseLength = toneConfig?.responseLength || 'balanced'
-  const humorLevel = toneConfig?.humorLevel || 'none'
 
-  let reminder = `
+  // Compact reminder - no decorative ASCII art, saves ~500 tokens per request
+  let reminder = '\n\nPÅMINNELSE: '
+  const rules: string[] = []
 
-╔══════════════════════════════════════════════════════════════╗
-║           PÅMINNELSE FØR DU SVARER                           ║
-╠══════════════════════════════════════════════════════════════╣
-║ TONE-INNSTILLINGER (FØLG DISSE NØYE):                        ║
-╚══════════════════════════════════════════════════════════════╝
-`
+  rules.push(useEmojis ? 'Bruk 1-2 emojis' : 'Ingen emojis')
+  rules.push(responseLength === 'short' ? 'Maks 1-2 setninger' : responseLength === 'detailed' ? '4-6 setninger' : '2-3 setninger')
 
-  // Emoji reminder - VERY PROMINENT
-  if (useEmojis) {
-    reminder += `
-┌─────────────────────────────────────────────────────────────┐
-│ ✅ EMOJIS: PÅ - Du MÅ bruke 1-2 emojis i dette svaret!      │
-│    Eksempler: 😊 👋 ✨ 💬 🎉 👍 💡 ℹ️                         │
-└─────────────────────────────────────────────────────────────┘`
-  } else {
-    reminder += `
-┌─────────────────────────────────────────────────────────────┐
-│ ❌ EMOJIS: AV - Ingen emojis i svaret                       │
-└─────────────────────────────────────────────────────────────┘`
-  }
-
-  // Length reminder
-  if (responseLength === 'short') {
-    reminder += '\n📏 LENGDE: Kort (maks 1-2 setninger)'
-  } else if (responseLength === 'detailed') {
-    reminder += '\n📏 LENGDE: Detaljert (4-6 setninger)'
-  } else {
-    reminder += '\n📏 LENGDE: Balansert (2-3 setninger)'
-  }
-
-  // Humor reminder
-  if (humorLevel === 'none') {
-    reminder += '\n🎭 HUMOR: Av - vær profesjonell og seriøs'
-  } else if (humorLevel === 'subtle') {
-    reminder += '\n🎭 HUMOR: Subtil - lett og vennlig'
-  } else if (humorLevel === 'moderate') {
-    reminder += '\n🎭 HUMOR: Moderat - bruk humor når det passer'
-  } else {
-    reminder += '\n🎭 HUMOR: Playful - vær leken og morsom!'
-  }
-
-  // Knowledge base reminder
   const confirmedFaqs = faqs?.filter(f => f.confirmed) || []
-  if (confirmedFaqs.length > 0) {
-    reminder += `
+  if (confirmedFaqs.length > 0) rules.push(`Bruk kunnskapsbasen (${confirmedFaqs.length} FAQs)`)
 
-╔══════════════════════════════════════════════════════════════╗
-║ 📚 KUNNSKAPSBASE: ${confirmedFaqs.length} FAQs tilgjengelig
-║ Bruk disse til å svare på spørsmål. Omformuler med egne ord. ║
-╚══════════════════════════════════════════════════════════════╝
-Nøkkeltemater: ${confirmedFaqs.slice(0, 5).map(f => f.question.split(' ').slice(0, 3).join(' ')).join(', ')}${confirmedFaqs.length > 5 ? '...' : ''}`
-  }
-
-  // Documents reminder
-  if (knowledgeDocuments && knowledgeDocuments.length > 0) {
-    const totalDocFaqs = knowledgeDocuments.reduce((sum, doc) => sum + (doc.faqs?.length || 0), 0)
-    const docNames = knowledgeDocuments.map(d => d.fileName || 'Dokument').slice(0, 3)
-    reminder += `
-
-╔══════════════════════════════════════════════════════════════╗
-║ 📄 DOKUMENTER: ${knowledgeDocuments.length} dokument(er) med ${totalDocFaqs} FAQs
-║ Dokumentene inneholder tilleggsinformasjon.                  ║
-║ MERK: Kunnskapsbasen har PRIORITET ved motstrid.             ║
-╚══════════════════════════════════════════════════════════════╝
-Kilder: ${docNames.join(', ')}${knowledgeDocuments.length > 3 ? '...' : ''}`
-  }
-
-  // Active instructions reminder
   const activeInstructions = instructions?.filter(i => i.isActive) || []
-  if (activeInstructions.length > 0) {
-    const highPriority = activeInstructions.filter(i => i.priority === 'high')
-    const normalPriority = activeInstructions.filter(i => i.priority !== 'high')
+  if (activeInstructions.length > 0) rules.push(`Følg ${activeInstructions.length} aktive instruksjoner`)
 
-    reminder += `
-
-╔══════════════════════════════════════════════════════════════╗
-║ ⚡ AKTIVE INSTRUKSJONER: ${activeInstructions.length} stk (FØLG DISSE!)
-╚══════════════════════════════════════════════════════════════╝`
-
-    if (highPriority.length > 0) {
-      reminder += '\n🔴 HØYT PRIORITERT:'
-      highPriority.forEach((inst, i) => {
-        reminder += `\n   ${i + 1}. ${inst.content.substring(0, 60)}${inst.content.length > 60 ? '...' : ''}`
-      })
-    }
-
-    if (normalPriority.length > 0) {
-      reminder += '\n🟡 NORMAL PRIORITET:'
-      normalPriority.slice(0, 3).forEach((inst, i) => {
-        reminder += `\n   ${i + 1}. ${inst.content.substring(0, 60)}${inst.content.length > 60 ? '...' : ''}`
-      })
-      if (normalPriority.length > 3) {
-        reminder += `\n   ... og ${normalPriority.length - 3} til`
-      }
-    }
-  }
-
-  // Final reminder
-  reminder += `
-
-══════════════════════════════════════════════════════════════
-SVAR NÅ på kundens melding. Husk:
-${useEmojis ? '→ Bruk emojis! 😊' : '→ Ingen emojis'}
-→ ${responseLength === 'short' ? 'Hold det kort!' : responseLength === 'detailed' ? 'Vær detaljert' : 'Balansert lengde'}
-${activeInstructions.length > 0 ? '→ Følg instruksjonene!' : ''}
-${confirmedFaqs.length > 0 ? '→ Bruk kunnskapsbasen!' : ''}
-══════════════════════════════════════════════════════════════`
+  reminder += rules.join('. ') + '.'
 
   return reminder
 }
@@ -1082,39 +984,29 @@ REGLER:
   return prompt
 }
 
+// Pre-import AI providers at module level to avoid dynamic import on every call
+import { generateAIResponse } from './ai-providers'
+
 export async function chatWithCustomer(
   message: string,
   context: CustomerChatContext
 ): Promise<string> {
-  // Count user messages in conversation history (including current message)
   const userMessageCount = context.conversationHistory.filter(msg => msg.role === 'user').length + 1
-
   const systemPrompt = buildCustomerSystemPrompt(context, userMessageCount)
 
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = []
 
   // Add conversation history (last 10 messages)
-  context.conversationHistory.slice(-10).forEach((msg) => {
-    if (!msg.content?.trim()) return
+  for (const msg of context.conversationHistory.slice(-10)) {
+    if (!msg.content?.trim()) continue
+    messages.push({ role: msg.role, content: msg.content.trim() })
+  }
 
-    messages.push({
-      role: msg.role,
-      content: msg.content.trim(),
-    })
-  })
+  messages.push({ role: 'user', content: message })
 
-  // Add current message
-  messages.push({
-    role: 'user',
-    content: message,
-  })
-
-  // Use Gemini (primary) with Groq fallback
-  const { generateAIResponse } = await import('./ai-providers')
   const result = await generateAIResponse(systemPrompt, messages, { maxTokens: 250, temperature: 0.7 })
 
   if (result.success) {
-    console.log(`[Chat] Response from ${result.provider}, length: ${result.response.length}`)
     return result.response.trim()
   }
 

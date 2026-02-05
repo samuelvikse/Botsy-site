@@ -367,7 +367,7 @@ export interface SMSMessageDoc {
 // Role & Permission Types
 // ============================================
 
-export type UserRole = 'owner' | 'admin' | 'employee'
+export type UserRole = 'owner' | 'admin' | 'employee' | 'pending'
 
 export interface EmployeePermissions {
   knowledgebase: boolean

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, Building2, User, Check, Loader2, Users } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, User, Check, Loader2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
@@ -21,7 +21,6 @@ function RegisterContent() {
   const isInvitedUser = redirectUrl?.startsWith('/invite/')
 
   const [showPassword, setShowPassword] = useState(false)
-  const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
@@ -29,12 +28,9 @@ function RegisterContent() {
     name: '',
     email: inviteEmail || '',
     password: '',
-    companyName: '',
-    industry: '',
-    employees: ''
   })
 
-  const { signUp, signInWithGoogle, error, clearError } = useAuth()
+  const { signUpOnly, signInWithGoogle, error, clearError } = useAuth()
   const router = useRouter()
 
   // Pre-fill email from invite
@@ -48,14 +44,16 @@ function RegisterContent() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleStep1Submit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!termsAccepted) return
     clearError()
+
     if (formData.name && formData.email && formData.password.length >= 6) {
-      // For invited users, register directly without company step
-      if (isInvitedUser) {
-        setIsLoading(true)
-        try {
+      setIsLoading(true)
+      try {
+        // For invited users, use direct Firebase calls (existing behavior)
+        if (isInvitedUser) {
           if (!auth || !db) throw new Error('Firebase er ikke konfigurert')
 
           // Create user in Firebase Auth
@@ -69,44 +67,23 @@ function RegisterContent() {
           await setDoc(doc(db, 'users', user.uid), {
             email: user.email,
             displayName: formData.name,
-            role: 'employee', // Will be updated when accepting invite
-            companyId: '', // Will be set when accepting invite
+            role: 'pending',
+            companyId: '',
             createdAt: serverTimestamp(),
           })
 
           // Redirect back to invite page
           router.push(redirectUrl || '/admin')
-        } catch (err) {
-          // Error will be shown via auth context
-          console.error('Registration error:', err)
-        } finally {
-          setIsLoading(false)
+        } else {
+          // Regular registration - use signUpOnly and redirect to admin
+          await signUpOnly(formData.email, formData.password, formData.name)
+          router.push('/admin')
         }
-        return
+      } catch {
+        // Error is handled by the auth context
+      } finally {
+        setIsLoading(false)
       }
-
-      setStep(2)
-    }
-  }
-
-  const handleFinalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!termsAccepted) return
-
-    clearError()
-    setIsLoading(true)
-
-    try {
-      await signUp(formData.email, formData.password, formData.name, {
-        name: formData.companyName,
-        industry: formData.industry,
-        employeeCount: formData.employees
-      })
-      router.push('/onboarding')
-    } catch {
-      // Error is handled by the auth context
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -115,9 +92,9 @@ function RegisterContent() {
     setIsGoogleLoading(true)
 
     try {
-      // For invited users, don't allow new company creation
-      await signInWithGoogle(!isInvitedUser)
-      router.push(redirectUrl || '/onboarding')
+      await signInWithGoogle(true)
+      // Redirect to invite page if coming from invite, otherwise to admin (WelcomeView will show)
+      router.push(redirectUrl || '/admin')
     } catch {
       // Error is handled by the auth context
     } finally {
@@ -145,13 +122,6 @@ function RegisterContent() {
             />
           </Link>
 
-          {/* Progress - only show for non-invited users */}
-          {!isInvitedUser && (
-            <div className="flex items-center gap-2 mb-8">
-              <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`} />
-              <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`} />
-            </div>
-          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
@@ -159,261 +129,150 @@ function RegisterContent() {
             </div>
           )}
 
-          {step === 1 ? (
-            <>
-              <h1 className="text-3xl font-bold text-white mb-2">
-                {isInvitedUser ? 'Bli med i teamet' : 'Opprett konto'}
-              </h1>
-              <p className="text-[#6B7A94] mb-8">
-                {isInvitedUser
-                  ? 'Opprett en konto for å akseptere invitasjonen'
-                  : 'Start din 14 dagers gratis prøveperiode'}
+          <h1 className="text-3xl font-bold text-white mb-2">
+            {isInvitedUser ? 'Bli med i teamet' : 'Opprett konto'}
+          </h1>
+          <p className="text-[#6B7A94] mb-8">
+            {isInvitedUser
+              ? 'Opprett en konto for å akseptere invitasjonen'
+              : 'Kom i gang med Botsy'}
+          </p>
+
+          {isInvitedUser && (
+            <div className="mb-6 p-4 bg-botsy-lime/10 border border-botsy-lime/20 rounded-xl flex items-center gap-3">
+              <Users className="h-5 w-5 text-botsy-lime flex-shrink-0" />
+              <p className="text-[#A8B4C8] text-sm">
+                Du er invitert til et team. Etter registrering blir du sendt tilbake for å akseptere invitasjonen.
               </p>
-
-              {isInvitedUser && (
-                <div className="mb-6 p-4 bg-botsy-lime/10 border border-botsy-lime/20 rounded-xl flex items-center gap-3">
-                  <Users className="h-5 w-5 text-botsy-lime flex-shrink-0" />
-                  <p className="text-[#A8B4C8] text-sm">
-                    Du er invitert til et team. Etter registrering blir du sendt tilbake for å akseptere invitasjonen.
-                  </p>
-                </div>
-              )}
-
-              <form onSubmit={handleStep1Submit} className="space-y-5">
-                <div>
-                  <label className="text-white text-sm font-medium block mb-2">Fullt navn</label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6B7A94]" />
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => updateForm('name', e.target.value)}
-                      placeholder="Ola Nordmann"
-                      required
-                      className="w-full h-12 pl-12 pr-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-white text-sm font-medium block mb-2">E-post</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6B7A94]" />
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => updateForm('email', e.target.value)}
-                      placeholder="din@bedrift.no"
-                      required
-                      className="w-full h-12 pl-12 pr-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-white text-sm font-medium block mb-2">Passord</label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6B7A94]" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={(e) => updateForm('password', e.target.value)}
-                      placeholder="Minst 6 tegn"
-                      required
-                      minLength={6}
-                      className="w-full h-12 pl-12 pr-12 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6B7A94] hover:text-white transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                  <div className="flex gap-1 mt-2">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className={`h-1 flex-1 rounded-full ${
-                          formData.password.length >= i * 2 ? 'bg-botsy-lime' : 'bg-white/[0.1]'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Terms checkbox for invited users (they skip step 2) */}
-                {isInvitedUser && (
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      id="terms-invited"
-                      checked={termsAccepted}
-                      onChange={(e) => setTermsAccepted(e.target.checked)}
-                      required
-                      className="h-4 w-4 mt-0.5 rounded border-white/[0.1] bg-white/[0.03] text-botsy-lime focus:ring-botsy-lime/50"
-                    />
-                    <label htmlFor="terms-invited" className="text-[#A8B4C8] text-sm">
-                      Jeg godtar{' '}
-                      <Link href="/vilkar" className="text-botsy-lime hover:underline">vilkårene</Link>
-                      {' '}og{' '}
-                      <Link href="/personvern" className="text-botsy-lime hover:underline">personvernerklæringen</Link>
-                    </label>
-                  </div>
-                )}
-
-                <Button type="submit" size="xl" className="w-full" disabled={isLoading || (isInvitedUser && !termsAccepted)}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Oppretter konto...
-                    </>
-                  ) : isInvitedUser ? (
-                    <>
-                      Opprett konto
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  ) : (
-                    <>
-                      Fortsett
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-              </form>
-
-              <div className="relative my-8">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/[0.06]" />
-                </div>
-                <div className="relative flex justify-center">
-                  <span className="bg-botsy-dark px-4 text-[#6B7A94] text-sm">eller</span>
-                </div>
-              </div>
-
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full"
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading}
-              >
-                {isGoogleLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                ) : (
-                  <Chrome className="h-5 w-5 mr-2" />
-                )}
-                Fortsett med Google
-              </Button>
-
-              <p className="text-center text-[#6B7A94] mt-8">
-                Har du allerede en konto?{' '}
-                <Link href="/logg-inn" className="text-botsy-lime hover:underline">
-                  Logg inn
-                </Link>
-              </p>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setStep(1)}
-                className="text-[#6B7A94] hover:text-white text-sm mb-6 flex items-center gap-1"
-              >
-                ← Tilbake
-              </button>
-
-              <h1 className="text-3xl font-bold text-white mb-2">Om bedriften din</h1>
-              <p className="text-[#6B7A94] mb-8">Dette hjelper Botsy å tilpasse seg til deg</p>
-
-              <form onSubmit={handleFinalSubmit} className="space-y-5">
-                <div>
-                  <label className="text-white text-sm font-medium block mb-2">Bedriftsnavn</label>
-                  <div className="relative">
-                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6B7A94]" />
-                    <input
-                      type="text"
-                      value={formData.companyName}
-                      onChange={(e) => updateForm('companyName', e.target.value)}
-                      placeholder="Bedriften AS"
-                      required
-                      className="w-full h-12 pl-12 pr-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-white text-sm font-medium block mb-2">Bransje</label>
-                  <select
-                    value={formData.industry}
-                    onChange={(e) => updateForm('industry', e.target.value)}
-                    required
-                    className="w-full h-12 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors appearance-none"
-                  >
-                    <option value="">Velg bransje</option>
-                    <option value="retail">Detaljhandel</option>
-                    <option value="service">Tjenester</option>
-                    <option value="tech">Teknologi</option>
-                    <option value="health">Helse</option>
-                    <option value="food">Mat og drikke</option>
-                    <option value="other">Annet</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-white text-sm font-medium block mb-2">Antall ansatte</label>
-                  <select
-                    value={formData.employees}
-                    onChange={(e) => updateForm('employees', e.target.value)}
-                    required
-                    className="w-full h-12 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors appearance-none"
-                  >
-                    <option value="">Velg størrelse</option>
-                    <option value="1">Bare meg</option>
-                    <option value="2-5">2-5 ansatte</option>
-                    <option value="6-20">6-20 ansatte</option>
-                    <option value="21-50">21-50 ansatte</option>
-                    <option value="50+">Over 50 ansatte</option>
-                  </select>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    id="terms"
-                    checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
-                    required
-                    className="h-4 w-4 mt-0.5 rounded border-white/[0.1] bg-white/[0.03] text-botsy-lime focus:ring-botsy-lime/50"
-                  />
-                  <label htmlFor="terms" className="text-[#A8B4C8] text-sm">
-                    Jeg godtar{' '}
-                    <Link href="/vilkar" className="text-botsy-lime hover:underline">vilkårene</Link>
-                    {' '}og{' '}
-                    <Link href="/personvern" className="text-botsy-lime hover:underline">personvernerklæringen</Link>
-                  </label>
-                </div>
-
-                <Button type="submit" size="xl" className="w-full" disabled={isLoading || !termsAccepted}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Oppretter konto...
-                    </>
-                  ) : (
-                    <>
-                      Start gratis prøveperiode
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-              </form>
-
-              <p className="text-center text-[#6B7A94] text-sm mt-6">
-                Ingen kredittkort nødvendig • Kanseller når som helst
-              </p>
-            </>
+            </div>
           )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">Fullt navn</label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6B7A94]" />
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => updateForm('name', e.target.value)}
+                  placeholder="Ola Nordmann"
+                  required
+                  className="w-full h-12 pl-12 pr-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">E-post</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6B7A94]" />
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => updateForm('email', e.target.value)}
+                  placeholder="din@bedrift.no"
+                  required
+                  className="w-full h-12 pl-12 pr-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-white text-sm font-medium block mb-2">Passord</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6B7A94]" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => updateForm('password', e.target.value)}
+                  placeholder="Minst 6 tegn"
+                  required
+                  minLength={6}
+                  className="w-full h-12 pl-12 pr-12 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6B7A94] hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              <div className="flex gap-1 mt-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-1 flex-1 rounded-full ${
+                      formData.password.length >= i * 2 ? 'bg-botsy-lime' : 'bg-white/[0.1]'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                required
+                className="h-4 w-4 mt-0.5 rounded border-white/[0.1] bg-white/[0.03] text-botsy-lime focus:ring-botsy-lime/50"
+              />
+              <label htmlFor="terms" className="text-[#A8B4C8] text-sm">
+                Jeg godtar{' '}
+                <Link href="/vilkar" className="text-botsy-lime hover:underline">vilkårene</Link>
+                {' '}og{' '}
+                <Link href="/personvern" className="text-botsy-lime hover:underline">personvernerklæringen</Link>
+              </label>
+            </div>
+
+            <Button type="submit" size="xl" className="w-full" disabled={isLoading || !termsAccepted}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Oppretter konto...
+                </>
+              ) : (
+                <>
+                  Opprett konto
+                  <ArrowRight className="h-5 w-5" />
+                </>
+              )}
+            </Button>
+          </form>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/[0.06]" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-botsy-dark px-4 text-[#6B7A94] text-sm">eller</span>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
+          >
+            {isGoogleLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            ) : (
+              <Chrome className="h-5 w-5 mr-2" />
+            )}
+            Fortsett med Google
+          </Button>
+
+          <p className="text-center text-[#6B7A94] mt-8">
+            Har du allerede en konto?{' '}
+            <Link href="/logg-inn" className="text-botsy-lime hover:underline">
+              Logg inn
+            </Link>
+          </p>
         </motion.div>
       </div>
 

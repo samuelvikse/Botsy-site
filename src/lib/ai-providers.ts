@@ -44,7 +44,7 @@ export async function generateAIResponse(
   const maxTokens = options?.maxTokens ?? 300
   const temperature = options?.temperature ?? 0.7
 
-  // PHASE 1: Race both providers in parallel (for speed)
+  // PHASE 1: Race both providers - return as soon as the FIRST one succeeds
   const geminiPromise = callGeminiWithRetry(systemPrompt, messages, maxTokens, temperature, 1)
     .then(result => result.success ? { ...result, provider: 'gemini' as const } : null)
     .catch(() => null)
@@ -53,14 +53,17 @@ export async function generateAIResponse(
     .then(result => result.success ? { ...result, provider: 'groq' as const } : null)
     .catch(() => null)
 
-  const [geminiResult, groqResult] = await Promise.all([geminiPromise, groqPromise])
+  // Use Promise.race with a wrapper that only resolves on success
+  // This returns the FIRST successful response instead of waiting for both
+  const firstSuccess = await Promise.race([
+    geminiPromise.then(r => r || new Promise(() => {})), // Never resolve if null
+    groqPromise.then(r => r || new Promise(() => {})),   // Never resolve if null
+    // Fallback: if both fail, Promise.all resolves and we handle below
+    Promise.all([geminiPromise, groqPromise]).then(([g, q]) => g || q || null),
+  ]) as AIResponse | null
 
-  // Prefer Gemini if both succeeded
-  if (geminiResult) {
-    return geminiResult
-  }
-  if (groqResult) {
-    return groqResult
+  if (firstSuccess) {
+    return firstSuccess
   }
 
   // PHASE 2: Both failed - try sequential with full retries

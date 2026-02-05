@@ -582,11 +582,7 @@ export default function WidgetPage({
   }
 
   if (!config) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center" style={{ background: 'transparent' }}>
-        <div className="h-8 w-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
-      </div>
-    )
+    return null
   }
 
   if (!config.isEnabled) {
@@ -642,7 +638,7 @@ export default function WidgetPage({
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
             className={`absolute bottom-2 ${config.position === 'bottom-left' ? 'left-2' : 'right-2'} h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-colors overflow-hidden`}
-            style={{ backgroundColor: primaryColor, boxShadow: `0 10px 25px -5px ${primaryColor}40` }}
+            style={{ backgroundColor: primaryColor }}
           >
             {config.logoUrl && !logoError ? (
               <div className="absolute inset-0 rounded-full overflow-hidden">

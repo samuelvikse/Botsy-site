@@ -31,7 +31,7 @@ import { auth, db, isConfigured } from '@/lib/firebase'
 interface UserData {
   email: string
   displayName: string
-  role: 'owner' | 'admin' | 'employee'
+  role: 'owner' | 'admin' | 'employee' | 'pending'
   companyId: string
   createdAt: Date
   phone?: string
@@ -67,6 +67,7 @@ interface AuthContextType {
     industry: string
     employeeCount: string
   }) => Promise<void>
+  signUpOnly: (email: string, password: string, name: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signInWithGoogle: (allowNewUsers?: boolean) => Promise<void>
   signInWithApple: () => Promise<void>
@@ -188,6 +189,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Sign up without creating a company - for users who will join via invitation or create company later
+  const signUpOnly = async (email: string, password: string, name: string) => {
+    if (!auth || !db) {
+      throw new Error('Firebase er ikke konfigurert')
+    }
+
+    try {
+      setError(null)
+      setLoading(true)
+
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+
+      // Update display name
+      await updateProfile(user, { displayName: name })
+
+      // Create user document WITHOUT company
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email,
+        displayName: name,
+        role: 'pending',
+        companyId: '',
+        createdAt: serverTimestamp(),
+      })
+
+    } catch (err: unknown) {
+      const errorMessage = getFirebaseErrorMessage(err)
+      setError(errorMessage)
+      throw new Error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const signIn = async (email: string, password: string) => {
     if (!auth) {
       throw new Error('Firebase er ikke konfigurert')
@@ -234,33 +270,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Denne Google-kontoen er ikke registrert. Vennligst registrer deg først.')
         }
 
-        // Create company and user documents for new Google users with 14-day trial
-        const companyRef = doc(db, 'companies', user.uid)
-        const trialEndDate = new Date()
-        trialEndDate.setDate(trialEndDate.getDate() + 14)
-        
-        await setDoc(companyRef, {
-          name: '',
-          industry: '',
-          employeeCount: '',
-          ownerId: user.uid,
-          createdAt: serverTimestamp(),
-          subscriptionStatus: 'trialing',
-          subscriptionTrialEnd: trialEndDate.toISOString(),
-          settings: {
-            botName: 'Botsy',
-            tone: 'friendly',
-            useEmojis: true,
-            useHumor: false,
-            responseLength: 'medium',
-          },
-        })
-
+        // Create user document WITHOUT company - they will create company in onboarding or join via invite
         await setDoc(doc(db, 'users', user.uid), {
           email: user.email,
           displayName: user.displayName || '',
-          role: 'owner',
-          companyId: user.uid,
+          role: 'pending',
+          companyId: '',
           createdAt: serverTimestamp(),
         })
       }
@@ -300,33 +315,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDoc = await getDoc(doc(db, 'users', user.uid))
 
       if (!userDoc.exists()) {
-        // Create company and user documents for new Apple users with 14-day trial
-        const companyRef = doc(db, 'companies', user.uid)
-        const trialEndDate = new Date()
-        trialEndDate.setDate(trialEndDate.getDate() + 14)
-        
-        await setDoc(companyRef, {
-          name: '',
-          industry: '',
-          employeeCount: '',
-          ownerId: user.uid,
-          createdAt: serverTimestamp(),
-          subscriptionStatus: 'trialing',
-          subscriptionTrialEnd: trialEndDate.toISOString(),
-          settings: {
-            botName: 'Botsy',
-            tone: 'friendly',
-            useEmojis: true,
-            useHumor: false,
-            responseLength: 'medium',
-          },
-        })
-
+        // Create user document WITHOUT company - they will create company in onboarding or join via invite
         await setDoc(doc(db, 'users', user.uid), {
           email: user.email || '',
           displayName: user.displayName || '',
-          role: 'owner',
-          companyId: user.uid,
+          role: 'pending',
+          companyId: '',
           createdAt: serverTimestamp(),
         })
       }
@@ -356,33 +350,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDoc = await getDoc(doc(db, 'users', user.uid))
 
       if (!userDoc.exists()) {
-        // Create company and user documents for new Microsoft users with 14-day trial
-        const companyRef = doc(db, 'companies', user.uid)
-        const trialEndDate = new Date()
-        trialEndDate.setDate(trialEndDate.getDate() + 14)
-        
-        await setDoc(companyRef, {
-          name: '',
-          industry: '',
-          employeeCount: '',
-          ownerId: user.uid,
-          createdAt: serverTimestamp(),
-          subscriptionStatus: 'trialing',
-          subscriptionTrialEnd: trialEndDate.toISOString(),
-          settings: {
-            botName: 'Botsy',
-            tone: 'friendly',
-            useEmojis: true,
-            useHumor: false,
-            responseLength: 'medium',
-          },
-        })
-
+        // Create user document WITHOUT company - they will create company in onboarding or join via invite
         await setDoc(doc(db, 'users', user.uid), {
           email: user.email || '',
           displayName: user.displayName || '',
-          role: 'owner',
-          companyId: user.uid,
+          role: 'pending',
+          companyId: '',
           createdAt: serverTimestamp(),
         })
       }
@@ -444,29 +417,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDoc = await getDoc(doc(db, 'users', user.uid))
 
       if (!userDoc.exists()) {
-        // Create company and user documents for new phone users
-        const companyRef = doc(db, 'companies', user.uid)
-        await setDoc(companyRef, {
-          name: '',
-          industry: '',
-          employeeCount: '',
-          ownerId: user.uid,
-          createdAt: serverTimestamp(),
-          settings: {
-            botName: 'Botsy',
-            tone: 'friendly',
-            useEmojis: true,
-            useHumor: false,
-            responseLength: 'medium',
-          },
-        })
-
+        // Create user document WITHOUT company - they will create company in onboarding or join via invite
         await setDoc(doc(db, 'users', user.uid), {
           email: user.email || '',
           phone: user.phoneNumber || '',
           displayName: user.displayName || '',
-          role: 'owner',
-          companyId: user.uid,
+          role: 'pending',
+          companyId: '',
           createdAt: serverTimestamp(),
         })
       }
@@ -778,6 +735,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         confirmationResult,
         mfaResolver,
         signUp,
+        signUpOnly,
         signIn,
         signInWithGoogle,
         signInWithApple,

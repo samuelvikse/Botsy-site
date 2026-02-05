@@ -3,6 +3,7 @@ import { getPendingEscalations, claimEscalation, resolveEscalation, resolveEscal
 import { incrementAnsweredCustomers } from '@/lib/leaderboard-firestore'
 import { clearWidgetChatManualMode } from '@/lib/firestore'
 import { clearMessengerChatManualMode } from '@/lib/messenger-firestore'
+import { clearInstagramChatManualMode } from '@/lib/instagram-firestore'
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,6 +55,9 @@ export async function PATCH(request: NextRequest) {
       } else if (conversationId.startsWith('messenger-')) {
         const senderId = conversationId.replace('messenger-', '')
         await clearMessengerChatManualMode(companyId, senderId)
+      } else if (conversationId.startsWith('instagram-')) {
+        const senderId = conversationId.replace('instagram-', '')
+        await clearInstagramChatManualMode(companyId, senderId)
       }
 
       return NextResponse.json({ success: true, resolvedCount })

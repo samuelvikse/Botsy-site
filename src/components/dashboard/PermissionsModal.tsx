@@ -20,7 +20,7 @@ export function PermissionsModal({ isOpen, onClose, member, onSuccess, isOwner }
   const toast = useToast()
 
   const [role, setRole] = useState<'admin' | 'employee'>(
-    member.membership.role === 'owner' ? 'admin' : member.membership.role
+    member.membership.role === 'owner' || member.membership.role === 'pending' ? 'admin' : member.membership.role
   )
   const [employeePermissions, setEmployeePermissions] = useState<EmployeePermissions>({
     knowledgebase: (member.membership.permissions as EmployeePermissions)?.knowledgebase ?? true,

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/toast'
-import { SessionTimeoutWarning } from '@/components/SessionTimeoutWarning'
 import { OrganizationJsonLd, WebsiteJsonLd, SoftwareApplicationJsonLd, ProductJsonLd } from '@/components/seo/JsonLd'
 import { WidgetScript } from '@/components/WidgetScript'
 
@@ -172,7 +171,6 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             {children}
-            <SessionTimeoutWarning timeoutMinutes={30} warningMinutes={5} />
           </ToastProvider>
         </AuthProvider>
         <WidgetScript companyId="RjR6IBzbd2YX2TLFoXwuHzY2N3O2" />
