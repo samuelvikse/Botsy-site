@@ -411,7 +411,8 @@ export async function POST(
         }
       }
 
-      if (!companyData?.widgetSettings?.isEnabled) {
+      // Check if widget is explicitly disabled (default to enabled if not set)
+      if (companyData?.widgetSettings?.isEnabled === false) {
         return NextResponse.json(
           { success: false, error: 'Chat er ikke aktivert for denne bedriften' },
           { status: 403, headers: corsHeaders }
