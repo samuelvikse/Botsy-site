@@ -129,6 +129,7 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
 
   const [messengerPageId, setMessengerPageId] = useState('')
   const [messengerPageName, setMessengerPageName] = useState('')
+  const [messengerProfilePicture, setMessengerProfilePicture] = useState('')
   const [messengerCredentials, setMessengerCredentials] = useState<Record<string, string>>({})
 
   const [instagramPageId, setInstagramPageId] = useState('')
@@ -186,10 +187,15 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
           isConfigured: true,
           isActive: channelsData.messenger.isActive,
           isVerified: channelsData.messenger.isVerified,
-          details: { pageName: channelsData.messenger.pageName, pageId: channelsData.messenger.pageId },
+          details: { 
+            pageName: channelsData.messenger.pageName, 
+            pageId: channelsData.messenger.pageId,
+            profilePictureUrl: channelsData.messenger.profilePictureUrl,
+          },
         }
         setMessengerPageId(channelsData.messenger.pageId)
         setMessengerPageName(channelsData.messenger.pageName)
+        setMessengerProfilePicture(channelsData.messenger.profilePictureUrl || '')
       }
 
       if (channelsData.instagram) {
@@ -1231,6 +1237,37 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'messenger':
         return (
           <div className="space-y-5">
+            {/* Connected Account Display */}
+            {channels.messenger.isConfigured && messengerPageName && (
+              <div className="p-4 bg-gradient-to-r from-[#0084FF]/10 to-[#00C6FF]/10 border border-[#0084FF]/30 rounded-xl">
+                <div className="flex items-center gap-4">
+                  {messengerProfilePicture ? (
+                    <img 
+                      src={messengerProfilePicture} 
+                      alt={messengerPageName}
+                      className="w-14 h-14 rounded-full border-2 border-[#0084FF]/50"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#0084FF] to-[#00C6FF] flex items-center justify-center">
+                      <span className="text-white text-xl font-bold">
+                        {messengerPageName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-white font-semibold text-lg">{messengerPageName}</p>
+                    <p className="text-[#A8B4C8] text-sm">Facebook Page</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-flex items-center gap-1 text-xs text-green-400">
+                        <Check className="w-3 h-3" />
+                        Tilkoblet
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Easy Connect Button */}
             {!channels.messenger.isConfigured && (
               <div className="p-4 bg-gradient-to-r from-[#0084FF]/10 to-[#00C6FF]/10 border border-[#0084FF]/20 rounded-xl">

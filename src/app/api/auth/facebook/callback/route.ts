@@ -114,11 +114,16 @@ export async function GET(request: NextRequest) {
 
     // Prepare channel data
     console.log('[Facebook OAuth Callback] Preparing channel data with pageAccessToken length:', pageAccessToken?.length || 0)
+    
+    // Get page profile picture for Messenger
+    const pageProfilePictureUrl = selectedPage.picture?.data?.url || ''
+    
     let channelData: Record<string, unknown> = {
       isActive: true,
       isVerified: true,
       pageId: selectedPage.id,
       pageName: selectedPage.name,
+      profilePictureUrl: pageProfilePictureUrl,
       credentials: {
         pageAccessToken: pageAccessToken,
         appSecret: process.env.FACEBOOK_APP_SECRET || '',

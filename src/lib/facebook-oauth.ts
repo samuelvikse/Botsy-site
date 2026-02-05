@@ -11,9 +11,15 @@ export interface FacebookPage {
   id: string
   name: string
   access_token: string
+  picture?: {
+    data?: {
+      url?: string
+    }
+  }
   instagram_business_account?: {
     id: string
     username?: string
+    profile_picture_url?: string
   }
 }
 
@@ -140,7 +146,7 @@ export async function getLongLivedToken(shortLivedToken: string): Promise<Facebo
 export async function getUserPages(userAccessToken: string): Promise<FacebookPage[]> {
   const url = new URL(`${FACEBOOK_GRAPH_URL}/me/accounts`)
   url.searchParams.set('access_token', userAccessToken)
-  url.searchParams.set('fields', 'id,name,access_token,instagram_business_account{id,username}')
+  url.searchParams.set('fields', 'id,name,access_token,picture{url},instagram_business_account{id,username,profile_picture_url}')
 
   console.log('[Facebook OAuth] Fetching pages from:', url.toString().replace(userAccessToken, 'TOKEN_HIDDEN'))
 
