@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
           answer: faq.answer,
           category: 'general',
           confirmed: true,
-          source: 'website' as const,
+          source: 'extracted' as const,
         }))
 
         // Create businessProfile
