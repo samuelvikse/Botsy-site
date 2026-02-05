@@ -148,14 +148,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Update display name
       await updateProfile(user, { displayName: name })
 
-      // Create company document in Firestore
+      // Create company document in Firestore with 14-day trial
       const companyRef = doc(db, 'companies', user.uid)
+      const trialEndDate = new Date()
+      trialEndDate.setDate(trialEndDate.getDate() + 14)
+      
       await setDoc(companyRef, {
         name: companyData.name,
         industry: companyData.industry,
         employeeCount: companyData.employeeCount,
         ownerId: user.uid,
         createdAt: serverTimestamp(),
+        subscriptionStatus: 'trialing',
+        subscriptionTrialEnd: trialEndDate.toISOString(),
         settings: {
           botName: 'Botsy',
           tone: 'friendly',
@@ -229,14 +234,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Denne Google-kontoen er ikke registrert. Vennligst registrer deg først.')
         }
 
-        // Create company and user documents for new Google users
+        // Create company and user documents for new Google users with 14-day trial
         const companyRef = doc(db, 'companies', user.uid)
+        const trialEndDate = new Date()
+        trialEndDate.setDate(trialEndDate.getDate() + 14)
+        
         await setDoc(companyRef, {
           name: '',
           industry: '',
           employeeCount: '',
           ownerId: user.uid,
           createdAt: serverTimestamp(),
+          subscriptionStatus: 'trialing',
+          subscriptionTrialEnd: trialEndDate.toISOString(),
           settings: {
             botName: 'Botsy',
             tone: 'friendly',
@@ -290,14 +300,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDoc = await getDoc(doc(db, 'users', user.uid))
 
       if (!userDoc.exists()) {
-        // Create company and user documents for new Apple users
+        // Create company and user documents for new Apple users with 14-day trial
         const companyRef = doc(db, 'companies', user.uid)
+        const trialEndDate = new Date()
+        trialEndDate.setDate(trialEndDate.getDate() + 14)
+        
         await setDoc(companyRef, {
           name: '',
           industry: '',
           employeeCount: '',
           ownerId: user.uid,
           createdAt: serverTimestamp(),
+          subscriptionStatus: 'trialing',
+          subscriptionTrialEnd: trialEndDate.toISOString(),
           settings: {
             botName: 'Botsy',
             tone: 'friendly',
@@ -341,14 +356,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userDoc = await getDoc(doc(db, 'users', user.uid))
 
       if (!userDoc.exists()) {
-        // Create company and user documents for new Microsoft users
+        // Create company and user documents for new Microsoft users with 14-day trial
         const companyRef = doc(db, 'companies', user.uid)
+        const trialEndDate = new Date()
+        trialEndDate.setDate(trialEndDate.getDate() + 14)
+        
         await setDoc(companyRef, {
           name: '',
           industry: '',
           employeeCount: '',
           ownerId: user.uid,
           createdAt: serverTimestamp(),
+          subscriptionStatus: 'trialing',
+          subscriptionTrialEnd: trialEndDate.toISOString(),
           settings: {
             botName: 'Botsy',
             tone: 'friendly',

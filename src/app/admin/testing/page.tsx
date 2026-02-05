@@ -160,9 +160,8 @@ function TestingContent() {
       for (const companyDoc of companiesSnapshot.docs) {
         const companyData = companyDoc.data()
         
-        // Skip companies without subscription data
-        const status = companyData.subscriptionStatus
-        if (!status) continue
+        // Get subscription status (may be null for new signups before fix)
+        const status = companyData.subscriptionStatus || null
 
         // Get owner user email
         let ownerEmail = ''
@@ -226,8 +225,9 @@ function TestingContent() {
         })
       }
 
-      // Sort by subscription status (active first, then trialing, then others)
+      // Sort by subscription status (no status first to find broken signups, then active, trialing, etc.)
       const statusOrder: Record<string, number> = {
+        '': -1, // No status - show first (broken signups)
         active: 0,
         trialing: 1,
         past_due: 2,
@@ -273,7 +273,7 @@ function TestingContent() {
   }
 
   // Get status badge color
-  const getStatusBadge = (status?: string) => {
+  const getStatusBadge = (status?: string | null) => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Aktiv</Badge>
@@ -283,8 +283,12 @@ function TestingContent() {
         return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Forfalt</Badge>
       case 'canceled':
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Kansellert</Badge>
+      case null:
+      case undefined:
+      case '':
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">⚠️ Ingen status</Badge>
       default:
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">{status || 'Ukjent'}</Badge>
+        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">{status}</Badge>
     }
   }
 
