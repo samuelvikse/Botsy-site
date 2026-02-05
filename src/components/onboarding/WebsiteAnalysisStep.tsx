@@ -459,20 +459,27 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
       return
     }
 
+    // Normalize URL to always have https:// prefix
+    let normalizedUrl = websiteUrl.trim()
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = 'https://' + normalizedUrl
+    }
+    setWebsiteUrl(normalizedUrl)
+
     setError(null)
     setIsAnalyzing(true)
     setAnalysisProgress(0)
 
     setChatMessages(prev => [
       ...prev,
-      { id: Date.now().toString(), role: 'user', content: `${businessName}\n${websiteUrl}` },
+      { id: Date.now().toString(), role: 'user', content: `${businessName}\n${normalizedUrl}` },
     ])
 
     try {
       const response = await fetch('/api/analyze-website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: websiteUrl, businessName }),
+        body: JSON.stringify({ url: normalizedUrl, businessName }),
       })
 
       const data = await response.json()

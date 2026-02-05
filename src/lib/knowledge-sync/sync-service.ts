@@ -33,36 +33,81 @@ export async function runWebsiteSync(companyId: string): Promise<SyncResultSumma
   const warnings: string[] = []
 
   // 1. Get sync configuration
-  const config = await getSyncConfig(companyId)
+  let config = await getSyncConfig(companyId)
 
-  if (!config || !config.enabled) {
-    return {
-      success: false,
-      jobId: '',
-      totalFaqsOnWebsite: 0,
-      newFaqsCreated: 0,
-      conflictsCreated: 0,
-      faqsUpdated: 0,
-      faqsMarkedOutdated: 0,
-      contentChanged: false,
-      errors: ['Sync is not enabled for this company'],
-      warnings: [],
+  // If no sync config exists, try to get websiteUrl from company document
+  if (!config || !config.enabled || !config.websiteUrl) {
+    // Try to get websiteUrl from company document
+    const { doc, getDoc } = await import('firebase/firestore')
+    const { db } = await import('@/lib/firebase')
+    
+    if (!db) {
+      return {
+        success: false,
+        jobId: '',
+        totalFaqsOnWebsite: 0,
+        newFaqsCreated: 0,
+        conflictsCreated: 0,
+        faqsUpdated: 0,
+        faqsMarkedOutdated: 0,
+        contentChanged: false,
+        errors: ['Database not initialized'],
+        warnings: [],
+      }
     }
-  }
 
-  if (!config.websiteUrl) {
-    return {
-      success: false,
-      jobId: '',
-      totalFaqsOnWebsite: 0,
-      newFaqsCreated: 0,
-      conflictsCreated: 0,
-      faqsUpdated: 0,
-      faqsMarkedOutdated: 0,
-      contentChanged: false,
-      errors: ['No website URL configured'],
-      warnings: [],
+    const companyRef = doc(db, 'companies', companyId)
+    const companyDoc = await getDoc(companyRef)
+    
+    if (!companyDoc.exists()) {
+      return {
+        success: false,
+        jobId: '',
+        totalFaqsOnWebsite: 0,
+        newFaqsCreated: 0,
+        conflictsCreated: 0,
+        faqsUpdated: 0,
+        faqsMarkedOutdated: 0,
+        contentChanged: false,
+        errors: ['Company not found'],
+        warnings: [],
+      }
     }
+
+    const companyData = companyDoc.data()
+    const websiteUrl = companyData?.websiteUrl || companyData?.profile?.websiteUrl
+    
+    if (!websiteUrl) {
+      return {
+        success: false,
+        jobId: '',
+        totalFaqsOnWebsite: 0,
+        newFaqsCreated: 0,
+        conflictsCreated: 0,
+        faqsUpdated: 0,
+        faqsMarkedOutdated: 0,
+        contentChanged: false,
+        errors: ['No website URL configured for this company'],
+        warnings: [],
+      }
+    }
+
+    // Create a temporary config for this sync
+    config = {
+      companyId,
+      websiteUrl: websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`,
+      enabled: true,
+      syncIntervalHours: 1,
+      autoApproveWebsiteFaqs: true, // Auto-approve since this is admin-triggered
+      notifyOnConflicts: false,
+      notifyOnNewFaqs: false,
+      additionalUrls: [],
+      excludedPaths: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    
+    console.log(`[Sync] Using company websiteUrl: ${config.websiteUrl}`)
   }
 
   // 2. Create sync job
