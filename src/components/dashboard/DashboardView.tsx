@@ -343,7 +343,7 @@ export function DashboardView({ companyId, onViewAllConversations, onViewConvers
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <Card className="p-4 sm:p-6 border-yellow-500/30 bg-yellow-500/5 mb-6">
+            <Card className="p-4 sm:p-6 border-yellow-500/30 bg-yellow-500/5">
               <div className="flex items-center gap-3 mb-4">
                 <motion.div
                   className="h-10 w-10 rounded-xl bg-yellow-500/20 flex items-center justify-center flex-shrink-0"
@@ -681,23 +681,16 @@ function QuickStatCard({
   icon: React.ReactNode
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.02 }}
-      transition={{ type: 'spring', stiffness: 300 }}
-    >
-      <Card className="p-4 bg-white/[0.02]">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="h-6 w-6 rounded-md bg-white/[0.05] flex items-center justify-center text-[#6B7A94]">
-            {icon}
-          </div>
-          <p className="text-xs text-[#6B7A94] truncate">{title}</p>
+    <Card className="p-4 bg-white/[0.02]">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="h-6 w-6 rounded-md bg-white/[0.05] flex items-center justify-center text-[#6B7A94]">
+          {icon}
         </div>
-        <p className="text-lg font-semibold text-white truncate">{value}</p>
-        {subtitle && <p className="text-xs text-[#4A5568] mt-0.5">{subtitle}</p>}
-      </Card>
-    </motion.div>
+        <p className="text-xs text-[#6B7A94] truncate">{title}</p>
+      </div>
+      <p className="text-lg font-semibold text-white truncate">{value}</p>
+      {subtitle && <p className="text-xs text-[#4A5568] mt-0.5">{subtitle}</p>}
+    </Card>
   )
 }
 

@@ -81,7 +81,6 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const previousConversationId = useRef<string | null>(null)
-  const justSwitchedConversation = useRef(false)
 
   // Check if user is near bottom of messages
   const checkIfNearBottom = useCallback(() => {
@@ -96,25 +95,27 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     setShouldAutoScroll(checkIfNearBottom())
   }, [checkIfNearBottom])
 
+  // Instantly snap scroll to bottom (no animation, no flash)
+  const scrollToBottom = useCallback(() => {
+    const container = messagesContainerRef.current
+    if (container) {
+      container.scrollTop = container.scrollHeight
+    }
+  }, [])
+
   // Scroll to bottom only when opening a new conversation or when near bottom
   useEffect(() => {
     const isNewConversation = selectedConversation?.id !== previousConversationId.current
 
     if (isNewConversation) {
-      // Always scroll to bottom when opening a new conversation
       previousConversationId.current = selectedConversation?.id || null
       setShouldAutoScroll(true)
-      justSwitchedConversation.current = true
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
-      }, 50)
+      // Use requestAnimationFrame to ensure DOM has rendered before scrolling
+      requestAnimationFrame(scrollToBottom)
     } else if (shouldAutoScroll && messages.length > 0) {
-      // Use instant scroll right after switching conversation (messages just loaded)
-      const behavior = justSwitchedConversation.current ? 'instant' : 'smooth'
-      justSwitchedConversation.current = false
-      messagesEndRef.current?.scrollIntoView({ behavior })
+      requestAnimationFrame(scrollToBottom)
     }
-  }, [messages, selectedConversation?.id, shouldAutoScroll])
+  }, [messages, selectedConversation?.id, shouldAutoScroll, scrollToBottom])
 
   // Handle selecting a conversation - also resolves escalation if needed
   const handleSelectConversation = useCallback(async (conv: Conversation) => {
