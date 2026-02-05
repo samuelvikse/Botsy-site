@@ -2,14 +2,14 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Admin | Botsy',
+    default: 'Admin',
     template: '%s | Botsy Admin',
   },
   icons: {
-    icon: '/brand/botsy-icon-dark.svg',
-    shortcut: '/brand/botsy-icon-dark.svg',
+    icon: { url: '/favicon.svg', type: 'image/svg+xml' },
+    shortcut: '/favicon.svg',
     apple: [
-      { url: '/phone_app_icon_admin.png', sizes: '180x180', type: 'image/png' },
+      { url: '/phone_app_icon.png', sizes: '180x180', type: 'image/png' },
     ],
   },
   other: {

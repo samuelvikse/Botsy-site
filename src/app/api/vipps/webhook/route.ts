@@ -47,6 +47,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true })
     }
 
+    // Skip processing for lifetime access companies
+    if (companyData?.lifetimeAccess === true) {
+      console.log(`[Vipps Webhook] Skipping webhook for lifetime access company: ${companyId}`)
+      return NextResponse.json({ received: true, skipped: 'lifetime_access' })
+    }
+
     // Handle different event types
     switch (event.name as VippsWebhookEvent) {
       case 'recurring.agreement-activated.v1':

@@ -32,6 +32,7 @@ import {
   Trophy,
   RefreshCw
 } from 'lucide-react'
+import { GlowingEffect } from '@/components/ui/glowing-effect'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -348,18 +349,29 @@ export default function FeaturesPage() {
               }
             ].map((item, i) => (
               <motion.div key={i} variants={fadeInUp}>
-                <Card className="p-6 text-center h-full relative overflow-hidden group">
-                  <div className="absolute -top-6 -right-6 text-[120px] font-bold text-white/[0.02] group-hover:text-botsy-lime/[0.05] transition-colors">
-                    {item.step}
-                  </div>
-                  <div className="relative">
-                    <div className="h-12 w-12 rounded-full bg-botsy-lime/10 border border-botsy-lime/20 flex items-center justify-center text-botsy-lime font-bold text-lg mx-auto mb-4">
+                <div className="relative h-full rounded-2xl p-[2px]">
+                  <GlowingEffect
+                    spread={40}
+                    glow={true}
+                    disabled={false}
+                    proximity={64}
+                    inactiveZone={0.01}
+                    borderWidth={2}
+                    variant="green"
+                  />
+                  <Card className="p-6 text-center h-full relative overflow-hidden group rounded-2xl">
+                    <div className="absolute -top-6 -right-6 text-[120px] font-bold text-white/[0.02] group-hover:text-botsy-lime/[0.05] transition-colors">
                       {item.step}
                     </div>
-                    <h3 className="text-white font-semibold mb-2">{item.title}</h3>
-                    <p className="text-[#6B7A94] text-sm">{item.desc}</p>
-                  </div>
-                </Card>
+                    <div className="relative">
+                      <div className="h-12 w-12 rounded-full bg-botsy-lime/10 border border-botsy-lime/20 flex items-center justify-center text-botsy-lime font-bold text-lg mx-auto mb-4">
+                        {item.step}
+                      </div>
+                      <h3 className="text-white font-semibold mb-2">{item.title}</h3>
+                      <p className="text-[#6B7A94] text-sm">{item.desc}</p>
+                    </div>
+                  </Card>
+                </div>
               </motion.div>
             ))}
           </motion.div>

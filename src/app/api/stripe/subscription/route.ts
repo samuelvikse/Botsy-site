@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
         resumesAt: companyData?.subscriptionResumesAt || null,
         paymentProvider: companyData?.paymentProvider || null,
         vippsAgreementStatus: companyData?.vippsAgreementStatus || null,
+        lifetimeAccess: companyData?.lifetimeAccess || false,
       },
       invoices,
       companyId,

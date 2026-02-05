@@ -154,6 +154,13 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
  * Update company subscription data in Firestore
  */
 async function updateCompanySubscription(companyId: string, subscription: Stripe.Subscription) {
+  // Check if company has lifetime access - don't overwrite
+  const existingData = await getDocumentRest('companies', companyId)
+  if (existingData?.lifetimeAccess === true) {
+    console.log(`[Stripe Webhook] Skipping update for lifetime access company: ${companyId}`)
+    return
+  }
+
   // In Stripe API v20+, current_period_start/end are on subscription items
   const firstItem = subscription.items.data[0]
 
