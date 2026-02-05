@@ -161,6 +161,19 @@ async function processMessage(
       }
     }
 
+    // Fetch customer profile (name, profile pic) to display in conversations
+    let customerInfo: { name?: string; profilePic?: string } | undefined
+    if (channel.credentials.pageAccessToken) {
+      const profile = await getMessengerUserProfile(message.senderId, channel.credentials.pageAccessToken)
+      if (profile) {
+        customerInfo = {
+          name: profile.firstName ? `${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}` : undefined,
+          profilePic: profile.profilePic,
+        }
+        console.log('[Messenger] Customer profile:', customerInfo)
+      }
+    }
+
     // Save incoming message
     await saveMessengerMessage(companyId, message.senderId, {
       direction: 'inbound',
@@ -168,7 +181,7 @@ async function processMessage(
       text: message.text,
       timestamp: new Date(message.timestamp),
       messageId: message.messageId,
-    })
+    }, customerInfo)
 
     // Check if chat is in manual mode - if so, don't respond with AI
     const isManualMode = await getMessengerChatManualMode(companyId, message.senderId)

@@ -137,7 +137,8 @@ export async function findCompanyByInstagramPageId(instagramAccountId: string): 
 export async function saveInstagramMessage(
   companyId: string,
   senderId: string,
-  message: Omit<InstagramChatMessage, 'id'>
+  message: Omit<InstagramChatMessage, 'id'>,
+  customerInfo?: { username?: string; name?: string }
 ): Promise<void> {
   try {
     const chatDocPath = `${FIRESTORE_BASE_URL}/companies/${companyId}/instagramChats/${senderId}`
@@ -175,14 +176,22 @@ export async function saveInstagramMessage(
         })
         .filter((m): m is NonNullable<typeof m> => m !== null)
 
-      const updateData = {
-        fields: {
-          senderId: toFirestoreValue(senderId),
-          messages: toFirestoreValue([...validMessages, messageData]),
-          lastMessageAt: toFirestoreValue(new Date()),
-          updatedAt: toFirestoreValue(new Date()),
-        }
+      const updateFields: Record<string, unknown> = {
+        senderId: toFirestoreValue(senderId),
+        messages: toFirestoreValue([...validMessages, messageData]),
+        lastMessageAt: toFirestoreValue(new Date()),
+        updatedAt: toFirestoreValue(new Date()),
       }
+
+      // Add customer info if provided and not already stored
+      if (customerInfo?.username && !existingData.customerUsername) {
+        updateFields.customerUsername = toFirestoreValue(customerInfo.username)
+      }
+      if (customerInfo?.name && !existingData.customerName) {
+        updateFields.customerName = toFirestoreValue(customerInfo.name)
+      }
+
+      const updateData = { fields: updateFields }
 
       await fetch(chatDocPath, {
         method: 'PATCH',
@@ -190,15 +199,23 @@ export async function saveInstagramMessage(
         body: JSON.stringify(updateData),
       })
     } else {
-      const newChatData = {
-        fields: {
-          senderId: toFirestoreValue(senderId),
-          messages: toFirestoreValue([messageData]),
-          lastMessageAt: toFirestoreValue(new Date()),
-          createdAt: toFirestoreValue(new Date()),
-          updatedAt: toFirestoreValue(new Date()),
-        }
+      const newChatFields: Record<string, unknown> = {
+        senderId: toFirestoreValue(senderId),
+        messages: toFirestoreValue([messageData]),
+        lastMessageAt: toFirestoreValue(new Date()),
+        createdAt: toFirestoreValue(new Date()),
+        updatedAt: toFirestoreValue(new Date()),
       }
+
+      // Add customer info if provided
+      if (customerInfo?.username) {
+        newChatFields.customerUsername = toFirestoreValue(customerInfo.username)
+      }
+      if (customerInfo?.name) {
+        newChatFields.customerName = toFirestoreValue(customerInfo.name)
+      }
+
+      const newChatData = { fields: newChatFields }
 
       await fetch(chatDocPath, {
         method: 'PATCH',
@@ -277,6 +294,8 @@ export async function getAllInstagramChats(
   companyId: string
 ): Promise<Array<{
   senderId: string
+  customerUsername?: string
+  customerName?: string
   lastMessage: InstagramChatMessage | null
   lastMessageAt: Date
   messageCount: number
@@ -296,6 +315,8 @@ export async function getAllInstagramChats(
 
     const chats: Array<{
       senderId: string
+      customerUsername?: string
+      customerName?: string
       lastMessage: InstagramChatMessage | null
       lastMessageAt: Date
       messageCount: number
@@ -346,6 +367,8 @@ export async function getAllInstagramChats(
 
       chats.push({
         senderId: (chatData.senderId as string) || doc.name.split('/').pop() || '',
+        customerUsername: chatData.customerUsername as string | undefined,
+        customerName: chatData.customerName as string | undefined,
         lastMessage: lastMsg ? {
           id: (lastMsg.id as string) || '',
           direction: (lastMsg.direction as 'inbound' | 'outbound') || 'inbound',

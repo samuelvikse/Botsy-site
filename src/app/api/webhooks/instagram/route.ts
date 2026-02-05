@@ -10,7 +10,7 @@ import {
   getKnowledgeDocuments,
   getInstagramChatManualMode,
 } from '@/lib/instagram-firestore'
-import { sendInstagramMessage } from '@/lib/instagram'
+import { sendInstagramMessage, getInstagramUserProfile } from '@/lib/instagram'
 import { buildToneConfiguration } from '@/lib/groq'
 import { createEscalation } from '@/lib/escalation-firestore'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
@@ -173,6 +173,13 @@ async function processInstagramMessage(
       return
     }
 
+    // Fetch customer profile (username/name) to display in conversations
+    let customerInfo: { username?: string; name?: string } | undefined
+    if (channel.credentials.pageAccessToken) {
+      customerInfo = await getInstagramUserProfile(senderId, channel.credentials.pageAccessToken) || undefined
+      console.log('[Instagram] Customer profile:', customerInfo)
+    }
+
     // Save incoming message
     await saveInstagramMessage(companyId, senderId, {
       direction: 'inbound',
@@ -180,7 +187,7 @@ async function processInstagramMessage(
       text: messageText,
       timestamp: new Date(timestamp),
       messageId,
-    })
+    }, customerInfo)
 
     // Check if chat is in manual mode
     const isManualMode = await getInstagramChatManualMode(companyId, senderId)

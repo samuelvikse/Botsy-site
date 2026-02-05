@@ -143,7 +143,8 @@ export async function findCompanyByPageId(pageId: string): Promise<string | null
 export async function saveMessengerMessage(
   companyId: string,
   senderId: string,
-  message: Omit<MessengerChatMessage, 'id'>
+  message: Omit<MessengerChatMessage, 'id'>,
+  customerInfo?: { name?: string; profilePic?: string }
 ): Promise<void> {
   try {
     // Get existing chat or create new one
@@ -187,14 +188,22 @@ export async function saveMessengerMessage(
         .filter((m): m is NonNullable<typeof m> => m !== null)
 
       // Build update
-      const updateData = {
-        fields: {
-          senderId: toFirestoreValue(senderId),
-          messages: toFirestoreValue([...validMessages, messageData]),
-          lastMessageAt: toFirestoreValue(new Date()),
-          updatedAt: toFirestoreValue(new Date()),
-        }
+      const updateFields: Record<string, unknown> = {
+        senderId: toFirestoreValue(senderId),
+        messages: toFirestoreValue([...validMessages, messageData]),
+        lastMessageAt: toFirestoreValue(new Date()),
+        updatedAt: toFirestoreValue(new Date()),
       }
+
+      // Add customer info if provided and not already stored
+      if (customerInfo?.name && !existingData.customerName) {
+        updateFields.customerName = toFirestoreValue(customerInfo.name)
+      }
+      if (customerInfo?.profilePic && !existingData.customerProfilePic) {
+        updateFields.customerProfilePic = toFirestoreValue(customerInfo.profilePic)
+      }
+
+      const updateData = { fields: updateFields }
 
       await fetch(chatDocPath, {
         method: 'PATCH',
@@ -203,15 +212,23 @@ export async function saveMessengerMessage(
       })
     } else {
       // Create new chat document
-      const newChatData = {
-        fields: {
-          senderId: toFirestoreValue(senderId),
-          messages: toFirestoreValue([messageData]),
-          lastMessageAt: toFirestoreValue(new Date()),
-          createdAt: toFirestoreValue(new Date()),
-          updatedAt: toFirestoreValue(new Date()),
-        }
+      const newChatFields: Record<string, unknown> = {
+        senderId: toFirestoreValue(senderId),
+        messages: toFirestoreValue([messageData]),
+        lastMessageAt: toFirestoreValue(new Date()),
+        createdAt: toFirestoreValue(new Date()),
+        updatedAt: toFirestoreValue(new Date()),
       }
+
+      // Add customer info if provided
+      if (customerInfo?.name) {
+        newChatFields.customerName = toFirestoreValue(customerInfo.name)
+      }
+      if (customerInfo?.profilePic) {
+        newChatFields.customerProfilePic = toFirestoreValue(customerInfo.profilePic)
+      }
+
+      const newChatData = { fields: newChatFields }
 
       await fetch(chatDocPath, {
         method: 'PATCH',
@@ -294,6 +311,8 @@ export async function getAllMessengerChats(
   companyId: string
 ): Promise<Array<{
   senderId: string
+  customerName?: string
+  customerProfilePic?: string
   lastMessage: MessengerChatMessage | null
   lastMessageAt: Date
   messageCount: number
@@ -313,6 +332,8 @@ export async function getAllMessengerChats(
 
     const chats: Array<{
       senderId: string
+      customerName?: string
+      customerProfilePic?: string
       lastMessage: MessengerChatMessage | null
       lastMessageAt: Date
       messageCount: number
@@ -368,6 +389,8 @@ export async function getAllMessengerChats(
 
       chats.push({
         senderId: (chatData.senderId as string) || doc.name.split('/').pop() || '',
+        customerName: chatData.customerName as string | undefined,
+        customerProfilePic: chatData.customerProfilePic as string | undefined,
         lastMessage: lastMsg ? {
           id: (lastMsg.id as string) || '',
           direction: (lastMsg.direction as 'inbound' | 'outbound') || 'inbound',

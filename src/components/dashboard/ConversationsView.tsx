@@ -198,6 +198,8 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
           if (messengerData.success && messengerData.chats) {
             messengerData.chats.forEach((chat: {
               senderId: string
+              customerName?: string
+              customerProfilePic?: string
               lastMessage: { text: string; direction?: 'inbound' | 'outbound' } | null
               lastMessageAt: string
               messageCount: number
@@ -205,7 +207,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
             }) => {
               convos.push({
                 id: `messenger-${chat.senderId}`,
-                name: `Facebook ${chat.senderId.slice(-6)}`,
+                name: chat.customerName || `Facebook ${chat.senderId.slice(-6)}`,
                 phone: chat.senderId,
                 channel: 'messenger' as const,
                 lastMessage: chat.lastMessage?.text || 'Ingen meldinger',
@@ -230,14 +232,20 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
           if (instagramData.success && instagramData.chats) {
             instagramData.chats.forEach((chat: {
               senderId: string
+              customerUsername?: string
+              customerName?: string
               lastMessage: { text: string; direction?: 'inbound' | 'outbound' } | null
               lastMessageAt: string
               messageCount: number
               isManualMode?: boolean
             }) => {
+              // Prefer username (e.g. @johndoe) for Instagram, fallback to name, then ID
+              const displayName = chat.customerUsername 
+                ? `@${chat.customerUsername}` 
+                : chat.customerName || `Instagram ${chat.senderId.slice(-6)}`
               convos.push({
                 id: `instagram-${chat.senderId}`,
-                name: `Instagram ${chat.senderId.slice(-6)}`,
+                name: displayName,
                 phone: chat.senderId,
                 channel: 'instagram' as const,
                 lastMessage: chat.lastMessage?.text || 'Ingen meldinger',
