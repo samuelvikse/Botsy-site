@@ -489,19 +489,19 @@ export async function POST(
       let stillActive = false
 
       if (sessionData?.escalationId) {
-        try {
-          const escalation = await getEscalation(sessionData.escalationId)
-          if (escalation && (escalation.status === 'pending' || escalation.status === 'claimed')) {
+        // Use the route's own Firestore instance to check escalation status
+        const escalationRef = doc(db, 'escalations', sessionData.escalationId)
+        const escalationSnap = await getDoc(escalationRef)
+        if (escalationSnap.exists()) {
+          const escData = escalationSnap.data()
+          if (escData.status === 'pending' || escData.status === 'claimed') {
             stillActive = true
 
             // Fire-and-forget positive feedback tracking
-            if (detectPositiveFeedback(message) && escalation.claimedBy) {
-              incrementPositiveFeedback(escalation.claimedBy, companyId).catch(() => {})
+            if (detectPositiveFeedback(message) && escData.claimedBy) {
+              incrementPositiveFeedback(escData.claimedBy, companyId).catch(() => {})
             }
           }
-        } catch {
-          // If we can't check, assume still active to be safe
-          stillActive = true
         }
       }
 
@@ -513,7 +513,7 @@ export async function POST(
         }, { headers: corsHeaders })
       }
 
-      // Escalation is resolved/dismissed but isManualMode was not reset — auto-fix
+      // Escalation is resolved/dismissed/missing but isManualMode was not reset — auto-fix
       updateDoc(sessionRef, { isManualMode: false }).catch(() => {})
     }
 
