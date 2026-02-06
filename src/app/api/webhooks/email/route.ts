@@ -133,6 +133,11 @@ async function processEmail(
       status: 'pending',
     }).catch(() => {})
 
+    // Check if auto email reply is enabled (default: true)
+    if (channel.autoEmailReply === false) {
+      return
+    }
+
     // Get conversation history for context
     const conversationHistory = await getEmailHistory(companyId, fromAddress, 10)
 

@@ -901,6 +901,8 @@ export interface GeneralSettings {
   useEmojis: boolean
   emailNotifications: boolean
   dailySummary: boolean
+  allowEscalation?: boolean
+  autoEmailReply?: boolean
 }
 
 export async function saveGeneralSettings(
@@ -935,6 +937,8 @@ export async function getGeneralSettings(
     useEmojis: true,
     emailNotifications: true,
     dailySummary: false,
+    allowEscalation: true,
+    autoEmailReply: true,
   }
 
   if (!docSnap.exists()) return defaults
@@ -949,6 +953,8 @@ export async function getGeneralSettings(
     useEmojis: stored.useEmojis ?? defaults.useEmojis,
     emailNotifications: stored.emailNotifications ?? defaults.emailNotifications,
     dailySummary: stored.dailySummary ?? defaults.dailySummary,
+    allowEscalation: stored.allowEscalation ?? defaults.allowEscalation,
+    autoEmailReply: stored.autoEmailReply ?? defaults.autoEmailReply,
   }
 }
 

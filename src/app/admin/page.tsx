@@ -1347,6 +1347,8 @@ const LANGUAGE_OPTIONS = [
 function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKnowledge }: { companyId: string; userId?: string; onNavigateToChannels: () => void; onNavigateToKnowledge: () => void }) {
   const [settings, setSettings] = useState({
     botName: 'Botsy',
+    allowEscalation: true,
+    autoEmailReply: true,
   })
   const [notificationPrefs, setNotificationPrefs] = useState({
     emailNotifications: true,
@@ -1483,7 +1485,11 @@ function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKno
       try {
         const { getGeneralSettings, getBusinessProfile, getUserNotificationPreferences } = await import('@/lib/firestore')
         const savedSettings = await getGeneralSettings(companyId)
-        setSettings({ botName: savedSettings.botName })
+        setSettings({
+          botName: savedSettings.botName,
+          allowEscalation: savedSettings.allowEscalation ?? true,
+          autoEmailReply: savedSettings.autoEmailReply ?? true,
+        })
 
         // Load user-level notification preferences
         if (userId) {
@@ -1648,6 +1654,42 @@ function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKno
             <p className="text-[#6B7A94] text-xs mt-2">
               Robotens standardspråk. Hvis kunden skriver på et annet språk, bytter roboten automatisk til kundens språk.
             </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Chatbot Behavior */}
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-white mb-2">Chatbot-atferd</h2>
+        <p className="text-[#6B7A94] text-sm mb-6">
+          Styr hvordan Botsy håndterer eskaleringer og automatiske svar.
+        </p>
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 pr-4">
+              <p className="text-white text-sm font-medium">Tillat eskalering til ansatt</p>
+              <p className="text-[#6B7A94] text-sm">La kunder be om å snakke med en ansatt i chatten</p>
+            </div>
+            <button
+              onClick={() => setSettings(prev => ({ ...prev, allowEscalation: !prev.allowEscalation }))}
+              className={`w-12 h-6 rounded-full relative transition-colors flex-shrink-0 ${settings.allowEscalation ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
+            >
+              <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${settings.allowEscalation ? 'right-1' : 'left-1 bg-white/50'}`} />
+            </button>
+          </div>
+          <div className="border-t border-white/[0.06] pt-5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <p className="text-white text-sm font-medium">Automatisk e-postsvar</p>
+                <p className="text-[#6B7A94] text-sm">AI svarer automatisk på innkommende e-poster</p>
+              </div>
+              <button
+                onClick={() => setSettings(prev => ({ ...prev, autoEmailReply: !prev.autoEmailReply }))}
+                className={`w-12 h-6 rounded-full relative transition-colors flex-shrink-0 ${settings.autoEmailReply ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
+              >
+                <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${settings.autoEmailReply ? 'right-1' : 'left-1 bg-white/50'}`} />
+              </button>
+            </div>
           </div>
         </div>
       </Card>

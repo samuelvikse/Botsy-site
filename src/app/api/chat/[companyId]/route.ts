@@ -503,7 +503,8 @@ export async function POST(
     }
 
     // Check for human handoff request
-    if (detectHumanHandoff(message)) {
+    const allowEscalation = companyData?.generalSettings?.allowEscalation !== false
+    if (allowEscalation && detectHumanHandoff(message)) {
       try {
         const escalationId = await createEscalation({
           companyId,

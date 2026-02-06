@@ -34,7 +34,7 @@ export interface EmailChannel {
 /**
  * Get Email channel configuration for a company
  */
-export async function getEmailChannel(companyId: string): Promise<EmailChannel | null> {
+export async function getEmailChannel(companyId: string): Promise<(EmailChannel & { autoEmailReply?: boolean }) | null> {
   try {
     const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
 
@@ -54,6 +54,7 @@ export async function getEmailChannel(companyId: string): Promise<EmailChannel |
     if (!email) return null
 
     const credentials = email.credentials as Record<string, unknown> | undefined
+    const generalSettings = data.generalSettings as Record<string, unknown> | undefined
 
     return {
       provider: email.provider as 'sendgrid' | 'mailgun' | 'smtp' | 'gmail',
@@ -75,6 +76,7 @@ export async function getEmailChannel(companyId: string): Promise<EmailChannel |
       lastGmailCheckAt: email.lastGmailCheckAt as string | undefined,
       createdAt: email.createdAt as Date | undefined,
       updatedAt: email.updatedAt as Date | undefined,
+      autoEmailReply: generalSettings?.autoEmailReply as boolean | undefined,
     }
   } catch (error) {
     console.error('[Email Firestore] Error getting channel:', error)
@@ -423,6 +425,7 @@ export async function getCompaniesWithActiveGmail(): Promise<Array<{
   }
   processedGmailMessageIds: string[]
   lastGmailCheckAt?: string
+  autoEmailReply?: boolean
 }>> {
   try {
     const query = {
@@ -480,6 +483,7 @@ export async function getCompaniesWithActiveGmail(): Promise<Array<{
         const channels = data.channels as Record<string, unknown> | undefined
         const email = channels?.email as Record<string, unknown> | undefined
         const credentials = email?.credentials as Record<string, unknown> | undefined
+        const generalSettings = data.generalSettings as Record<string, unknown> | undefined
 
         return {
           companyId,
@@ -491,6 +495,7 @@ export async function getCompaniesWithActiveGmail(): Promise<Array<{
           },
           processedGmailMessageIds: (email?.processedGmailMessageIds as string[]) || [],
           lastGmailCheckAt: email?.lastGmailCheckAt as string | undefined,
+          autoEmailReply: generalSettings?.autoEmailReply as boolean | undefined,
         }
       })
   } catch (error) {
