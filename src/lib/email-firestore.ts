@@ -9,7 +9,7 @@ const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
 export interface EmailChannel {
-  provider: 'sendgrid' | 'mailgun' | 'smtp'
+  provider: 'sendgrid' | 'mailgun' | 'smtp' | 'gmail'
   emailAddress: string
   isActive: boolean
   isVerified: boolean
@@ -20,7 +20,13 @@ export interface EmailChannel {
     smtpPort?: string
     smtpUser?: string
     smtpPass?: string
+    // Gmail OAuth
+    accessToken?: string
+    refreshToken?: string
+    expiresAt?: number
   }
+  processedGmailMessageIds?: string[]
+  lastGmailCheckAt?: string
   createdAt?: Date
   updatedAt?: Date
 }
@@ -50,7 +56,7 @@ export async function getEmailChannel(companyId: string): Promise<EmailChannel |
     const credentials = email.credentials as Record<string, unknown> | undefined
 
     return {
-      provider: email.provider as 'sendgrid' | 'mailgun' | 'smtp',
+      provider: email.provider as 'sendgrid' | 'mailgun' | 'smtp' | 'gmail',
       emailAddress: email.emailAddress as string,
       isActive: email.isActive as boolean ?? false,
       isVerified: email.isVerified as boolean ?? false,
@@ -61,7 +67,12 @@ export async function getEmailChannel(companyId: string): Promise<EmailChannel |
         smtpPort: credentials?.smtpPort as string | undefined,
         smtpUser: credentials?.smtpUser as string | undefined,
         smtpPass: credentials?.smtpPass as string | undefined,
+        accessToken: credentials?.accessToken as string | undefined,
+        refreshToken: credentials?.refreshToken as string | undefined,
+        expiresAt: credentials?.expiresAt as number | undefined,
       },
+      processedGmailMessageIds: email.processedGmailMessageIds as string[] | undefined,
+      lastGmailCheckAt: email.lastGmailCheckAt as string | undefined,
       createdAt: email.createdAt as Date | undefined,
       updatedAt: email.updatedAt as Date | undefined,
     }
@@ -396,5 +407,159 @@ export async function getAllEmailChats(
   } catch (error) {
     console.error('[Email Firestore] Error getting all chats:', error)
     return []
+  }
+}
+
+/**
+ * Get all companies with active Gmail email channel (for cron polling)
+ */
+export async function getCompaniesWithActiveGmail(): Promise<Array<{
+  companyId: string
+  emailAddress: string
+  credentials: {
+    accessToken?: string
+    refreshToken?: string
+    expiresAt?: number
+  }
+  processedGmailMessageIds: string[]
+}>> {
+  try {
+    const query = {
+      structuredQuery: {
+        from: [{ collectionId: 'companies' }],
+        where: {
+          compositeFilter: {
+            op: 'AND',
+            filters: [
+              {
+                fieldFilter: {
+                  field: { fieldPath: 'channels.email.provider' },
+                  op: 'EQUAL',
+                  value: { stringValue: 'gmail' }
+                }
+              },
+              {
+                fieldFilter: {
+                  field: { fieldPath: 'channels.email.isActive' },
+                  op: 'EQUAL',
+                  value: { booleanValue: true }
+                }
+              }
+            ]
+          }
+        },
+        limit: 100
+      }
+    }
+
+    const response = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(query)
+      }
+    )
+
+    if (!response.ok) {
+      console.error('[Email Firestore] Gmail query error:', response.status)
+      return []
+    }
+
+    const results = await response.json()
+
+    if (!results || results.length === 0) return []
+
+    return results
+      .filter((r: { document?: unknown }) => r.document)
+      .map((r: { document: { name: string; fields: Record<string, unknown> } }) => {
+        const docName = r.document.name
+        const companyId = docName.split('/').pop()!
+        const data = parseFirestoreFields(r.document.fields)
+        const channels = data.channels as Record<string, unknown> | undefined
+        const email = channels?.email as Record<string, unknown> | undefined
+        const credentials = email?.credentials as Record<string, unknown> | undefined
+
+        return {
+          companyId,
+          emailAddress: (email?.emailAddress as string) || '',
+          credentials: {
+            accessToken: credentials?.accessToken as string | undefined,
+            refreshToken: credentials?.refreshToken as string | undefined,
+            expiresAt: credentials?.expiresAt as number | undefined,
+          },
+          processedGmailMessageIds: (email?.processedGmailMessageIds as string[]) || [],
+        }
+      })
+  } catch (error) {
+    console.error('[Email Firestore] Error getting Gmail companies:', error)
+    return []
+  }
+}
+
+/**
+ * Update Gmail check state (processed message IDs and last check time)
+ */
+export async function updateGmailCheckState(
+  companyId: string,
+  processedIds: string[],
+  lastCheckAt: string
+): Promise<void> {
+  try {
+    // Keep only last 50 IDs to prevent unbounded growth
+    const trimmedIds = processedIds.slice(-50)
+
+    await fetch(
+      `${FIRESTORE_BASE_URL}/companies/${companyId}?updateMask.fieldPaths=channels.email.processedGmailMessageIds&updateMask.fieldPaths=channels.email.lastGmailCheckAt`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            channels: toFirestoreValue({
+              email: {
+                processedGmailMessageIds: trimmedIds,
+                lastGmailCheckAt: lastCheckAt,
+              }
+            })
+          }
+        })
+      }
+    )
+  } catch (error) {
+    console.error('[Email Firestore] Error updating Gmail check state:', error)
+  }
+}
+
+/**
+ * Update Gmail access token after refresh
+ */
+export async function updateGmailAccessToken(
+  companyId: string,
+  accessToken: string,
+  expiresAt: number
+): Promise<void> {
+  try {
+    await fetch(
+      `${FIRESTORE_BASE_URL}/companies/${companyId}?updateMask.fieldPaths=channels.email.credentials.accessToken&updateMask.fieldPaths=channels.email.credentials.expiresAt`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            channels: toFirestoreValue({
+              email: {
+                credentials: {
+                  accessToken,
+                  expiresAt,
+                }
+              }
+            })
+          }
+        })
+      }
+    )
+  } catch (error) {
+    console.error('[Email Firestore] Error updating Gmail access token:', error)
   }
 }

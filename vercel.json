@@ -39,6 +39,10 @@
     {
       "path": "/api/cron/website-sync",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/check-gmail",
+      "schedule": "*/2 * * * *"
     }
   ]
 }

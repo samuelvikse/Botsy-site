@@ -16,6 +16,11 @@ import {
   AlertCircle,
   ArrowLeft,
   Download,
+  Sparkles,
+  PenLine,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -77,10 +82,22 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
   const [manualMode, setManualMode] = useState(false)
   const [hasOpenedInitial, setHasOpenedInitial] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
+  // Email reply state
+  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([])
+  const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(0)
+  const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false)
+  const [emailReplyMode, setEmailReplyMode] = useState<'suggestion' | 'manual' | null>(null)
+  const [emailReplyBody, setEmailReplyBody] = useState('')
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [emailSummary, setEmailSummary] = useState('')
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [customerTyping, setCustomerTyping] = useState(false)
+  const [lastReadByCustomer, setLastReadByCustomer] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const previousConversationId = useRef<string | null>(null)
+  const agentTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Check if user is near bottom of messages
   const checkIfNearBottom = useCallback(() => {
@@ -120,6 +137,15 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
   // Handle selecting a conversation - also resolves escalation if needed
   const handleSelectConversation = useCallback(async (conv: Conversation) => {
     setSelectedConversation(conv)
+
+    // Send read receipt for widget conversations
+    if (conv.channel === 'widget' && conv.phone) {
+      fetch('/api/chat/read', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, sessionId: conv.phone, who: 'agent' }),
+      }).catch(() => {})
+    }
 
     // If the conversation is escalated, resolve the escalation when employee opens it
     if (conv.isManualMode) {
@@ -458,10 +484,53 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 
     const interval = setInterval(() => {
       fetchMessages(selectedConversation, true) // Silent refresh
+
+      // Check typing status and read receipts for widget conversations
+      if (selectedConversation.channel === 'widget' && selectedConversation.phone) {
+        fetch(`/api/chat/history?companyId=${companyId}&sessionId=${selectedConversation.phone}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              if (data.customerTypingAt) {
+                const typingAge = Date.now() - new Date(data.customerTypingAt).getTime()
+                setCustomerTyping(typingAge < 5000)
+              } else {
+                setCustomerTyping(false)
+              }
+              if (data.lastReadByCustomer) {
+                setLastReadByCustomer(data.lastReadByCustomer)
+              }
+            }
+          })
+          .catch(() => {})
+      }
     }, MESSAGES_POLL_INTERVAL)
 
     return () => clearInterval(interval)
-  }, [selectedConversation, fetchMessages])
+  }, [selectedConversation, fetchMessages, companyId])
+
+  // Send agent typing status (debounced)
+  const sendAgentTyping = useCallback(() => {
+    if (!selectedConversation?.phone || selectedConversation.channel !== 'widget') return
+    if (agentTypingTimeoutRef.current) clearTimeout(agentTypingTimeoutRef.current)
+    agentTypingTimeoutRef.current = setTimeout(() => {
+      fetch('/api/chat/typing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          sessionId: selectedConversation.phone,
+          who: 'agent',
+        }),
+      }).catch(() => {})
+    }, 300)
+  }, [companyId, selectedConversation?.phone, selectedConversation?.channel])
+
+  // Reset typing/read state when conversation changes
+  useEffect(() => {
+    setCustomerTyping(false)
+    setLastReadByCustomer(null)
+  }, [selectedConversation?.id])
 
   // Toggle manual mode via API
   const handleToggleManualMode = async () => {
@@ -682,6 +751,153 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     }
   }
 
+  // Reset email reply state when switching conversations
+  useEffect(() => {
+    setEmailReplyMode(null)
+    setEmailSuggestions([])
+    setActiveSuggestionIdx(0)
+    setEmailReplyBody('')
+    setEmailSummary('')
+  }, [selectedConversation?.id])
+
+  // Get AI suggestion for email reply
+  const handleGetEmailSuggestion = async (isNew = false) => {
+    if (!selectedConversation?.email) return
+
+    setIsGeneratingSuggestion(true)
+    if (!isNew) setEmailReplyMode('suggestion')
+
+    try {
+      const response = await fetch('/api/email/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          customerEmail: selectedConversation.email,
+          previousSuggestions: isNew ? emailSuggestions : undefined,
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success && data.suggestion) {
+        const newSuggestions = [...emailSuggestions, data.suggestion]
+        setEmailSuggestions(newSuggestions)
+        setActiveSuggestionIdx(newSuggestions.length - 1)
+        setEmailReplyBody(data.suggestion)
+      }
+    } catch {
+      // Error getting suggestion
+    } finally {
+      setIsGeneratingSuggestion(false)
+    }
+  }
+
+  // Send email reply
+  const handleSendEmailReply = async () => {
+    if (!selectedConversation?.email || !emailReplyBody.trim()) return
+
+    setIsSendingEmail(true)
+    try {
+      // Find last subject from messages
+      const lastMsg = [...messages].reverse().find(m => m.content.startsWith('**'))
+      const subjectMatch = lastMsg?.content.match(/^\*\*(.+?)\*\*/)
+      const subject = subjectMatch?.[1] || 'Henvendelse'
+
+      const response = await fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          customerEmail: selectedConversation.email,
+          subject,
+          body: emailReplyBody,
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Add outbound message to local state
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: `**Re: ${subject}**\n\n${emailReplyBody}`,
+            timestamp: new Date(),
+            isManual: true,
+          },
+        ])
+        // Update conversation list
+        setConversations(prev =>
+          prev.map(c =>
+            c.id === selectedConversation.id
+              ? { ...c, lastMessage: emailReplyBody.slice(0, 100), lastMessageAt: new Date() }
+              : c
+          )
+        )
+        // Reset email reply state
+        setEmailReplyMode(null)
+        setEmailSuggestions([])
+        setActiveSuggestionIdx(0)
+        setEmailReplyBody('')
+      }
+    } catch {
+      // Error sending email
+    } finally {
+      setIsSendingEmail(false)
+    }
+  }
+
+  // Summarize email conversation
+  const handleSummarizeEmail = async () => {
+    if (!selectedConversation?.email) return
+
+    setIsGeneratingSummary(true)
+    setEmailSummary('')
+
+    try {
+      const response = await fetch('/api/email/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          customerEmail: selectedConversation.email,
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success && data.summary) {
+        setEmailSummary(data.summary)
+      }
+    } catch {
+      // Error summarizing
+    } finally {
+      setIsGeneratingSummary(false)
+    }
+  }
+
+  // Navigate between email suggestions
+  const handlePrevSuggestion = () => {
+    if (activeSuggestionIdx > 0) {
+      const newIdx = activeSuggestionIdx - 1
+      setActiveSuggestionIdx(newIdx)
+      setEmailReplyBody(emailSuggestions[newIdx])
+    }
+  }
+
+  const handleNextSuggestion = () => {
+    if (activeSuggestionIdx < emailSuggestions.length - 1) {
+      const newIdx = activeSuggestionIdx + 1
+      setActiveSuggestionIdx(newIdx)
+      setEmailReplyBody(emailSuggestions[newIdx])
+    }
+  }
+
+  // Check if last message in email conversation is inbound
+  const isEmailAwaitingReply = selectedConversation?.channel === 'email' &&
+    messages.length > 0 &&
+    messages[messages.length - 1].role === 'user'
+
   // Filter conversations
   const filteredConversations = conversations.filter((conv) => {
     if (channelFilter !== 'all' && conv.channel !== channelFilter) return false
@@ -890,24 +1106,26 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <Button
-                  variant={manualMode ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={handleToggleManualMode}
-                  className={manualMode ? 'bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90' : ''}
-                >
-                  {manualMode ? (
-                    <>
-                      <User className="h-4 w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Manuell modus</span>
-                    </>
-                  ) : (
-                    <>
-                      <Bot className="h-4 w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Ta over manuelt</span>
-                    </>
-                  )}
-                </Button>
+                {selectedConversation.channel !== 'email' && (
+                  <Button
+                    variant={manualMode ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={handleToggleManualMode}
+                    className={manualMode ? 'bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90' : ''}
+                  >
+                    {manualMode ? (
+                      <>
+                        <User className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Manuell modus</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Ta over manuelt</span>
+                      </>
+                    )}
+                  </Button>
+                )}
                 <button className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg">
                   <MoreHorizontal className="h-5 w-5" />
                 </button>
@@ -929,21 +1147,275 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                   Ingen meldinger i denne samtalen
                 </div>
               ) : (
-                messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} />
+                messages.map((msg, idx) => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    showReadReceipt={
+                      selectedConversation.channel === 'widget' &&
+                      msg.role === 'assistant' &&
+                      !!lastReadByCustomer &&
+                      idx === messages.length - 1
+                    }
+                  />
                 ))
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input - Show in manual mode */}
-            {manualMode && (
+            {/* Email Reply Panel */}
+            {selectedConversation.channel === 'email' && (
+              <div className="border-t border-white/[0.06]">
+                {/* Summary display */}
+                {emailSummary && (
+                  <div className="px-4 pt-3 pb-2">
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="h-4 w-4 text-blue-400" />
+                        <span className="text-blue-400 text-xs font-medium">Oppsummering</span>
+                        <button
+                          onClick={() => setEmailSummary('')}
+                          className="ml-auto text-[#6B7A94] hover:text-white text-xs"
+                        >
+                          Lukk
+                        </button>
+                      </div>
+                      <p className="text-white/90 text-sm whitespace-pre-wrap">{emailSummary}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* No reply mode selected yet - show action buttons */}
+                {!emailReplyMode && isEmailAwaitingReply && (
+                  <div className="p-4 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleGetEmailSuggestion(false)}
+                        disabled={isGeneratingSuggestion}
+                        className="bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90"
+                      >
+                        {isGeneratingSuggestion ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 mr-1" />
+                        )}
+                        AI-forslag
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEmailReplyMode('manual')
+                          setEmailReplyBody('')
+                        }}
+                      >
+                        <PenLine className="h-4 w-4 mr-1" />
+                        Svar manuelt
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSummarizeEmail}
+                        disabled={isGeneratingSummary}
+                        className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                      >
+                        {isGeneratingSummary ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <FileText className="h-4 w-4 mr-1" />
+                        )}
+                        Oppsummer mail
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reply mode active - show textarea */}
+                {emailReplyMode && (
+                  <div className="p-4 space-y-3">
+                    {/* Suggestion navigation */}
+                    {emailReplyMode === 'suggestion' && emailSuggestions.length > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-[#6B7A94]">
+                            Forslag {activeSuggestionIdx + 1} av {emailSuggestions.length}
+                          </span>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={handlePrevSuggestion}
+                              disabled={activeSuggestionIdx === 0}
+                              className="p-1 rounded text-[#6B7A94] hover:text-white disabled:opacity-30"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={handleNextSuggestion}
+                              disabled={activeSuggestionIdx === emailSuggestions.length - 1}
+                              className="p-1 rounded text-[#6B7A94] hover:text-white disabled:opacity-30"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleGetEmailSuggestion(true)}
+                            disabled={isGeneratingSuggestion}
+                            className="text-xs h-7"
+                          >
+                            {isGeneratingSuggestion ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <Sparkles className="h-3 w-3 mr-1" />
+                            )}
+                            Nytt forslag
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleSummarizeEmail}
+                            disabled={isGeneratingSummary}
+                            className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                          >
+                            {isGeneratingSummary ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <FileText className="h-3 w-3 mr-1" />
+                            )}
+                            Oppsummer
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manual mode header */}
+                    {emailReplyMode === 'manual' && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-amber-500 flex items-center gap-1">
+                          <PenLine className="h-3 w-3" />
+                          Manuelt svar
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleSummarizeEmail}
+                          disabled={isGeneratingSummary}
+                          className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                        >
+                          {isGeneratingSummary ? (
+                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          ) : (
+                            <FileText className="h-3 w-3 mr-1" />
+                          )}
+                          Oppsummer
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Loading state for first suggestion */}
+                    {isGeneratingSuggestion && emailSuggestions.length === 0 ? (
+                      <div className="flex items-center justify-center py-6 text-[#6B7A94]">
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        <span className="text-sm">Genererer AI-forslag...</span>
+                      </div>
+                    ) : (
+                      <textarea
+                        value={emailReplyBody}
+                        onChange={(e) => setEmailReplyBody(e.target.value)}
+                        placeholder="Skriv ditt svar her..."
+                        rows={5}
+                        className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.1] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
+                        disabled={isSendingEmail}
+                      />
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="flex items-center justify-between">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEmailReplyMode(null)
+                          setEmailReplyBody('')
+                        }}
+                        className="text-xs"
+                      >
+                        Avbryt
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSendEmailReply}
+                        disabled={isSendingEmail || !emailReplyBody.trim()}
+                        className="bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90"
+                      >
+                        {isSendingEmail ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <Send className="h-4 w-4 mr-1" />
+                        )}
+                        Send svar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Already replied / waiting state */}
+                {!emailReplyMode && !isEmailAwaitingReply && (
+                  <div className="p-4">
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <p className="text-[#6B7A94] text-sm w-full text-center mb-2">
+                        <Mail className="h-4 w-4 inline mr-1" />
+                        Siste e-post er besvart
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSummarizeEmail}
+                        disabled={isGeneratingSummary}
+                        className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                      >
+                        {isGeneratingSummary ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : (
+                          <FileText className="h-3 w-3 mr-1" />
+                        )}
+                        Oppsummer mail
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Customer typing indicator */}
+            {customerTyping && selectedConversation.channel === 'widget' && (
+              <div className="px-4 py-2 border-t border-white/[0.06] bg-blue-500/5">
+                <div className="flex items-center gap-2 text-blue-400 text-xs">
+                  <span>Kunden skriver</span>
+                  <div className="flex gap-0.5">
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse"
+                        style={{ animationDelay: `${i * 200}ms` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Input - Show in manual mode (non-email channels) */}
+            {selectedConversation.channel !== 'email' && manualMode && (
               <div className="p-4 border-t border-white/[0.06] bg-amber-500/5">
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(e) => { setNewMessage(e.target.value); sendAgentTyping(); }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault()
@@ -974,7 +1446,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
               </div>
             )}
 
-            {!manualMode && (
+            {selectedConversation.channel !== 'email' && !manualMode && (
               <div className="p-4 border-t border-white/[0.06] bg-botsy-lime/5">
                 <p className="text-[#A8B4C8] text-sm text-center">
                   <Bot className="h-4 w-4 inline mr-1" />
@@ -1003,7 +1475,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 })
 
 // Message Bubble Component
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, showReadReceipt }: { message: ChatMessage; showReadReceipt?: boolean }) {
   const isUser = message.role === 'user'
   const isManual = message.isManual
 
@@ -1039,6 +1511,12 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               {message.status === 'sent' && <CheckCheck className="h-3 w-3 text-[#6B7A94]" />}
               {message.status === 'delivered' && <CheckCheck className="h-3 w-3 text-botsy-lime" />}
               {message.status === 'failed' && <AlertCircle className="h-3 w-3 text-red-400" />}
+            </span>
+          )}
+          {showReadReceipt && (
+            <span className="ml-1 flex items-center gap-0.5 text-blue-400">
+              <CheckCheck className="h-3 w-3" />
+              <span>Lest</span>
             </span>
           )}
         </div>

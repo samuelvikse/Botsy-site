@@ -692,10 +692,10 @@ export function buildToneConfiguration(tone: string, toneConfig?: ToneConfig): s
   // Response length - use defaults if not set
   const responseLength = toneConfig?.responseLength || 'balanced'
   const lengthGuide = responseLength === 'short'
-    ? '\n\nSVARLENGDE (KRITISK): Hold svarene KORTE - MAKS 1-2 setninger. Rett på sak. Ingen lange forklaringer.'
+    ? '\n\nSVARLENGDE (KRITISK): Hold svarene KORTE - MAKS 1-2 setninger per spørsmål. Rett på sak. Ingen lange forklaringer. MEN: Svar ALLTID på ALLE spørsmål kunden stiller - kort svarlengde betyr korte svar, IKKE at du hopper over spørsmål.'
     : responseLength === 'detailed'
-    ? '\n\nSVARLENGDE: Gi detaljerte og grundige svar. Forklar godt. 4-6 setninger er passende.'
-    : '\n\nSVARLENGDE: Hold svarene balansert - 2-3 setninger er ideelt.'
+    ? '\n\nSVARLENGDE: Gi detaljerte og grundige svar. Forklar godt. 4-6 setninger er passende. Svar på ALLE spørsmål kunden stiller.'
+    : '\n\nSVARLENGDE: Hold svarene balansert - 2-3 setninger er ideelt. Svar ALLTID på ALLE spørsmål kunden stiller.'
   toneGuide += lengthGuide
 
   // Emoji configuration - MANDATORY and EXPLICIT
