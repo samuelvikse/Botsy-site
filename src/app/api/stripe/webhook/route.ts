@@ -73,6 +73,12 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'setup_intent.succeeded': {
+        const setupIntent = event.data.object as Stripe.SetupIntent
+        await handleSetupIntentSucceeded(setupIntent)
+        break
+      }
+
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice
         await handleInvoicePaymentSucceeded(invoice)
@@ -117,6 +123,92 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   console.log(`[Stripe Webhook] Checkout completed for company: ${companyId}`)
+}
+
+/**
+ * Handle setup intent succeeded - user entered card details during trial
+ * This fires when the standalone setup intent (created for trial subscriptions) is confirmed.
+ * We use this to:
+ * 1. Attach the payment method to the subscription
+ * 2. Send the welcome/confirmation email
+ */
+async function handleSetupIntentSucceeded(setupIntent: Stripe.SetupIntent) {
+  const companyId = setupIntent.metadata?.companyId
+  const subscriptionId = setupIntent.metadata?.subscription_id
+  const paymentMethodId = typeof setupIntent.payment_method === 'string'
+    ? setupIntent.payment_method
+    : setupIntent.payment_method?.id
+
+  if (!companyId || !subscriptionId || !paymentMethodId || !stripe) {
+    console.log('[Stripe Webhook] Setup intent succeeded but missing metadata, skipping')
+    return
+  }
+
+  console.log(`[Stripe Webhook] Setup intent succeeded for company: ${companyId}`)
+
+  try {
+    // Attach the payment method as the subscription's default
+    await stripe.subscriptions.update(subscriptionId, {
+      default_payment_method: paymentMethodId,
+    })
+    console.log(`[Stripe Webhook] Attached payment method to subscription ${subscriptionId}`)
+  } catch (err) {
+    console.error('[Stripe Webhook] Failed to attach payment method to subscription:', err)
+  }
+
+  // Send welcome email (deduplicated by sentWelcomeEmails set)
+  const emailKey = `${subscriptionId}-confirmed`
+  if (sentWelcomeEmails.has(emailKey)) return
+  sentWelcomeEmails.add(emailKey)
+
+  try {
+    const customerId = typeof setupIntent.customer === 'string'
+      ? setupIntent.customer
+      : setupIntent.customer?.id
+
+    if (!customerId) return
+
+    const customer = await stripe.customers.retrieve(customerId)
+    if (!customer || customer.deleted || !customer.email) return
+
+    const companyData = await getDocumentRest('companies', companyId)
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    const firstItem = subscription.items.data[0]
+
+    const trialEndDate = subscription.trial_end
+      ? new Date(subscription.trial_end * 1000).toLocaleDateString('nb-NO', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : null
+
+    const nextBillingDate = firstItem?.current_period_end
+      ? new Date(firstItem.current_period_end * 1000).toLocaleDateString('nb-NO', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'Ukjent'
+
+    const price = firstItem?.price.unit_amount
+      ? (firstItem.price.unit_amount / 100).toString()
+      : '699'
+
+    await sendSubscriptionConfirmationEmail({
+      to: customer.email,
+      customerName: customer.name || 'Kunde',
+      companyName: (companyData?.name as string) || 'Din bedrift',
+      price,
+      currency: firstItem?.price.currency?.toUpperCase() || 'NOK',
+      trialEndDate,
+      nextBillingDate,
+    })
+
+    console.log(`[Stripe Webhook] Sent subscription confirmation email to ${customer.email}`)
+  } catch (emailError) {
+    console.error('[Stripe Webhook] Failed to send confirmation email from setup_intent:', emailError)
+  }
 }
 
 /**
