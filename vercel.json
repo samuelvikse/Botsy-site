@@ -42,7 +42,7 @@
     },
     {
       "path": "/api/cron/check-gmail",
-      "schedule": "*/2 * * * *"
+      "schedule": "* * * * *"
     }
   ]
 }

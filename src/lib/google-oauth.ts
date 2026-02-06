@@ -166,11 +166,16 @@ export async function sendEmailViaGmail(params: {
   const { accessToken, to, from, subject, text, html, replyTo, inReplyTo, references } = params
 
   try {
+    // RFC 2047 encode subject for non-ASCII characters (ÆØÅ etc.)
+    const encodedSubject = /[^\x00-\x7F]/.test(subject)
+      ? `=?UTF-8?B?${Buffer.from(subject, 'utf-8').toString('base64')}?=`
+      : subject
+
     // Build email headers
     const headers: string[] = [
       `To: ${to}`,
       `From: ${from}`,
-      `Subject: ${subject}`,
+      `Subject: ${encodedSubject}`,
       'MIME-Version: 1.0',
     ]
 

@@ -18,6 +18,7 @@ import {
 } from '@/lib/email-firestore'
 import { generateEmailAIResponse } from '@/lib/email-ai'
 import { isSubscriptionActive, getInactiveSubscriptionMessage } from '@/lib/subscription-check'
+import { createEscalation } from '@/lib/escalation-firestore'
 
 /**
  * POST - Receive incoming emails from SendGrid or Mailgun
@@ -120,6 +121,17 @@ async function processEmail(
       body: email.text,
       timestamp: email.timestamp,
     })
+
+    // Create escalation for notification bell (fire-and-forget)
+    const conversationId = `email-${fromAddress.replace(/[.@]/g, '_')}`
+    createEscalation({
+      companyId,
+      conversationId,
+      channel: 'email',
+      customerIdentifier: fromAddress,
+      customerMessage: email.subject,
+      status: 'pending',
+    }).catch(() => {})
 
     // Get conversation history for context
     const conversationHistory = await getEmailHistory(companyId, fromAddress, 10)

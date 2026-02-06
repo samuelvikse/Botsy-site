@@ -98,6 +98,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const previousConversationId = useRef<string | null>(null)
   const agentTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const attendedEmailTimes = useRef<Map<string, number>>(new Map())
 
   // Check if user is near bottom of messages
   const checkIfNearBottom = useCallback(() => {
@@ -145,6 +146,11 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, sessionId: conv.phone, who: 'agent' }),
       }).catch(() => {})
+    }
+
+    // Mark email conversations as attended so they stop showing the red indicator
+    if (conv.channel === 'email') {
+      attendedEmailTimes.current.set(conv.id, Date.now())
     }
 
     // If the conversation is escalated, resolve the escalation when employee opens it
@@ -293,9 +299,12 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
       try {
         const emailChats = await getAllEmailChats(companyId)
         emailChats.forEach((chat) => {
+          const emailConvId = `email-${chat.customerEmail.replace(/[.@]/g, '_')}`
           const isInbound = chat.lastMessage?.direction === 'inbound'
+          const attendedAt = attendedEmailTimes.current.get(emailConvId)
+          const isAttended = attendedAt ? chat.lastMessageAt.getTime() <= attendedAt : false
           convos.push({
-            id: `email-${chat.customerEmail.replace(/[.@]/g, '_')}`,
+            id: emailConvId,
             name: chat.customerEmail,
             email: chat.customerEmail,
             channel: 'email' as const,
@@ -303,7 +312,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
             lastMessageAt: chat.lastMessageAt,
             messageCount: chat.messageCount,
             status: 'active' as const,
-            isManualMode: isInbound,
+            isManualMode: isInbound && !isAttended,
             lastMessageRole: isInbound ? 'user' : 'assistant',
           })
         })
@@ -1168,7 +1177,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                 {/* Summary display */}
                 {emailSummary && (
                   <div className="px-4 pt-3 pb-2">
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <FileText className="h-4 w-4 text-blue-400" />
                         <span className="text-blue-400 text-xs font-medium">Oppsummering</span>
@@ -1179,7 +1188,30 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                           Lukk
                         </button>
                       </div>
-                      <p className="text-white/90 text-sm whitespace-pre-wrap">{emailSummary}</p>
+                      <div className="space-y-1.5">
+                        {emailSummary.split('\n').filter(l => l.trim()).map((line, i) => {
+                          const isCustomer = line.trim().startsWith('KUNDE:')
+                          const isBusiness = line.trim().startsWith('BEDRIFT:')
+                          const text = line.replace(/^(KUNDE:|BEDRIFT:)\s*/, '')
+                          if (isCustomer) {
+                            return (
+                              <div key={i} className="flex items-start gap-2 text-sm">
+                                <span className="text-blue-400 font-medium text-xs mt-0.5 shrink-0">Kunde</span>
+                                <span className="text-blue-300/90">{text}</span>
+                              </div>
+                            )
+                          }
+                          if (isBusiness) {
+                            return (
+                              <div key={i} className="flex items-start gap-2 text-sm">
+                                <span className="text-emerald-400 font-medium text-xs mt-0.5 shrink-0">Bedrift</span>
+                                <span className="text-emerald-300/90">{text}</span>
+                              </div>
+                            )
+                          }
+                          return <p key={i} className="text-white/70 text-sm">{line}</p>
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}

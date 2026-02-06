@@ -422,6 +422,7 @@ export async function getCompaniesWithActiveGmail(): Promise<Array<{
     expiresAt?: number
   }
   processedGmailMessageIds: string[]
+  lastGmailCheckAt?: string
 }>> {
   try {
     const query = {
@@ -489,6 +490,7 @@ export async function getCompaniesWithActiveGmail(): Promise<Array<{
             expiresAt: credentials?.expiresAt as number | undefined,
           },
           processedGmailMessageIds: (email?.processedGmailMessageIds as string[]) || [],
+          lastGmailCheckAt: email?.lastGmailCheckAt as string | undefined,
         }
       })
   } catch (error) {

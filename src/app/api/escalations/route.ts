@@ -48,7 +48,7 @@ export async function PATCH(request: NextRequest) {
       const resolvedCount = await resolveEscalationsByConversation(companyId, conversationId)
 
       // Also clear the isManualMode flag on the chat document
-      // conversationId format: "widget-{sessionId}" or "messenger-{senderId}"
+      // conversationId format: "widget-{sessionId}", "messenger-{senderId}", "email-{id}"
       if (conversationId.startsWith('widget-')) {
         const sessionId = conversationId.replace('widget-', '')
         await clearWidgetChatManualMode(companyId, sessionId)
@@ -59,6 +59,7 @@ export async function PATCH(request: NextRequest) {
         const senderId = conversationId.replace('instagram-', '')
         await clearInstagramChatManualMode(companyId, senderId)
       }
+      // Email conversations don't have a server-side isManualMode flag — handled client-side
 
       return NextResponse.json({ success: true, resolvedCount })
     }

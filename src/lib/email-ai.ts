@@ -64,6 +64,7 @@ VIKTIGE REGLER:
 - ALDRI nevn andre kunder, brukere, eller bedrifter som bruker tjenesten - dette er konfidensielt
 - ALDRI del informasjon om andre brukere
 - KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er
+- EKSTREMT VIKTIG: Kontaktinformasjon (telefonnumre, e-postadresser, adresser) som finnes i kundens e-post eller signatur tilhører KUNDEN. Du skal ALDRI bruke kundens kontaktinfo som om det er bedriftens egen. Bruk KUN kontaktinformasjonen som er oppgitt under "KONTAKTINFORMASJON" i denne instruksjonen. Hvis bedriften ikke har oppgitt kontaktinfo, IKKE inkluder noen kontaktinfo i svaret.
 
 EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
 - ALDRI dikter opp priser, tall, eller fakta som du ikke har fått oppgitt
@@ -192,28 +193,35 @@ export async function summarizeEmailConversation(context: {
     businessName?: string
   } | null
 
-  const systemPrompt = `Du er en hjelpsom assistent som oppsummerer e-postsamtaler for kundeservicemedarbeidere.
+  const systemPrompt = `Du er en assistent som lager korte, presise oppsummeringer av e-postsamtaler.
 
-REGLER:
-- Skriv en kort, klar oppsummering på norsk
-- Fokuser på hva kunden ønsker/trenger
-- Nevn viktige detaljer som datoer, produkter, ordrenumre, etc.
-- Hvis kunden har stilt spesifikke spørsmål, list dem opp
-- Inkluder hva som allerede er svart/lovet fra bedriftens side
-- Hold oppsummeringen konsis men komplett
-${bp?.businessName ? `- Du oppsummerer for ansatte hos ${bp.businessName}` : ''}`
+FORMAT-REGLER (FØLG NØYAKTIG):
+- Skriv oppsummeringen som en punktliste
+- Hver linje starter med enten "KUNDE:" eller "BEDRIFT:" etterfulgt av ett kort punkt
+- Maks 2-6 punkter totalt
+- Hvert punkt skal være 1 setning, maks 15 ord
+- Fokuser kun på det viktigste: hva kunden vil, og hva som ble svart
+- Nevn konkrete detaljer (datoer, priser, produkter) hvis relevant
+- Skriv på norsk
+${bp?.businessName ? `- Bedriften heter ${bp.businessName}` : ''}
 
-  let conversationText = 'E-postsamtale:\n\n'
+EKSEMPEL:
+KUNDE: Spurte om leveringstid for bestilling #4521
+BEDRIFT: Svarte at levering tar 3-5 virkedager
+KUNDE: Ba om sporing av pakken
+BEDRIFT: Sendte sporingsnummer og lenke`
+
+  let conversationText = ''
   for (const msg of conversationHistory) {
-    const sender = msg.direction === 'inbound' ? 'Kunde' : 'Bedriften'
-    conversationText += `${sender} (Emne: ${msg.subject}):\n${msg.body}\n\n`
+    const sender = msg.direction === 'inbound' ? 'Kunde' : 'Bedrift'
+    conversationText += `[${sender}] Emne: ${msg.subject}\n${msg.body.slice(0, 400)}\n\n`
   }
 
   const messages = [
     { role: 'system' as const, content: systemPrompt },
     {
       role: 'user' as const,
-      content: `${conversationText}\n---\nGi en oppsummering av denne e-postsamtalen. Fokuser på kundens behov og hva som har skjedd så langt.`
+      content: `${conversationText}\n---\nOppsummer samtalen i det angitte formatet.`
     },
   ]
 

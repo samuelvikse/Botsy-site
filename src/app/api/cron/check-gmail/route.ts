@@ -91,11 +91,17 @@ export async function GET(request: NextRequest) {
 
         if (!accessToken) continue
 
-        // Get recent unread messages
+        // Build time-based query (don't rely on is:unread — emails may be auto-read)
+        // Look back from last check time minus 2 min buffer, or 1 hour if first run
+        const lastCheckTime = company.lastGmailCheckAt
+          ? new Date(company.lastGmailCheckAt).getTime()
+          : Date.now() - 3600000
+        const afterEpoch = Math.floor((lastCheckTime - 120000) / 1000) // 2 min buffer
+
         const recentMessages = await getRecentGmailMessages({
           accessToken,
-          query: 'is:unread is:inbox',
-          maxResults: 10,
+          query: `after:${afterEpoch} is:inbox -from:me`,
+          maxResults: 20,
         })
 
         console.log(`[Gmail Cron] ${company.companyId}: ${recentMessages?.length || 0} unread messages found`)
