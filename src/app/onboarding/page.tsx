@@ -29,7 +29,7 @@ import { Card } from '@/components/ui/card'
 import { WebsiteAnalysisStep } from '@/components/onboarding/WebsiteAnalysisStep'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { saveBusinessProfile } from '@/lib/firestore'
 import { PRICING } from '@/lib/pricing'
@@ -126,7 +126,26 @@ function OnboardingContent() {
       const hasCompany = userData?.companyId && userData.companyId !== ''
 
       if (hasCompany) {
-        // User already has a company, skip to step 1
+        // Check if payment was already completed (has a Stripe subscription)
+        try {
+          const companyDoc = await getDoc(doc(db, 'companies', userData.companyId))
+          const companyData = companyDoc.data()
+          if (companyData?.stripeSubscriptionId) {
+            setPaymentSuccess(true)
+            setIsCreatingCompany(false)
+            // If onboarding already completed, redirect to admin
+            if (companyData?.onboardingCompleted) {
+              router.push('/admin')
+              return
+            }
+            // Payment done but onboarding not completed - skip to website analysis
+            setStep(2)
+            return
+          }
+        } catch {
+          // Ignore errors, just show step 1
+        }
+        // User already has a company but no subscription, show payment step
         setIsCreatingCompany(false)
         setStep(1)
         return

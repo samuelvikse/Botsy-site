@@ -154,6 +154,14 @@ export async function POST(request: NextRequest) {
       clientSecret = setupIntent.client_secret
     }
 
+    // Immediately save subscription status to Firestore so SubscriptionGate
+    // doesn't block access before the webhook fires (timing gap fix)
+    updateDocumentRest('companies', companyId, {
+      stripeSubscriptionId: subscription.id,
+      subscriptionStatus: subscription.status, // 'trialing' for trial subs
+      subscriptionUpdatedAt: new Date(),
+    }, ['stripeSubscriptionId', 'subscriptionStatus', 'subscriptionUpdatedAt'])
+
     return NextResponse.json({
       subscriptionId: subscription.id,
       clientSecret: clientSecret,

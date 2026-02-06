@@ -117,6 +117,7 @@ function AdminContent() {
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null)
   const [instructions, setInstructions] = useState<Instruction[]>([])
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true) // default true to avoid flash
   const [widgetSettings, setWidgetSettings] = useState({
     primaryColor: '#CCFF00',
     position: 'bottom-right',
@@ -139,6 +140,7 @@ function AdminContent() {
       const companyDoc = await getDoc(doc(db, 'companies', companyId))
       if (companyDoc.exists()) {
         const data = companyDoc.data()
+        setOnboardingCompleted(data.onboardingCompleted === true)
         if (data.businessProfile) {
           setBusinessProfile(data.businessProfile as BusinessProfile)
         }
@@ -368,6 +370,26 @@ function AdminContent() {
 
         {/* Page Content - Scrollable area */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
+          {/* Onboarding incomplete banner */}
+          {!onboardingCompleted && (
+            <Link href="/onboarding">
+              <Card className="p-4 mb-4 bg-botsy-lime/5 border-botsy-lime/20 hover:bg-botsy-lime/10 transition-colors cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-botsy-lime/10 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="h-5 w-5 text-botsy-lime" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">Fullfør oppsettet av chatboten</p>
+                      <p className="text-[#A8B4C8] text-sm">Legg til nettside, tilpass personlighet og FAQs for best mulig kundeservice</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-botsy-lime flex-shrink-0" />
+                </div>
+              </Card>
+            </Link>
+          )}
+
           {activeTab === 'dashboard' && companyId && (
             <DashboardView
               companyId={companyId}
