@@ -202,9 +202,11 @@ async function updateCompanySubscription(companyId: string, subscription: Stripe
     status: subscription.status,
   })
 
-  // Send welcome/confirmation email for new subscriptions
-  const isNewSubscription = subscription.status === 'trialing' || subscription.status === 'active'
-  const emailKey = `${subscription.id}-${subscription.status}`
+  // Send welcome/confirmation email only after payment method is confirmed
+  // (subscription.default_payment_method is null until user enters card details)
+  const hasPaymentMethod = subscription.default_payment_method !== null
+  const isNewSubscription = (subscription.status === 'trialing' || subscription.status === 'active') && hasPaymentMethod
+  const emailKey = `${subscription.id}-confirmed`
 
   if (isNewSubscription && !sentWelcomeEmails.has(emailKey)) {
     sentWelcomeEmails.add(emailKey)
