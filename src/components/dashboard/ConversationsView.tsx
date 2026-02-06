@@ -297,6 +297,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
       try {
         const emailChats = await getAllEmailChats(companyId)
         emailChats.forEach((chat) => {
+          const isInbound = chat.lastMessage?.direction === 'inbound'
           convos.push({
             id: `email-${chat.customerEmail.replace(/[.@]/g, '_')}`,
             name: chat.customerEmail,
@@ -306,6 +307,8 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
             lastMessageAt: chat.lastMessageAt,
             messageCount: chat.messageCount,
             status: 'active' as const,
+            isManualMode: isInbound,
+            lastMessageRole: isInbound ? 'user' : 'assistant',
           })
         })
       } catch {
@@ -369,7 +372,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 
   // Fetch messages for selected conversation (with optional silent mode)
   const fetchMessages = useCallback(async (conversation: Conversation, silent = false) => {
-    if (!conversation.phone) return
+    if (!conversation.phone && !conversation.email) return
 
     if (!silent) {
       setIsLoadingMessages(true)

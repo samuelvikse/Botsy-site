@@ -97,11 +97,15 @@ export async function GET(request: NextRequest) {
           maxResults: 10,
         })
 
+        console.log(`[Gmail Cron] ${company.companyId}: ${recentMessages?.length || 0} unread messages found`)
+
         if (!recentMessages || recentMessages.length === 0) continue
 
         // Filter out already processed messages
         const processedIds = new Set(company.processedGmailMessageIds)
         const newMessageIds = recentMessages.filter(m => !processedIds.has(m.id))
+
+        console.log(`[Gmail Cron] ${company.companyId}: ${newMessageIds.length} new (${processedIds.size} already processed)`)
 
         if (newMessageIds.length === 0) continue
 
