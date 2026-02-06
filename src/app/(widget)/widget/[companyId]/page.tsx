@@ -513,28 +513,20 @@ export default function WidgetPage({
       const data = await response.json()
 
       if (data.success && data.reply) {
-        // Check if chat is in manual mode
-        // If escalated is true, this is the first escalation response - show it
-        // If isManualMode is true but escalated is false, user is already in manual mode - skip
-        if (data.isManualMode && !data.escalated) {
-          // Don't add the automated "waiting" message - just skip
-          // The customer will see the human's response when they send it
-        } else {
-          const { cleanContent, showEmailPrompt } = processMessage(data.reply)
+        const { cleanContent, showEmailPrompt } = processMessage(data.reply)
 
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: (Date.now() + 1).toString(),
-              role: 'assistant',
-              content: cleanContent,
-            },
-          ])
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: cleanContent,
+          },
+        ])
 
-          // Show email input if Botsy offered email summary
-          if (showEmailPrompt && !emailSent) {
-            setShowEmailInput(true)
-          }
+        // Show email input if Botsy offered email summary
+        if (showEmailPrompt && !emailSent) {
+          setShowEmailInput(true)
         }
       } else {
         setMessages((prev) => [
