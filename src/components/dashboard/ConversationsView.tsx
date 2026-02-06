@@ -149,28 +149,24 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 
     // If the conversation is escalated, resolve the escalation when employee opens it
     if (conv.isManualMode) {
-      try {
-        await fetch('/api/escalations', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'resolveByConversation',
-            companyId,
-            conversationId: conv.id,
-          }),
-        })
+      // Update local state immediately to remove the red indicator
+      setConversations(prev =>
+        prev.map(c => c.id === conv.id ? { ...c, isManualMode: false } : c)
+      )
+      setSelectedConversation(prev =>
+        prev ? { ...prev, isManualMode: false } : null
+      )
 
-        // Update local state to remove the red indicator
-        setConversations(prev =>
-          prev.map(c => c.id === conv.id ? { ...c, isManualMode: false } : c)
-        )
-        // Also update the selected conversation
-        setSelectedConversation(prev =>
-          prev ? { ...prev, isManualMode: false } : null
-        )
-      } catch (error) {
-        console.error('Failed to resolve escalation:', error)
-      }
+      // Resolve escalation in backend (fire-and-forget)
+      fetch('/api/escalations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'resolveByConversation',
+          companyId,
+          conversationId: conv.id,
+        }),
+      }).catch(() => {})
     }
   }, [companyId])
 
@@ -398,7 +394,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         msgs = emailHistory.map((msg) => ({
           id: msg.id,
           role: msg.direction === 'inbound' ? 'user' : 'assistant',
-          content: `**${msg.subject}**\n\n${msg.body}`,
+          content: `**${msg.subject}**\n\n${cleanEmailBody(msg.body)}`,
           timestamp: msg.timestamp,
         }))
       } else if (conversation.channel === 'messenger') {
@@ -1526,6 +1522,22 @@ function MessageBubble({ message, showReadReceipt }: { message: ChatMessage; sho
       </div>
     </div>
   )
+}
+
+// Clean up email body for display - remove image placeholders and clean URLs
+function cleanEmailBody(body: string): string {
+  return body
+    // Remove [image: xxx] placeholders
+    .replace(/\[image:\s*[^\]]*\]\s*/g, '')
+    // Clean <URL> format to just URL
+    .replace(/<(https?:\/\/[^>]+)>/g, '$1')
+    // Clean <email> format
+    .replace(/<([^>@]+@[^>]+)>/g, '$1')
+    // Clean <+phone> format
+    .replace(/<(\+?[\d\s]+)>/g, '$1')
+    // Remove excessive blank lines (3+ in a row → 2)
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 // Utility functions

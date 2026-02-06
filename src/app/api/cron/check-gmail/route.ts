@@ -12,6 +12,7 @@ import {
 } from '@/lib/google-oauth'
 import { extractEmailAddress } from '@/lib/email'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
+import { createEscalation } from '@/lib/escalation-firestore'
 
 // Skip automated/noreply senders
 const IGNORED_SENDER_PATTERNS = [
@@ -135,12 +136,24 @@ export async function GET(request: NextRequest) {
               timestamp: fullMessage.date,
             })
 
+            const conversationId = `email-${fromAddress.replace(/[.@]/g, '_')}`
+
+            // Create escalation for notification bell (fire-and-forget)
+            createEscalation({
+              companyId: company.companyId,
+              conversationId,
+              channel: 'email',
+              customerIdentifier: fromAddress,
+              customerMessage: fullMessage.subject,
+              status: 'pending',
+            }).catch(() => {})
+
             // Send push notification to employees (fire-and-forget)
             sendEscalationNotifications(
               company.companyId,
               fromAddress,
               `E-post: ${fullMessage.subject}`,
-              `email-${fromAddress.replace(/[.@]/g, '_')}`,
+              conversationId,
               'email'
             ).catch(() => {})
 
