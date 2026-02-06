@@ -1433,6 +1433,18 @@ function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKno
     setSyncStatus('Synkroniserer...')
     setPendingFaqCount(0)
     try {
+      // Auto-save sync config before syncing so the URL is persisted
+      try {
+        const { saveSyncConfig } = await import('@/lib/knowledge-sync/firestore')
+        await saveSyncConfig(companyId, {
+          enabled: syncConfig.enabled,
+          websiteUrl: syncConfig.websiteUrl,
+          autoApproveWebsiteFaqs: syncConfig.autoApproveWebsiteFaqs,
+        })
+      } catch {
+        // Continue with sync even if config save fails
+      }
+
       const response = await fetch('/api/sync/website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
