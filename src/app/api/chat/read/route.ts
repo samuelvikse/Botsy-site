@@ -27,8 +27,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const fieldName = who === 'customer' ? 'lastReadByCustomer' : 'lastReadByAgent'
+    const channel = body.channel || 'widget'
+    const collection = channel === 'email' ? 'emailChats' : 'customerChats'
 
-    const url = `${FIRESTORE_BASE_URL}/companies/${companyId}/customerChats/${sessionId}?updateMask.fieldPaths=${fieldName}`
+    const url = `${FIRESTORE_BASE_URL}/companies/${companyId}/${collection}/${sessionId}?updateMask.fieldPaths=${fieldName}`
     const response = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

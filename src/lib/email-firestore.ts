@@ -366,6 +366,7 @@ export async function getAllEmailChats(
   lastMessage: EmailMessage | null
   lastMessageAt: Date
   messageCount: number
+  lastReadByAgent: Date | null
 }>> {
   try {
     const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/emailChats`)
@@ -397,6 +398,7 @@ export async function getAllEmailChats(
         } : null,
         lastMessageAt: chatData.lastMessageAt ? new Date(chatData.lastMessageAt as string) : new Date(),
         messageCount: messages.length,
+        lastReadByAgent: chatData.lastReadByAgent ? new Date(chatData.lastReadByAgent as string) : null,
       }
     }).filter(Boolean)
 

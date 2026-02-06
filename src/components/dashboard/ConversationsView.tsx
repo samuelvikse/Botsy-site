@@ -152,9 +152,15 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
       }).catch(() => {})
     }
 
-    // Mark email conversations as attended so they stop showing the red indicator
-    if (conv.channel === 'email') {
+    // Mark email conversations as read in Firestore
+    if (conv.channel === 'email' && conv.email) {
+      const normalizedEmail = conv.email.toLowerCase().trim().replace(/[.#$[\]]/g, '_')
       attendedEmailTimes.current.set(conv.id, Date.now())
+      fetch('/api/chat/read', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, sessionId: normalizedEmail, who: 'agent', channel: 'email' }),
+      }).catch(() => {})
     }
 
     // If the conversation is escalated, resolve the escalation when employee opens it
@@ -305,7 +311,9 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         emailChats.forEach((chat) => {
           const emailConvId = `email-${chat.customerEmail.replace(/[.@]/g, '_')}`
           const isInbound = chat.lastMessage?.direction === 'inbound'
-          const attendedAt = attendedEmailTimes.current.get(emailConvId)
+          const memoryAttendedAt = attendedEmailTimes.current.get(emailConvId)
+          const firestoreReadAt = chat.lastReadByAgent?.getTime() || 0
+          const attendedAt = Math.max(memoryAttendedAt || 0, firestoreReadAt)
           const isAttended = attendedAt ? chat.lastMessageAt.getTime() <= attendedAt : false
           convos.push({
             id: emailConvId,
