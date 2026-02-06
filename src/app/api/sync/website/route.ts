@@ -19,7 +19,7 @@ export const maxDuration = 60 // Allow up to 60 seconds
  */
 export async function POST(request: NextRequest) {
   try {
-    const { companyId } = await request.json()
+    const { companyId, websiteUrl: requestUrl } = await request.json()
 
     if (!companyId) {
       return NextResponse.json(
@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
     const hasBusinessProfile = !!companyData?.businessProfile
     const businessName = companyData?.businessName || companyData?.profile?.businessName || companyData?.name || 'Bedrift'
 
-    // Check multiple sources for website URL (company doc, profile, or sync config)
-    let websiteUrl = companyData?.websiteUrl || companyData?.profile?.websiteUrl
+    // Check multiple sources for website URL: request body, company doc, profile, or sync config
+    let websiteUrl = requestUrl || companyData?.websiteUrl || companyData?.profile?.websiteUrl
     let cachedSyncConfig = !websiteUrl ? await getSyncConfig(companyId) : null
     if (!websiteUrl) {
       websiteUrl = cachedSyncConfig?.websiteUrl

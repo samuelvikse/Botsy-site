@@ -1448,7 +1448,7 @@ function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKno
       const response = await fetch('/api/sync/website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId }),
+        body: JSON.stringify({ companyId, websiteUrl: syncConfig.websiteUrl }),
       })
       const data = await response.json()
 
