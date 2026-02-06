@@ -382,7 +382,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     try {
       let msgs: ChatMessage[] = []
 
-      if (conversation.channel === 'sms') {
+      if (conversation.channel === 'sms' && conversation.phone) {
         // Fetch SMS messages
         const smsHistory = await getSMSHistory(companyId, conversation.phone, 100)
         msgs = smsHistory.map((msg) => ({
@@ -443,7 +443,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
             }))
           }
         }
-      } else {
+      } else if (conversation.phone) {
         // Fetch widget chat messages
         const widgetHistory = await getWidgetChatHistory(companyId, conversation.phone)
         msgs = widgetHistory.map((msg, index) => ({
