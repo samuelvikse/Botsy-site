@@ -484,22 +484,37 @@ export async function POST(
       }).catch(() => {})
     }
 
-    // If in manual mode, return immediately
+    // If in manual mode, check if escalation is still active
     if (isManualMode) {
-      // Fire-and-forget positive feedback tracking
-      if (detectPositiveFeedback(message) && sessionData?.escalationId) {
-        getEscalation(sessionData.escalationId).then(escalation => {
-          if (escalation?.claimedBy) {
-            incrementPositiveFeedback(escalation.claimedBy, companyId).catch(() => {})
+      let stillActive = false
+
+      if (sessionData?.escalationId) {
+        try {
+          const escalation = await getEscalation(sessionData.escalationId)
+          if (escalation && (escalation.status === 'pending' || escalation.status === 'claimed')) {
+            stillActive = true
+
+            // Fire-and-forget positive feedback tracking
+            if (detectPositiveFeedback(message) && escalation.claimedBy) {
+              incrementPositiveFeedback(escalation.claimedBy, companyId).catch(() => {})
+            }
           }
-        }).catch(() => {})
+        } catch {
+          // If we can't check, assume still active to be safe
+          stillActive = true
+        }
       }
 
-      return NextResponse.json({
-        success: true,
-        reply: 'En kundebehandler vil svare deg snart.',
-        isManualMode: true,
-      }, { headers: corsHeaders })
+      if (stillActive) {
+        return NextResponse.json({
+          success: true,
+          reply: 'En kundebehandler vil svare deg snart.',
+          isManualMode: true,
+        }, { headers: corsHeaders })
+      }
+
+      // Escalation is resolved/dismissed but isManualMode was not reset — auto-fix
+      updateDoc(sessionRef, { isManualMode: false }).catch(() => {})
     }
 
     // Check for human handoff request
