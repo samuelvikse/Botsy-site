@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBusinessProfile, getEmailHistory } from '@/lib/email-firestore'
-import { summarizeEmailConversation } from '@/lib/email-ai'
+import { summarizeEmailConversation, summarizeLastEmail } from '@/lib/email-ai'
 
 /**
- * POST - Summarize email conversation
+ * POST - Summarize email conversation or last email
+ * mode: "last" (siste mail) or "conversation" (hele samtalen, default)
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { companyId, customerEmail } = body
+    const { companyId, customerEmail, mode = 'conversation' } = body
 
     if (!companyId || !customerEmail) {
       return NextResponse.json(
@@ -29,16 +30,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const conversationHistory = emailHistory.map(m => ({
-      direction: m.direction,
-      subject: m.subject,
-      body: m.body,
-    }))
+    let summary: string
 
-    const summary = await summarizeEmailConversation({
-      businessProfile,
-      conversationHistory,
-    })
+    if (mode === 'last') {
+      // Find the last inbound email
+      const lastInbound = [...emailHistory].reverse().find(m => m.direction === 'inbound')
+      if (!lastInbound) {
+        return NextResponse.json(
+          { success: false, error: 'Ingen innkommende e-post funnet' },
+          { status: 404 }
+        )
+      }
+
+      summary = await summarizeLastEmail({
+        businessProfile,
+        lastEmail: {
+          direction: lastInbound.direction,
+          subject: lastInbound.subject,
+          body: lastInbound.body,
+        },
+      })
+    } else {
+      const conversationHistory = emailHistory.map(m => ({
+        direction: m.direction,
+        subject: m.subject,
+        body: m.body,
+      }))
+
+      summary = await summarizeEmailConversation({
+        businessProfile,
+        conversationHistory,
+      })
+    }
 
     return NextResponse.json({ success: true, summary })
   } catch (error) {

@@ -177,6 +177,59 @@ Kundeservice`
 }
 
 /**
+ * Summarize only the last inbound email
+ */
+export async function summarizeLastEmail(context: {
+  businessProfile: Record<string, unknown> | null
+  lastEmail: { direction: string; subject: string; body: string }
+}): Promise<string> {
+  const { businessProfile, lastEmail } = context
+
+  const bp = businessProfile as {
+    businessName?: string
+  } | null
+
+  const systemPrompt = `Du er en assistent som lager korte, presise oppsummeringer av e-poster.
+
+FORMAT-REGLER (FØLG NØYAKTIG):
+- Skriv oppsummeringen som en punktliste med 1-4 punkter
+- Hvert punkt starter med "•" og er maks 15 ord
+- Fokuser på: hva kunden spør om, hva de vil, eventuelle detaljer (datoer, produkter, bestillingsnr)
+- Skriv på norsk
+${bp?.businessName ? `- Bedriften heter ${bp.businessName}` : ''}
+
+EKSEMPEL:
+• Spør om leveringstid for bestilling #4521
+• Ønsker å endre leveringsadresse
+• Ber om bekreftelse på e-post`
+
+  const emailText = `[${lastEmail.direction === 'inbound' ? 'Kunde' : 'Bedrift'}] Emne: ${lastEmail.subject}\n${lastEmail.body.slice(0, 600)}`
+
+  const messages = [
+    { role: 'system' as const, content: systemPrompt },
+    {
+      role: 'user' as const,
+      content: `${emailText}\n---\nOppsummer denne e-posten i det angitte formatet.`
+    },
+  ]
+
+  try {
+    const result = await generateAIResponse(systemPrompt, messages, {
+      maxTokens: 300,
+      temperature: 0.3,
+    })
+
+    if (result.success) {
+      return result.response
+    }
+
+    return 'Kunne ikke generere oppsummering.'
+  } catch {
+    return 'Kunne ikke generere oppsummering.'
+  }
+}
+
+/**
  * Summarize the email conversation history
  */
 export async function summarizeEmailConversation(context: {

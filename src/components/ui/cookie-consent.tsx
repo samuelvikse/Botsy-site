@@ -1,207 +1,69 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Cookie, X, Settings } from 'lucide-react'
-import { Button } from './button'
 import Link from 'next/link'
 
-const COOKIE_CONSENT_KEY = 'botsy-cookie-consent'
+const CONSENT_KEY = 'botsy-cookie-consent'
 
-interface CookiePreferences {
-  essential: boolean // Always true
-  analytics: boolean
-  marketing: boolean
+type ConsentValue = 'all' | 'essential' | null
+
+export function getConsent(): ConsentValue {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(CONSENT_KEY) as ConsentValue
 }
 
 export function CookieConsent() {
-  const [showBanner, setShowBanner] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
-  const [preferences, setPreferences] = useState<CookiePreferences>({
-    essential: true,
-    analytics: false,
-    marketing: false,
-  })
+  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    // Check if user has already consented
-    const consent = localStorage.getItem(COOKIE_CONSENT_KEY)
+    const consent = localStorage.getItem(CONSENT_KEY)
     if (!consent) {
-      // Small delay to avoid layout shift on page load
-      const timer = setTimeout(() => setShowBanner(true), 1000)
+      const timer = setTimeout(() => setVisible(true), 1500)
       return () => clearTimeout(timer)
-    } else {
-      // Load saved preferences
-      try {
-        const saved = JSON.parse(consent)
-        setPreferences(saved)
-      } catch {
-        // Invalid consent, show banner again
-        setShowBanner(true)
-      }
     }
   }, [])
 
-  const saveConsent = (prefs: CookiePreferences) => {
-    localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(prefs))
-    setShowBanner(false)
-    setShowSettings(false)
+  const accept = (value: 'all' | 'essential') => {
+    localStorage.setItem(CONSENT_KEY, value)
+    setVisible(false)
 
-    // Here you could initialize analytics/marketing scripts based on consent
-    if (prefs.analytics) {
-      // Initialize analytics
-      console.log('[Cookie Consent] Analytics enabled')
-    }
-    if (prefs.marketing) {
-      // Initialize marketing scripts
-      console.log('[Cookie Consent] Marketing enabled')
-    }
+    // Fire event so GA script can pick it up
+    window.dispatchEvent(new CustomEvent('cookie-consent', { detail: value }))
   }
 
-  const acceptAll = () => {
-    const allAccepted = {
-      essential: true,
-      analytics: true,
-      marketing: true,
-    }
-    setPreferences(allAccepted)
-    saveConsent(allAccepted)
-  }
-
-  const acceptEssential = () => {
-    const essentialOnly = {
-      essential: true,
-      analytics: false,
-      marketing: false,
-    }
-    setPreferences(essentialOnly)
-    saveConsent(essentialOnly)
-  }
-
-  const saveCustomPreferences = () => {
-    saveConsent(preferences)
-  }
+  if (!visible) return null
 
   return (
-    <AnimatePresence>
-      {showBanner && (
-        <motion.div
-          key="cookie-banner"
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 50 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-[99999]"
-        >
-          <div className="max-w-2xl mx-auto bg-[#1a1a2e] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
-            {!showSettings ? (
-              // Main Banner - Compact
-              <div className="px-4 py-3 flex items-center gap-3">
-                <Cookie className="h-5 w-5 text-botsy-lime flex-shrink-0" />
-                <p className="text-[#A8B4C8] text-sm flex-1">
-                  Vi bruker cookies.{' '}
-                  <Link href="/personvern" className="text-botsy-lime hover:underline">
-                    Les mer
-                  </Link>
-                </p>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Button onClick={acceptEssential} variant="ghost" size="sm" className="text-xs px-2 h-7">
-                    Avvis
-                  </Button>
-                  <Button
-                    onClick={() => setShowSettings(true)}
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs px-2 h-7 text-[#6B7A94]"
-                  >
-                    <Settings className="h-3 w-3" />
-                  </Button>
-                  <Button onClick={acceptAll} size="sm" className="text-xs px-3 h-7">
-                    Godta
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              // Settings Panel
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-white font-semibold text-lg">Cookie-innstillinger</h3>
-                  <button
-                    onClick={() => setShowSettings(false)}
-                    className="text-[#6B7A94] hover:text-white transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4 mb-6">
-                  {/* Essential Cookies */}
-                  <div className="flex items-start justify-between gap-4 p-4 bg-white/[0.02] rounded-xl">
-                    <div>
-                      <p className="text-white font-medium">Nødvendige cookies</p>
-                      <p className="text-[#6B7A94] text-sm mt-1">
-                        Kreves for at nettsiden skal fungere. Kan ikke deaktiveres.
-                      </p>
-                    </div>
-                    <div className="h-6 w-11 rounded-full bg-botsy-lime/30 flex items-center px-1">
-                      <div className="h-4 w-4 rounded-full bg-botsy-lime ml-auto" />
-                    </div>
-                  </div>
-
-                  {/* Analytics Cookies */}
-                  <div className="flex items-start justify-between gap-4 p-4 bg-white/[0.02] rounded-xl">
-                    <div>
-                      <p className="text-white font-medium">Analyse-cookies</p>
-                      <p className="text-[#6B7A94] text-sm mt-1">
-                        Hjelper oss å forstå hvordan du bruker nettsiden, slik at vi kan forbedre den.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setPreferences(p => ({ ...p, analytics: !p.analytics }))}
-                      className={`h-6 w-11 rounded-full flex items-center px-1 transition-colors ${
-                        preferences.analytics ? 'bg-botsy-lime/30' : 'bg-white/[0.1]'
-                      }`}
-                    >
-                      <div className={`h-4 w-4 rounded-full transition-all ${
-                        preferences.analytics ? 'bg-botsy-lime ml-auto' : 'bg-[#6B7A94] ml-0'
-                      }`} />
-                    </button>
-                  </div>
-
-                  {/* Marketing Cookies */}
-                  <div className="flex items-start justify-between gap-4 p-4 bg-white/[0.02] rounded-xl">
-                    <div>
-                      <p className="text-white font-medium">Markedsføring-cookies</p>
-                      <p className="text-[#6B7A94] text-sm mt-1">
-                        Brukes til å vise deg relevante annonser basert på dine interesser.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setPreferences(p => ({ ...p, marketing: !p.marketing }))}
-                      className={`h-6 w-11 rounded-full flex items-center px-1 transition-colors ${
-                        preferences.marketing ? 'bg-botsy-lime/30' : 'bg-white/[0.1]'
-                      }`}
-                    >
-                      <div className={`h-4 w-4 rounded-full transition-all ${
-                        preferences.marketing ? 'bg-botsy-lime ml-auto' : 'bg-[#6B7A94] ml-0'
-                      }`} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button onClick={saveCustomPreferences} className="flex-1">
-                    Lagre valg
-                  </Button>
-                  <Button onClick={acceptAll} variant="outline" className="flex-1">
-                    Godta alle
-                  </Button>
-                </div>
-              </div>
-            )}
+    <div
+      className="fixed bottom-4 left-4 right-4 z-[99999] animate-in slide-in-from-bottom-4 fade-in duration-300"
+    >
+      <div className="max-w-lg mx-auto bg-[#141927] border border-white/[0.08] rounded-2xl shadow-2xl px-5 py-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-1">
+            <p className="text-white text-sm font-medium mb-1">Vi bruker informasjonskapsler</p>
+            <p className="text-[#8896AB] text-xs leading-relaxed">
+              Vi bruker nødvendige cookies og analyse-cookies for å forbedre tjenesten.{' '}
+              <Link href="/personvern" className="text-botsy-lime hover:underline">
+                Les mer
+              </Link>
+            </p>
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </div>
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={() => accept('essential')}
+            className="flex-1 px-4 py-2 text-xs font-medium text-[#8896AB] bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-xl transition-colors"
+          >
+            Bare nødvendige
+          </button>
+          <button
+            onClick={() => accept('all')}
+            className="flex-1 px-4 py-2 text-xs font-medium text-botsy-dark bg-botsy-lime hover:bg-botsy-lime/90 rounded-xl transition-colors"
+          >
+            Godta alle
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

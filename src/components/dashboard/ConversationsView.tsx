@@ -76,6 +76,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all')
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [newMessage, setNewMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -91,6 +92,9 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [emailSummary, setEmailSummary] = useState('')
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [summaryMode, setSummaryMode] = useState<'last' | 'conversation' | null>(null)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
   const [customerTyping, setCustomerTyping] = useState(false)
   const [lastReadByCustomer, setLastReadByCustomer] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -766,7 +770,20 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     setActiveSuggestionIdx(0)
     setEmailReplyBody('')
     setEmailSummary('')
+    setShowMoreMenu(false)
   }, [selectedConversation?.id])
+
+  // Close more menu on outside click
+  useEffect(() => {
+    if (!showMoreMenu) return
+    const handleClick = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showMoreMenu])
 
   // Get AI suggestion for email reply
   const handleGetEmailSuggestion = async (isNew = false) => {
@@ -856,11 +873,12 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     }
   }
 
-  // Summarize email conversation
+  // Summarize email conversation (full conversation)
   const handleSummarizeEmail = async () => {
     if (!selectedConversation?.email) return
 
     setIsGeneratingSummary(true)
+    setSummaryMode('conversation')
     setEmailSummary('')
 
     try {
@@ -870,6 +888,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         body: JSON.stringify({
           companyId,
           customerEmail: selectedConversation.email,
+          mode: 'conversation',
         }),
       })
 
@@ -881,7 +900,76 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
       // Error summarizing
     } finally {
       setIsGeneratingSummary(false)
+      setSummaryMode(null)
     }
+  }
+
+  // Summarize last inbound email only
+  const handleSummarizeLastEmail = async () => {
+    if (!selectedConversation?.email) return
+
+    setIsGeneratingSummary(true)
+    setSummaryMode('last')
+    setEmailSummary('')
+
+    try {
+      const response = await fetch('/api/email/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          customerEmail: selectedConversation.email,
+          mode: 'last',
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success && data.summary) {
+        setEmailSummary(data.summary)
+      }
+    } catch {
+      // Error summarizing
+    } finally {
+      setIsGeneratingSummary(false)
+      setSummaryMode(null)
+    }
+  }
+
+  // Download conversation as .txt file
+  const handleDownloadConversation = () => {
+    if (!selectedConversation || messages.length === 0) return
+
+    const channelLabel = channelConfig[selectedConversation.channel].label
+    const lines = [
+      `Samtale - ${channelLabel}`,
+      `Kontakt: ${selectedConversation.name}`,
+      `Eksportert: ${new Date().toLocaleString('nb-NO')}`,
+      `Antall meldinger: ${messages.length}`,
+      '─'.repeat(50),
+      '',
+    ]
+
+    for (const msg of messages) {
+      const sender = msg.role === 'user' ? 'Kunde' : (msg.isManual ? 'Ansatt' : 'Botsy')
+      const time = msg.timestamp.toLocaleString('nb-NO', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+      lines.push(`[${time}] ${sender}:`)
+      lines.push(msg.content)
+      lines.push('')
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `samtale-${selectedConversation.name.replace(/[^a-zA-Z0-9æøåÆØÅ@._-]/g, '_')}-${new Date().toISOString().slice(0, 10)}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    setShowMoreMenu(false)
   }
 
   // Navigate between email suggestions
@@ -909,6 +997,10 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
   // Filter conversations
   const filteredConversations = conversations.filter((conv) => {
     if (channelFilter !== 'all' && conv.channel !== channelFilter) return false
+    if (showUnreadOnly) {
+      const isUnread = conv.isManualMode && conv.lastMessageRole === 'user'
+      if (!isUnread) return false
+    }
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       return (
@@ -919,6 +1011,8 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     }
     return true
   })
+
+  const unreadCount = conversations.filter(c => c.isManualMode && c.lastMessageRole === 'user').length
 
   const channelConfig = {
     sms: { icon: Phone, color: '#CDFF4D', label: 'SMS' },
@@ -960,6 +1054,16 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                 {filter === 'all' ? 'Alle' : filter === 'sms' ? 'SMS' : filter === 'widget' ? 'Widget' : filter === 'messenger' ? 'Messenger' : filter === 'instagram' ? 'Instagram' : 'E-post'}
               </button>
             ))}
+            <button
+              onClick={() => setShowUnreadOnly(!showUnreadOnly)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                showUnreadOnly
+                  ? 'bg-red-500/15 text-red-400'
+                  : 'bg-white/[0.03] text-[#6B7A94] hover:text-white'
+              }`}
+            >
+              Uleste{unreadCount > 0 ? ` (${unreadCount})` : ''}
+            </button>
             <div className="ml-auto flex items-center gap-2">
               <span className="flex items-center gap-1 text-[10px] text-[#6B7A94]">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -1134,9 +1238,26 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                     )}
                   </Button>
                 )}
-                <button className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg">
-                  <MoreHorizontal className="h-5 w-5" />
-                </button>
+                <div className="relative" ref={moreMenuRef}>
+                  <button
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className="p-2 text-[#6B7A94] hover:text-white hover:bg-white/[0.05] rounded-lg"
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </button>
+                  {showMoreMenu && (
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-[#1a2236] border border-white/[0.1] rounded-xl shadow-xl z-50 overflow-hidden">
+                      <button
+                        onClick={handleDownloadConversation}
+                        disabled={messages.length === 0}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Download className="h-4 w-4" />
+                        Last ned samtale
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1247,16 +1368,30 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={handleSummarizeEmail}
+                        onClick={handleSummarizeLastEmail}
                         disabled={isGeneratingSummary}
                         className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
                       >
-                        {isGeneratingSummary ? (
+                        {isGeneratingSummary && summaryMode === 'last' ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-1" />
                         ) : (
                           <FileText className="h-4 w-4 mr-1" />
                         )}
-                        Oppsummer mail
+                        Siste mail
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSummarizeEmail}
+                        disabled={isGeneratingSummary}
+                        className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                      >
+                        {isGeneratingSummary && summaryMode === 'conversation' ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <FileText className="h-4 w-4 mr-1" />
+                        )}
+                        Samtalen
                       </Button>
                     </div>
                   </div>
@@ -1307,16 +1442,30 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={handleSummarizeEmail}
+                            onClick={handleSummarizeLastEmail}
                             disabled={isGeneratingSummary}
                             className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
                           >
-                            {isGeneratingSummary ? (
+                            {isGeneratingSummary && summaryMode === 'last' ? (
                               <Loader2 className="h-3 w-3 animate-spin mr-1" />
                             ) : (
                               <FileText className="h-3 w-3 mr-1" />
                             )}
-                            Oppsummer
+                            Siste mail
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleSummarizeEmail}
+                            disabled={isGeneratingSummary}
+                            className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                          >
+                            {isGeneratingSummary && summaryMode === 'conversation' ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <FileText className="h-3 w-3 mr-1" />
+                            )}
+                            Samtalen
                           </Button>
                         </div>
                       </div>
@@ -1329,20 +1478,36 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                           <PenLine className="h-3 w-3" />
                           Manuelt svar
                         </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleSummarizeEmail}
-                          disabled={isGeneratingSummary}
-                          className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-                        >
-                          {isGeneratingSummary ? (
-                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                          ) : (
-                            <FileText className="h-3 w-3 mr-1" />
-                          )}
-                          Oppsummer
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleSummarizeLastEmail}
+                            disabled={isGeneratingSummary}
+                            className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                          >
+                            {isGeneratingSummary && summaryMode === 'last' ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <FileText className="h-3 w-3 mr-1" />
+                            )}
+                            Siste mail
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleSummarizeEmail}
+                            disabled={isGeneratingSummary}
+                            className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                          >
+                            {isGeneratingSummary && summaryMode === 'conversation' ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <FileText className="h-3 w-3 mr-1" />
+                            )}
+                            Samtalen
+                          </Button>
+                        </div>
                       </div>
                     )}
 
@@ -1404,16 +1569,30 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={handleSummarizeEmail}
+                        onClick={handleSummarizeLastEmail}
                         disabled={isGeneratingSummary}
                         className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
                       >
-                        {isGeneratingSummary ? (
+                        {isGeneratingSummary && summaryMode === 'last' ? (
                           <Loader2 className="h-3 w-3 animate-spin mr-1" />
                         ) : (
                           <FileText className="h-3 w-3 mr-1" />
                         )}
-                        Oppsummer mail
+                        Siste mail
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSummarizeEmail}
+                        disabled={isGeneratingSummary}
+                        className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                      >
+                        {isGeneratingSummary && summaryMode === 'conversation' ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : (
+                          <FileText className="h-3 w-3 mr-1" />
+                        )}
+                        Samtalen
                       </Button>
                     </div>
                   </div>

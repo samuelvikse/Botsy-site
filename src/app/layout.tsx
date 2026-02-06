@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/toast'
 import { OrganizationJsonLd, WebsiteJsonLd, SoftwareApplicationJsonLd, ProductJsonLd } from '@/components/seo/JsonLd'
 import { WidgetScript } from '@/components/WidgetScript'
+import { CookieConsent } from '@/components/ui/cookie-consent'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -173,6 +174,7 @@ export default function RootLayout({
             {children}
           </ToastProvider>
         </AuthProvider>
+        <CookieConsent />
         <WidgetScript companyId="RjR6IBzbd2YX2TLFoXwuHzY2N3O2" />
       </body>
     </html>

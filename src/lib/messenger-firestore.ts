@@ -195,11 +195,11 @@ export async function saveMessengerMessage(
         updatedAt: toFirestoreValue(new Date()),
       }
 
-      // Add customer info if provided and not already stored
-      if (customerInfo?.name && !existingData.customerName) {
+      // Add customer info if provided (retry if previously missing)
+      if (customerInfo?.name) {
         updateFields.customerName = toFirestoreValue(customerInfo.name)
       }
-      if (customerInfo?.profilePic && !existingData.customerProfilePic) {
+      if (customerInfo?.profilePic) {
         updateFields.customerProfilePic = toFirestoreValue(customerInfo.profilePic)
       }
 
