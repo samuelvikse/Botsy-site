@@ -715,12 +715,22 @@ export default function WidgetPage({
                 />
               </div>
             ) : (
-              <Image
-                src="/brand/botsy-icon-dark.svg"
-                alt="Chat"
-                width={28}
-                height={28}
-                unoptimized
+              <span
+                aria-label="Chat"
+                style={{
+                  display: 'inline-block',
+                  width: 28,
+                  height: 28,
+                  backgroundColor: secondaryColor,
+                  WebkitMaskImage: 'url(/brand/botsy-icon-dark.svg)',
+                  WebkitMaskSize: 'contain',
+                  WebkitMaskRepeat: 'no-repeat',
+                  WebkitMaskPosition: 'center',
+                  maskImage: 'url(/brand/botsy-icon-dark.svg)',
+                  maskSize: 'contain',
+                  maskRepeat: 'no-repeat',
+                  maskPosition: 'center',
+                }}
               />
             )}
           </motion.button>
@@ -762,12 +772,22 @@ export default function WidgetPage({
                       unoptimized
                     />
                   ) : (
-                    <Image
-                      src="/brand/botsy-icon-dark.svg"
-                      alt="Botsy"
-                      width={22}
-                      height={22}
-                      unoptimized
+                    <span
+                      aria-label="Botsy"
+                      style={{
+                        display: 'inline-block',
+                        width: 22,
+                        height: 22,
+                        backgroundColor: secondaryColor,
+                        WebkitMaskImage: 'url(/brand/botsy-icon-dark.svg)',
+                        WebkitMaskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskImage: 'url(/brand/botsy-icon-dark.svg)',
+                        maskSize: 'contain',
+                        maskRepeat: 'no-repeat',
+                        maskPosition: 'center',
+                      }}
                     />
                   )}
                 </div>
