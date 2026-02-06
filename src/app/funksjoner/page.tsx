@@ -117,9 +117,9 @@ export default function FeaturesPage() {
       description: 'Kundene dine kan nå deg hvor som helst. Botsy svarer på alle kanaler fra ett samlet dashboard.',
       features: [
         'Nettside-widget',
-        'Instagram DMs',
+        'Instagram DMs (kommer snart)',
         'SMS-gateway',
-        'Facebook Messenger',
+        'Facebook Messenger (kommer snart)',
         'E-post (IMAP/SMTP)'
       ]
     },

@@ -53,6 +53,7 @@ const CHANNELS = [
     icon: MessageCircle,
     color: '#0084FF',
     description: 'Koble til Facebook-siden din for Messenger-støtte',
+    pendingApproval: true,
   },
   {
     id: 'instagram' as const,
@@ -60,6 +61,7 @@ const CHANNELS = [
     icon: MessageCircle,
     color: '#E4405F',
     description: 'Svar på Instagram DMs automatisk',
+    pendingApproval: true,
   },
   {
     id: 'sms' as const,
@@ -67,6 +69,7 @@ const CHANNELS = [
     icon: Phone,
     color: '#CDFF4D',
     description: 'Svar på SMS fra kunder automatisk',
+    pendingApproval: false,
   },
   {
     id: 'email' as const,
@@ -74,6 +77,7 @@ const CHANNELS = [
     icon: Mail,
     color: '#EA4335',
     description: 'Svar på e-post fra kunder automatisk',
+    pendingApproval: false,
   },
 ]
 
@@ -1116,6 +1120,19 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'instagram':
         return (
           <div className="space-y-5">
+            {/* Pending Approval Warning */}
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-amber-400 font-medium text-sm">Venter på godkjenning fra Meta</p>
+                  <p className="text-amber-400/70 text-xs mt-1">
+                    Instagram-integrasjonen venter på godkjenning og fungerer ikke fullverdig ennå. Du kan fortsatt konfigurere kanalen, men meldinger vil ikke bli levert før godkjenningen er på plass.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Connected Account Display */}
             {channels.instagram.isConfigured && instagramUsername && (
               <div className="p-4 bg-gradient-to-r from-[#E4405F]/10 to-[#F77737]/10 border border-[#E4405F]/30 rounded-xl">
@@ -1237,6 +1254,19 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
       case 'messenger':
         return (
           <div className="space-y-5">
+            {/* Pending Approval Warning */}
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-amber-400 font-medium text-sm">Venter på godkjenning fra Meta</p>
+                  <p className="text-amber-400/70 text-xs mt-1">
+                    Messenger-integrasjonen venter på godkjenning og fungerer ikke fullverdig ennå. Du kan fortsatt konfigurere kanalen, men meldinger vil ikke bli levert før godkjenningen er på plass.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Connected Account Display */}
             {channels.messenger.isConfigured && messengerPageName && (
               <div className="p-4 bg-gradient-to-r from-[#0084FF]/10 to-[#00C6FF]/10 border border-[#0084FF]/30 rounded-xl">
@@ -1552,13 +1582,22 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <h3 className="text-white font-semibold">{channel.name}</h3>
-                        {state.isConfigured && (
+                        {channel.pendingApproval && (
+                          <Badge className="text-xs bg-amber-500/10 text-amber-400">
+                            Venter på godkjenning
+                          </Badge>
+                        )}
+                        {state.isConfigured && !channel.pendingApproval && (
                           <Badge className={`text-xs ${state.isActive ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
                             {state.isActive ? 'Aktiv' : 'Konfigurert'}
                           </Badge>
                         )}
                       </div>
-                      <p className="text-[#6B7A94] text-sm truncate">{channel.description}</p>
+                      <p className="text-[#6B7A94] text-sm truncate">
+                        {channel.pendingApproval
+                          ? 'Venter på godkjenning fra Meta – fungerer ikke fullverdig ennå'
+                          : channel.description}
+                      </p>
                       {state.isConfigured && state.details && (
                         <p className="text-[#A8B4C8] text-xs mt-1 font-mono truncate">
                           {state.details.phoneNumber || state.details.pageName || state.details.emailAddress}

@@ -649,6 +649,7 @@ export default function LandingPage() {
                   </div>
                   <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">Messenger</h3>
                   <p className="text-sm text-[#6B7A94]">Direkte integrasjon med Facebook</p>
+                  <span className="inline-block mt-2 px-2 py-0.5 text-[10px] font-medium text-amber-400 bg-amber-500/10 rounded-full">Kommer snart</span>
                 </div>
               </Card>
             </motion.div>
@@ -662,6 +663,7 @@ export default function LandingPage() {
                   </div>
                   <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">Instagram</h3>
                   <p className="text-sm text-[#6B7A94]">Svar på DMs automatisk</p>
+                  <span className="inline-block mt-2 px-2 py-0.5 text-[10px] font-medium text-amber-400 bg-amber-500/10 rounded-full">Kommer snart</span>
                 </div>
               </Card>
             </motion.div>
