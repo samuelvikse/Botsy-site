@@ -1,5 +1,6 @@
 import Groq from 'groq-sdk'
 import type { BusinessProfile, Instruction, OwnerChatMessage, FAQ, ToneConfig } from '@/types'
+import { fixUnicodeEscapes } from '@/lib/utils'
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -276,8 +277,12 @@ Gjør en grundig analyse og returner JSON.`,
       services: parsed.services || [],
       products: parsed.products || [],
       terminology: parsed.terminology || [],
-      description: parsed.description || '',
-      faqs: parsed.faqs || [],
+      description: fixUnicodeEscapes(parsed.description || ''),
+      faqs: (parsed.faqs || []).map((f: { question: string; answer: string }) => ({
+        ...f,
+        question: fixUnicodeEscapes(f.question),
+        answer: fixUnicodeEscapes(f.answer),
+      })),
     }
   } catch {
     return {

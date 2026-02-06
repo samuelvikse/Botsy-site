@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { SubscriptionGate } from '@/components/SubscriptionGate'
+import { PermissionProvider } from '@/contexts/PermissionContext'
 import { useAuth } from '@/contexts/AuthContext'
 
 type TeamMember = {
@@ -38,7 +40,11 @@ type TeamMember = {
 export default function TeamPage() {
   return (
     <ProtectedRoute>
-      <TeamContent />
+      <PermissionProvider>
+        <SubscriptionGate>
+          <TeamContent />
+        </SubscriptionGate>
+      </PermissionProvider>
     </ProtectedRoute>
   )
 }

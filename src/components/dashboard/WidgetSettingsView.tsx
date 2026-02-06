@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { updateWidgetSettings, getCompany } from '@/lib/firestore'
+import { useToast } from '@/components/ui/toast'
 import { uploadCompanyLogo, deleteCompanyLogo } from '@/lib/storage'
 
 interface WidgetSettingsViewProps {
@@ -107,6 +108,7 @@ export function WidgetSettingsView({
     widgetSize: initialSettings?.widgetSize || 'medium' as 'small' | 'medium' | 'large',
     animationStyle: initialSettings?.animationStyle || 'scale' as 'scale' | 'slide' | 'fade' | 'bounce' | 'flip',
   })
+  const toast = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -236,7 +238,7 @@ export function WidgetSettingsView({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      alert('Kunne ikke kopiere. Prøv å markere teksten og kopier manuelt.')
+      toast.error('Kopieringsfeil', 'Prøv å markere teksten og kopier manuelt.')
     }
   }
 

@@ -25,6 +25,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { SubscriptionGate } from '@/components/SubscriptionGate'
+import { PermissionProvider } from '@/contexts/PermissionContext'
 
 type Employee = {
   id: number
@@ -45,7 +47,11 @@ type Employee = {
 export default function EmployeesPage() {
   return (
     <ProtectedRoute>
-      <EmployeesContent />
+      <PermissionProvider>
+        <SubscriptionGate>
+          <EmployeesContent />
+        </SubscriptionGate>
+      </PermissionProvider>
     </ProtectedRoute>
   )
 }

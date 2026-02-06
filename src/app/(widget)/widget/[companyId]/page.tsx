@@ -159,6 +159,7 @@ export default function WidgetPage({
   const [emailAddress, setEmailAddress] = useState('')
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [logoError, setLogoError] = useState(false)
   const [agentTyping, setAgentTyping] = useState(false)
@@ -592,10 +593,11 @@ export default function WidgetPage({
     // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(emailAddress)) {
-      alert('Vennligst skriv inn en gyldig e-postadresse')
+      setEmailError('Vennligst skriv inn en gyldig e-postadresse')
       return
     }
 
+    setEmailError(null)
     setIsSendingEmail(true)
 
     try {
@@ -615,6 +617,7 @@ export default function WidgetPage({
       if (data.success) {
         setEmailSent(true)
         setShowEmailInput(false)
+        setEmailError(null)
         setMessages((prev) => [
           ...prev,
           {
@@ -624,10 +627,10 @@ export default function WidgetPage({
           },
         ])
       } else {
-        alert(data.error || 'Kunne ikke sende e-post. Prøv igjen.')
+        setEmailError(data.error || 'Kunne ikke sende e-post. Prøv igjen.')
       }
     } catch {
-      alert('Kunne ikke sende e-post. Sjekk internettforbindelsen.')
+      setEmailError('Kunne ikke sende e-post. Sjekk internettforbindelsen.')
     } finally {
       setIsSendingEmail(false)
     }
@@ -953,7 +956,7 @@ export default function WidgetPage({
                   <input
                     type="email"
                     value={emailAddress}
-                    onChange={(e) => setEmailAddress(e.target.value)}
+                    onChange={(e) => { setEmailAddress(e.target.value); setEmailError(null) }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault()
@@ -977,6 +980,9 @@ export default function WidgetPage({
                     )}
                   </button>
                 </div>
+                {emailError && (
+                  <p className="text-red-400 text-xs mt-2">{emailError}</p>
+                )}
                 <button
                   onClick={() => setShowEmailInput(false)}
                   className="text-white/50 text-xs mt-2 hover:text-white/70 transition-colors"

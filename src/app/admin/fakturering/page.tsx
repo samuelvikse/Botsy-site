@@ -33,6 +33,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/ui/modal'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import dynamic from 'next/dynamic'
@@ -398,6 +399,8 @@ function BillingContent() {
   const [error, setError] = useState<ApiError | null>(null)
   const [showPauseModal, setShowPauseModal] = useState(false)
   const [retryAction, setRetryAction] = useState<(() => void) | null>(null)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelType, setCancelType] = useState<'stripe' | 'vipps'>('stripe')
   // Vipps state
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'vipps' | null>(null)
   const [vippsPhone, setVippsPhone] = useState('')
@@ -530,12 +533,13 @@ function BillingContent() {
   }
 
   // Cancel subscription
-  const handleCancelSubscription = async () => {
-    if (!user) return
+  const handleCancelSubscription = () => {
+    setCancelType('stripe')
+    setShowCancelConfirm(true)
+  }
 
-    if (!confirm('Er du sikker på at du vil kansellere abonnementet? Du beholder tilgang ut perioden.')) {
-      return
-    }
+  const confirmCancelSubscription = async () => {
+    if (!user) return
 
     setActionLoading(true)
     setError(null)
@@ -574,6 +578,7 @@ function BillingContent() {
       }
     } finally {
       setActionLoading(false)
+      setShowCancelConfirm(false)
     }
   }
 
@@ -770,12 +775,14 @@ function BillingContent() {
   }
 
   // Cancel Vipps subscription
-  const handleCancelVipps = async () => {
+  const handleCancelVipps = () => {
     if (!user || !companyId) return
+    setCancelType('vipps')
+    setShowCancelConfirm(true)
+  }
 
-    if (!confirm('Er du sikker på at du vil kansellere Vipps-avtalen? Du beholder tilgang ut perioden.')) {
-      return
-    }
+  const confirmCancelVipps = async () => {
+    if (!user || !companyId) return
 
     setActionLoading(true)
     setError(null)
@@ -813,6 +820,7 @@ function BillingContent() {
       }
     } finally {
       setActionLoading(false)
+      setShowCancelConfirm(false)
     }
   }
 
@@ -1434,6 +1442,19 @@ function BillingContent() {
           isLoading={actionLoading}
         />
       )}
+
+      {/* Cancel Subscription Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={cancelType === 'vipps' ? confirmCancelVipps : confirmCancelSubscription}
+        title={cancelType === 'vipps' ? 'Kanseller Vipps-avtale' : 'Kanseller abonnement'}
+        description="Er du sikker på at du vil kansellere? Du beholder tilgang ut perioden."
+        confirmText="Kanseller"
+        cancelText="Avbryt"
+        variant="danger"
+        isLoading={actionLoading}
+      />
     </div>
   )
 }

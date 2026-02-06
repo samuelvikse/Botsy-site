@@ -9,6 +9,7 @@ import {
 } from '@/lib/firestore'
 import type { FAQ } from '@/types'
 import Groq from 'groq-sdk'
+import { fixUnicodeEscapes } from '@/lib/utils'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -187,11 +188,15 @@ async function analyzeDocument(content: string): Promise<{
     const parsed = JSON.parse(jsonStr)
 
     return {
-      faqs: parsed.faqs || [],
-      rules: parsed.rules || [],
-      policies: parsed.policies || [],
-      importantInfo: parsed.importantInfo || [],
-      summary: parsed.summary || 'Ingen oppsummering tilgjengelig',
+      faqs: (parsed.faqs || []).map((f: { question: string; answer: string }) => ({
+        ...f,
+        question: fixUnicodeEscapes(f.question),
+        answer: fixUnicodeEscapes(f.answer),
+      })),
+      rules: (parsed.rules || []).map((r: string) => fixUnicodeEscapes(r)),
+      policies: (parsed.policies || []).map((p: string) => fixUnicodeEscapes(p)),
+      importantInfo: (parsed.importantInfo || []).map((i: string) => fixUnicodeEscapes(i)),
+      summary: fixUnicodeEscapes(parsed.summary || 'Ingen oppsummering tilgjengelig'),
     }
   } catch (parseError) {
     console.error('[analyzeDocument] JSON parse error:', parseError)

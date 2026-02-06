@@ -23,6 +23,7 @@ import type {
   FAQSource,
 } from './types'
 import crypto from 'crypto'
+import { fixUnicodeEscapes } from '@/lib/utils'
 
 // ============================================
 // Main Sync Function
@@ -389,8 +390,8 @@ Svar i JSON-format:
 
     const parsed = JSON.parse(jsonMatch[0])
     return (parsed.faqs || []).map((faq: { question: string; answer: string; confidence?: number }) => ({
-      question: faq.question,
-      answer: faq.answer,
+      question: fixUnicodeEscapes(faq.question),
+      answer: fixUnicodeEscapes(faq.answer),
       sourceUrl,
       confidence: faq.confidence || 0.7,
     }))
