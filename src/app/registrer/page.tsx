@@ -75,9 +75,9 @@ function RegisterContent() {
           // Redirect back to invite page
           router.push(redirectUrl || '/admin')
         } else {
-          // Regular registration - redirect to onboarding for setup + payment
+          // Regular registration - redirect to admin (WelcomeView shows for new users)
           await signUpOnly(formData.email, formData.password, formData.name)
-          router.push('/onboarding')
+          router.push('/admin')
         }
       } catch {
         // Error is handled by the auth context
@@ -93,8 +93,8 @@ function RegisterContent() {
 
     try {
       await signInWithGoogle(true)
-      // Redirect to invite page if coming from invite, otherwise to onboarding
-      router.push(redirectUrl || '/onboarding')
+      // Redirect to invite page if coming from invite, otherwise to admin (WelcomeView)
+      router.push(redirectUrl || '/admin')
     } catch {
       // Error is handled by the auth context
     } finally {

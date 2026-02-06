@@ -27,6 +27,7 @@ const blurDataURL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYE
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WebsiteAnalysisStep } from '@/components/onboarding/WebsiteAnalysisStep'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -60,6 +61,14 @@ interface ChannelStatus {
 }
 
 export default function OnboardingPage() {
+  return (
+    <ProtectedRoute>
+      <OnboardingContent />
+    </ProtectedRoute>
+  )
+}
+
+function OnboardingContent() {
   const [step, setStep] = useState(0) // Start at step 0 (company creation)
   const [isCreatingCompany, setIsCreatingCompany] = useState(true)
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null)
