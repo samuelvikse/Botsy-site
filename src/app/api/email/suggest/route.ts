@@ -4,6 +4,7 @@ import {
   getFAQs,
   getActiveInstructions,
   getEmailHistory,
+  getKnowledgeDocuments,
 } from '@/lib/email-firestore'
 import { generateEmailAIResponse } from '@/lib/email-ai'
 
@@ -23,11 +24,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch context in parallel
-    const [businessProfile, faqs, instructions, emailHistory] = await Promise.all([
+    const [businessProfile, faqs, instructions, emailHistory, knowledgeDocuments] = await Promise.all([
       getBusinessProfile(companyId),
       getFAQs(companyId),
       getActiveInstructions(companyId),
       getEmailHistory(companyId, customerEmail, 10),
+      getKnowledgeDocuments(companyId),
     ])
 
     // Get the last inbound email for subject/body
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
       businessProfile,
       faqs,
       instructions,
+      knowledgeDocuments,
       conversationHistory,
       previousSuggestions,
       temperature,

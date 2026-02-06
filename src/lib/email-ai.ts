@@ -3,9 +3,9 @@
  * Used by both the webhook (auto-reply) and the suggest endpoint (employee-controlled)
  */
 
-import { buildToneConfiguration } from '@/lib/groq'
+import { buildToneConfiguration, buildContextReminder } from '@/lib/groq'
 import { generateAIResponse } from '@/lib/ai-providers'
-import type { ToneConfig } from '@/types'
+import type { ToneConfig, FAQ, Instruction } from '@/types'
 
 export interface EmailAIContext {
   emailSubject: string
@@ -14,6 +14,14 @@ export interface EmailAIContext {
   businessProfile: Record<string, unknown> | null
   faqs: Array<Record<string, unknown>>
   instructions: Array<{ content: string; priority: string }>
+  knowledgeDocuments?: Array<{
+    faqs: Array<{ question: string; answer: string }>
+    rules: string[]
+    policies: string[]
+    importantInfo: string[]
+    uploadedAt: Date
+    fileName: string
+  }>
   conversationHistory?: Array<{ direction: string; subject: string; body: string }>
   previousSuggestions?: string[]
   temperature?: number
@@ -30,6 +38,7 @@ export async function generateEmailAIResponse(context: EmailAIContext): Promise<
     businessProfile,
     faqs,
     instructions,
+    knowledgeDocuments,
     conversationHistory,
     previousSuggestions,
     temperature,
@@ -47,6 +56,7 @@ export async function generateEmailAIResponse(context: EmailAIContext): Promise<
 
   const toneGuide = buildToneConfiguration(bp?.tone || 'friendly', bp?.toneConfig)
 
+  // 1. E-post-spesifikke regler
   let systemPrompt = `Du er en hjelpsom kundeservice-assistent som svarer på e-post.
 
 E-POST-SPESIFIKKE REGLER:
@@ -55,26 +65,21 @@ E-POST-SPESIFIKKE REGLER:
 - Start IKKE med "Hei [e-postadresse]" - bruk en generell hilsen som "Hei," eller "Hei der,"
 - Avslutt med en høflig avslutning
 
-KOMMUNIKASJONSSTIL:
-${toneGuide}
-
 VIKTIGE REGLER:
 - KRITISK: Svar ALLTID på ALLE spørsmål kunden stiller - uansett hvor kort svarlengden er satt til. Hvis kunden stiller 3 spørsmål, SKAL du svare på alle 3. Svarlengde-innstillingen gjelder detaljeringsgrad per spørsmål, IKKE antall spørsmål du besvarer.
 - Svar alltid på norsk med mindre kunden skriver på et annet språk
 - ALDRI nevn andre kunder, brukere, eller bedrifter som bruker tjenesten - dette er konfidensielt
 - ALDRI del informasjon om andre brukere
 - KRITISK: ALDRI oversett eller endre e-postadresser, telefonnumre, adresser, URLer, eller navn - de skal gjengis NØYAKTIG som de er
-- EKSTREMT VIKTIG: Kontaktinformasjon (telefonnumre, e-postadresser, adresser) som finnes i kundens e-post eller signatur tilhører KUNDEN. Du skal ALDRI bruke kundens kontaktinfo som om det er bedriftens egen. Bruk KUN kontaktinformasjonen som er oppgitt under "KONTAKTINFORMASJON" i denne instruksjonen. Hvis bedriften ikke har oppgitt kontaktinfo, IKKE inkluder noen kontaktinfo i svaret — ikke engang som forslag eller i generell form. Bare utelat det helt.
+- EKSTREMT VIKTIG: Kontaktinformasjon (telefonnumre, e-postadresser, adresser) som finnes i kundens e-post eller signatur tilhører KUNDEN. Du skal ALDRI bruke kundens kontaktinfo som om det er bedriftens egen. Bruk KUN kontaktinformasjonen som er oppgitt under "KONTAKTINFORMASJON" i denne instruksjonen. Hvis bedriften ikke har oppgitt kontaktinfo, IKKE inkluder noen kontaktinfo i svaret — ikke engang som forslag eller i generell form. Bare utelat det helt.`
 
-EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
-- ALDRI dikter opp priser, tall, eller fakta som du ikke har fått oppgitt
-- Hvis du IKKE har prisinformasjon tilgjengelig, si det ærlig
-- Hvis du IKKE vet svaret, si det ærlig - IKKE GJETT eller finn på noe
-- Det er MYE bedre å si "jeg vet ikke" enn å gi feil informasjon
-- KRITISK: ALDRI bruk plassholdere som [tekst], [eksempel], [bedriftens-telefonnummer], [e-postadresse] eller lignende. Hvis du ikke har den faktiske informasjonen, utelat den HELT fra svaret. Skriv aldri noe i hakeparenteser som skal fylles inn senere.`
+  // 2. Kommunikasjonsstil/tone
+  systemPrompt += `\n\nKOMMUNIKASJONSSTIL:\n${toneGuide}`
 
+  // 3. Bedriftsinformasjon
   if (bp) {
-    systemPrompt += `\n\nDu representerer: ${bp.businessName || 'Bedriften'}`
+    systemPrompt += `\n\nBEDRIFTSINFORMASJON:`
+    systemPrompt += `\nDu representerer: ${bp.businessName || 'Bedriften'}`
     if (bp.industry) systemPrompt += `\nBransje: ${bp.industry}`
     if (bp.description) systemPrompt += `\nOm bedriften: ${bp.description}`
 
@@ -100,26 +105,104 @@ EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
     }
   }
 
-  if (instructions.length > 0) {
-    systemPrompt += '\n\nSpesielle instruksjoner:'
-    for (const inst of instructions) {
-      systemPrompt += `\n- ${inst.content}`
-    }
-  }
-
+  // 4. Kunnskapsbase (FAQs) - HØYESTE PRIORITET
   if (faqs.length > 0) {
-    systemPrompt += `\n\nKUNNSKAPSBASE:
-VIKTIG: ALDRI kopier svarene ordrett - bruk din egen formulering. Forstå innholdet og forklar det naturlig med egne ord.
+    systemPrompt += `\n\n=== KUNNSKAPSBASE (HØYESTE PRIORITET) ===
+VIKTIG OM BRUK AV KUNNSKAPSBASEN:
+- KUNNSKAPSBASEN HAR ALLTID PRIORITET over dokumenter og bedriftsprofil ved motstridende info
+- Hvis et dokument sier én pris/dato/info og kunnskapsbasen sier noe annet, BRUK KUNNSKAPSBASEN
+- ALDRI kopier svarene ordrett - bruk din egen formulering
+- Forstå INNHOLDET og forklar det naturlig med egne ord
+- Tilpass svaret til samtalen og kundens spørsmål
+- Svar som om du FORSTÅR temaet, ikke som om du leser fra et skript
 
-Tilgjengelig kunnskap:`
-    for (const faq of faqs.slice(0, 10)) {
+Tilgjengelig kunnskap:\n`
+    faqs.slice(0, 20).forEach((faq, i) => {
       const question = faq.question as string | undefined
       const answer = faq.answer as string | undefined
       if (question && answer) {
-        systemPrompt += `\nTema: ${question}\nInfo: ${answer}`
+        systemPrompt += `${i + 1}. Tema: ${question}\n   Informasjon: ${answer}\n\n`
+      }
+    })
+    systemPrompt += `=== SLUTT PÅ KUNNSKAPSBASE ===`
+  }
+
+  // 5. Bedriftsdokumenter (knowledge docs) - LAVERE PRIORITET
+  if (knowledgeDocuments && knowledgeDocuments.length > 0) {
+    const sortedDocs = [...knowledgeDocuments].sort((a, b) => {
+      const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0
+      const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0
+      return dateB - dateA
+    })
+
+    systemPrompt += `\n\n=== BEDRIFTSDOKUMENTER (LAVERE PRIORITET enn kunnskapsbase) ===
+VIKTIG: Hvis info her MOTSIER kunnskapsbasen, BRUK KUNNSKAPSBASEN.
+Dokumenter er kun tilleggskunnskap når kunnskapsbasen ikke har svaret.\n`
+
+    for (const doc of sortedDocs) {
+      const dateStr = doc.uploadedAt ? new Date(doc.uploadedAt).toISOString().split('T')[0] : 'ukjent dato'
+      const fileName = doc.fileName || 'Ukjent dokument'
+      systemPrompt += `\n--- Fra dokument: ${fileName} (lastet opp: ${dateStr}) ---\n`
+
+      if (doc.faqs.length > 0) {
+        systemPrompt += 'Kunnskap fra dokument (omformuler med egne ord):\n'
+        doc.faqs.forEach((faq, i) => {
+          systemPrompt += `${i + 1}. Tema: ${faq.question}\n   Info: ${faq.answer}\n`
+        })
+      }
+
+      if (doc.importantInfo.length > 0) {
+        systemPrompt += 'Viktig info:\n'
+        doc.importantInfo.forEach(info => {
+          systemPrompt += `- ${info}\n`
+        })
+      }
+
+      if (doc.rules.length > 0) {
+        systemPrompt += 'Regler:\n'
+        doc.rules.forEach(rule => {
+          systemPrompt += `- ${rule}\n`
+        })
+      }
+
+      if (doc.policies.length > 0) {
+        systemPrompt += 'Retningslinjer:\n'
+        doc.policies.forEach(policy => {
+          systemPrompt += `- ${policy}\n`
+        })
       }
     }
+
+    systemPrompt += '\n=== SLUTT PÅ DOKUMENTER ==='
   }
+
+  // 6. Instruksjoner fra bedriftseier - med prioritetsmarkering
+  if (instructions.length > 0) {
+    systemPrompt += '\n\nVIKTIGE INSTRUKSJONER FRA BEDRIFTSEIER:'
+    instructions.forEach((inst, i) => {
+      const priority = inst.priority === 'high' ? '(HØYT PRIORITERT)' : ''
+      systemPrompt += `\n${i + 1}. ${priority} ${inst.content}`
+    })
+  }
+
+  // 7. Styrket "ALDRI FINN PÅ INFORMASJON"-regler (speiler widget-chatten)
+  systemPrompt += `
+
+EKSTREMT VIKTIG - ALDRI FINN PÅ INFORMASJON:
+- ALDRI dikter opp priser, tall, åpningstider, eller fakta som du ikke har fått oppgitt
+- Hvis du IKKE har prisinformasjon: Si "Jeg har dessverre ikke prisinformasjon tilgjengelig. Ta kontakt med oss direkte for priser."
+- Hvis du IKKE vet svaret: Si det ærlig - ALDRI GJETT eller finn på noe
+- Bruk KUN informasjon som er eksplisitt gitt til deg i PRISER-seksjonen, kunnskapsbasen eller dokumentene
+- Det er MYE bedre å si "jeg vet ikke" enn å gi feil informasjon
+- Feil informasjon ødelegger tilliten til bedriften!
+- KRITISK: ALDRI bruk plassholdere som [tekst], [eksempel], [bedriftens-telefonnummer], [e-postadresse] eller lignende. Hvis du ikke har den faktiske informasjonen, utelat den HELT fra svaret. Skriv aldri noe i hakeparenteser som skal fylles inn senere.
+
+PRIORITERING AV INFORMASJON:
+- Hvis det er motstridende informasjon om samme tema, BRUK ALLTID denne rekkefølgen:
+  1. Kunnskapsbasen (FAQs) - HØYESTE prioritet
+  2. Bedriftsdokumenter - nest høyest
+  3. Bedriftsprofil/generell info - lavest
+- Nyere dokumenter overskriver eldre ved motstridende info`
 
   // If we have previous suggestions, instruct the AI to generate a different one
   if (previousSuggestions && previousSuggestions.length > 0) {
@@ -129,6 +212,30 @@ Tilgjengelig kunnskap:`
     })
     systemPrompt += `\n\nSkriv et NYTT svar med en annen vinkling, annen formulering, eller annen tilnærming enn de tidligere forslagene.`
   }
+
+  // 8. Reminder-seksjon fra groq.ts for å forsterke innstillinger
+  systemPrompt += buildContextReminder({
+    toneConfig: bp?.toneConfig,
+    faqs: faqs.filter(f => f.confirmed).map(f => ({
+      id: '',
+      question: f.question as string,
+      answer: f.answer as string,
+      source: 'extracted' as const,
+      confirmed: true,
+    })) as FAQ[],
+    instructions: instructions.map(i => ({
+      id: '',
+      content: i.content,
+      category: 'general' as const,
+      priority: i.priority as 'high' | 'medium' | 'low',
+      isActive: true,
+      startsAt: null,
+      expiresAt: null,
+      createdAt: new Date(),
+      createdBy: '',
+    })) as Instruction[],
+    knowledgeDocuments,
+  })
 
   // Build conversation context
   let conversationContext = ''

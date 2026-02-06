@@ -14,6 +14,7 @@ import {
   getBusinessProfile,
   getFAQs,
   getActiveInstructions,
+  getKnowledgeDocuments,
   saveEmailMessage,
   getEmailHistory,
 } from '@/lib/email-firestore'
@@ -137,8 +138,8 @@ async function processEmail(
       status: 'pending',
     }).catch(() => {})
 
-    // Check if auto email reply is enabled (default: true)
-    if (channel.autoEmailReply === false) {
+    // Check if auto email reply is enabled (default: off)
+    if (channel.autoEmailReply !== true) {
       return
     }
 
@@ -146,10 +147,11 @@ async function processEmail(
     const conversationHistory = await getEmailHistory(companyId, fromAddress, 10)
 
     // Get context for AI
-    const [businessProfile, faqs, instructions] = await Promise.all([
+    const [businessProfile, faqs, instructions, knowledgeDocuments] = await Promise.all([
       getBusinessProfile(companyId),
       getFAQs(companyId),
       getActiveInstructions(companyId),
+      getKnowledgeDocuments(companyId),
     ])
 
     // Generate AI response using shared module
@@ -160,6 +162,7 @@ async function processEmail(
       businessProfile,
       faqs,
       instructions,
+      knowledgeDocuments,
       conversationHistory: conversationHistory.map(m => ({
         direction: m.direction,
         subject: m.subject,

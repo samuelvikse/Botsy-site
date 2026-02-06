@@ -539,6 +539,85 @@ export async function updateGmailCheckState(
 }
 
 /**
+ * Get knowledge documents for AI context
+ * Documents are sorted by uploadedAt (newest first) so newer info takes priority
+ */
+export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
+  faqs: Array<{ question: string; answer: string }>
+  rules: string[]
+  policies: string[]
+  importantInfo: string[]
+  uploadedAt: Date
+  fileName: string
+}>> {
+  try {
+    const response = await fetch(
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/knowledgeDocs`
+    )
+
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json()
+
+    if (!data.documents || data.documents.length === 0) {
+      return []
+    }
+
+    const documents: Array<{
+      faqs: Array<{ question: string; answer: string }>
+      rules: string[]
+      policies: string[]
+      importantInfo: string[]
+      uploadedAt: Date
+      fileName: string
+    }> = []
+
+    for (const doc of data.documents) {
+      if (!doc.fields) {
+        continue
+      }
+
+      const docData = parseFirestoreFields(doc.fields)
+
+      if (docData.status !== 'ready') {
+        continue
+      }
+
+      const analyzedData = docData.analyzedData as Record<string, unknown> | undefined
+
+      let uploadedAt = new Date()
+      if (docData.uploadedAt) {
+        if (typeof docData.uploadedAt === 'string') {
+          uploadedAt = new Date(docData.uploadedAt)
+        } else if (docData.uploadedAt instanceof Date) {
+          uploadedAt = docData.uploadedAt
+        }
+      }
+
+      if (analyzedData) {
+        documents.push({
+          faqs: (analyzedData.faqs as Array<{ question: string; answer: string }>) || [],
+          rules: (analyzedData.rules as string[]) || [],
+          policies: (analyzedData.policies as string[]) || [],
+          importantInfo: (analyzedData.importantInfo as string[]) || [],
+          uploadedAt,
+          fileName: (docData.fileName as string) || 'Ukjent',
+        })
+      }
+    }
+
+    documents.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())
+
+    return documents
+  } catch (error) {
+    console.error('[Email Firestore] Error getting knowledge documents:', error)
+    return []
+  }
+}
+
+/**
  * Update Gmail access token after refresh
  */
 export async function updateGmailAccessToken(
