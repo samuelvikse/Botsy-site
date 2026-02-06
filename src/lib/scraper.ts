@@ -306,7 +306,7 @@ export async function scrapeWithFAQPage(baseUrl: string): Promise<{
   const [faqPage, aboutPage, servicesPage, contactPage, pricingPage] = await Promise.all([
     // FAQ page
     findPage(
-      ['/faq', '/ofte-stilte-sporsmal', '/sporsmal-og-svar', '/hjelp', '/help', '/support', '/kundeservice'],
+      ['/faq', '/sporsmal', '/ofte-stilte-sporsmal', '/sporsmal-og-svar', '/hjelp', '/help', '/support', '/kundeservice'],
       ['faq', 'sporsmal', 'hjelp', 'help', 'support']
     ),
     // About page

@@ -150,7 +150,7 @@ export default function TermsPage() {
               </p>
             </section>
 
-            <section>
+            <section id="angrerett">
               <h2 className="text-2xl font-semibold text-white mb-4">9. Angrerett</h2>
               <p className="text-[#A8B4C8] leading-relaxed mb-4">
                 I henhold til angrerettloven har forbrukere rett til å angre kjøpet innen 14 dager

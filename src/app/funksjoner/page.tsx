@@ -189,10 +189,10 @@ export default function FeaturesPage() {
               <Link href="/funksjoner" className="text-white bg-white/[0.06] text-sm font-medium px-4 py-2 rounded-full">
                 Funksjoner
               </Link>
-              <Link href="/#pricing" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
+              <Link href="/#priser" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
                 Priser
               </Link>
-              <Link href="/#how-it-works" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
+              <Link href="/#slik-fungerer-det" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
                 Slik fungerer det
               </Link>
               <Link href="/kontakt" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
@@ -232,8 +232,8 @@ export default function FeaturesPage() {
           >
             <div className="container py-6 flex flex-col gap-2">
               <Link href="/funksjoner" className="text-white py-3 px-4 rounded-xl bg-white/[0.05]" onClick={() => setMobileMenuOpen(false)}>Funksjoner</Link>
-              <Link href="/#pricing" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Priser</Link>
-              <Link href="/#how-it-works" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Slik fungerer det</Link>
+              <Link href="/#priser" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Priser</Link>
+              <Link href="/#slik-fungerer-det" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Slik fungerer det</Link>
               <Link href="/kontakt" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Kontakt</Link>
               <div className="h-px bg-white/[0.06] my-2" />
               <Link href="/logg-inn"><Button variant="outline" className="w-full">Logg inn</Button></Link>

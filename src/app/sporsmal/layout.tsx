@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Ofte Stilte Sp\u00f8rsm\u00e5l (FAQ) - Botsy AI Kundeservice',
     description: 'Finn svar p\u00e5 vanlige sp\u00f8rsm\u00e5l om Botsy AI kundeservice-chatbot. Les om priser, oppsett, funksjoner, sikkerhet og mer.',
-    url: 'https://botsy.no/ofte-stilte-sporsmal',
+    url: 'https://botsy.no/sporsmal',
     type: 'website',
     locale: 'nb_NO',
     siteName: 'Botsy - AI Kundeservice',
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     images: ['/og-image.png'],
   },
   alternates: {
-    canonical: 'https://botsy.no/ofte-stilte-sporsmal',
+    canonical: 'https://botsy.no/sporsmal',
   },
 }
 

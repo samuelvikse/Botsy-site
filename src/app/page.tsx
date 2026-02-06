@@ -102,10 +102,10 @@ export default function LandingPage() {
               <Link href="/funksjoner" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
                 Funksjoner
               </Link>
-              <Link href="#pricing" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
+              <Link href="#priser" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
                 Priser
               </Link>
-              <Link href="#how-it-works" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
+              <Link href="#slik-fungerer-det" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
                 Slik fungerer det
               </Link>
               <Link href="/kontakt" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
@@ -158,8 +158,8 @@ export default function LandingPage() {
           >
             <div className="container py-6 flex flex-col gap-2">
               <Link href="/funksjoner" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Funksjoner</Link>
-              <Link href="#pricing" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Priser</Link>
-              <Link href="#how-it-works" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Slik fungerer det</Link>
+              <Link href="#priser" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Priser</Link>
+              <Link href="#slik-fungerer-det" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Slik fungerer det</Link>
               <Link href="/kontakt" className="text-white py-3 px-4 rounded-xl hover:bg-white/[0.05] transition-colors" onClick={() => setMobileMenuOpen(false)}>Kontakt</Link>
               <div className="h-px bg-white/[0.06] my-2" />
               {!loading && user ? (
@@ -225,7 +225,7 @@ export default function LandingPage() {
                     <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1 flex-shrink-0" />
                   </Button>
                 </Link>
-                <Link href="#how-it-works" className="w-full sm:w-auto">
+                <Link href="#slik-fungerer-det" className="w-full sm:w-auto">
                   <Button size="xl" variant="outline" className="w-full sm:w-auto whitespace-normal h-auto py-4 sm:whitespace-nowrap sm:h-16 sm:py-0">
                     Se hvordan det fungerer
                   </Button>
@@ -438,7 +438,7 @@ export default function LandingPage() {
       </section>
 
       {/* ===== HOW IT WORKS ===== */}
-      <section id="how-it-works" className="py-24 lg:py-32 relative">
+      <section id="slik-fungerer-det" className="py-24 lg:py-32 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-botsy-dark-deep/50 to-transparent" />
         <div className="container relative">
           <motion.div 
@@ -712,7 +712,7 @@ export default function LandingPage() {
       </section>
 
       {/* ===== PRICING SECTION ===== */}
-      <section id="pricing" className="py-24 lg:py-32 relative">
+      <section id="priser" className="py-24 lg:py-32 relative">
         <div className="absolute inset-0 bg-mesh-gradient" />
         <div className="container relative">
           <motion.div
@@ -1021,8 +1021,8 @@ export default function LandingPage() {
               <h4 className="text-white font-semibold mb-4">Produkt</h4>
               <ul className="space-y-3 text-sm">
                 <li><Link href="/funksjoner" className="text-[#6B7A94] hover:text-white transition-colors">Funksjoner</Link></li>
-                <li><Link href="#pricing" className="text-[#6B7A94] hover:text-white transition-colors">Priser</Link></li>
-                <li><Link href="#how-it-works" className="text-[#6B7A94] hover:text-white transition-colors">Slik fungerer det</Link></li>
+                <li><Link href="#priser" className="text-[#6B7A94] hover:text-white transition-colors">Priser</Link></li>
+                <li><Link href="#slik-fungerer-det" className="text-[#6B7A94] hover:text-white transition-colors">Slik fungerer det</Link></li>
                 <li><Link href="/prov-gratis" className="text-[#6B7A94] hover:text-white transition-colors">Prøv gratis</Link></li>
               </ul>
             </div>

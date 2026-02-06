@@ -163,7 +163,7 @@ export default function TryFreePage() {
                     <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
-                <Link href="/#how-it-works">
+                <Link href="/#slik-fungerer-det">
                   <Button size="xl" variant="outline" className="w-full sm:w-auto">
                     Se hvordan det fungerer
                   </Button>
