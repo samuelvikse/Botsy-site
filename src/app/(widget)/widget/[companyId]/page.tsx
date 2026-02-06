@@ -511,7 +511,7 @@ export default function WidgetPage({
 
       const data = await response.json()
 
-      if (data.success) {
+      if (data.success && data.reply) {
         // Check if chat is in manual mode
         // If escalated is true, this is the first escalation response - show it
         // If isManualMode is true but escalated is false, user is already in manual mode - skip

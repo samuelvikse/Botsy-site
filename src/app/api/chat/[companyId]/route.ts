@@ -361,7 +361,7 @@ export async function POST(
         return NextResponse.json(
           {
             success: true,
-            response: getInactiveSubscriptionMessage('no'),
+            reply: getInactiveSubscriptionMessage('no'),
             subscriptionInactive: true,
           },
           { headers: corsHeaders }
