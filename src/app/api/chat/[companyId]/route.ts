@@ -484,9 +484,10 @@ export async function POST(
       }).catch(() => {})
     }
 
-    // If in manual mode, check if escalation is still active
+    // If in manual mode, check if escalation is still active (with 24h timeout)
     if (isManualMode) {
       let stillActive = false
+      const ESCALATION_TIMEOUT_MS = 24 * 60 * 60 * 1000
 
       if (sessionData?.escalationId) {
         // Use the route's own Firestore instance to check escalation status
@@ -495,11 +496,20 @@ export async function POST(
         if (escalationSnap.exists()) {
           const escData = escalationSnap.data()
           if (escData.status === 'pending' || escData.status === 'claimed') {
-            stillActive = true
+            // Check if escalation is stale (older than 24 hours)
+            const createdAt = escData.createdAt?.toDate?.() || new Date(escData.createdAt)
+            const ageMs = Date.now() - new Date(createdAt).getTime()
 
-            // Fire-and-forget positive feedback tracking
-            if (detectPositiveFeedback(message) && escData.claimedBy) {
-              incrementPositiveFeedback(escData.claimedBy, companyId).catch(() => {})
+            if (ageMs < ESCALATION_TIMEOUT_MS) {
+              stillActive = true
+
+              // Fire-and-forget positive feedback tracking
+              if (detectPositiveFeedback(message) && escData.claimedBy) {
+                incrementPositiveFeedback(escData.claimedBy, companyId).catch(() => {})
+              }
+            } else {
+              // Auto-resolve stale escalation
+              updateDoc(escalationRef, { status: 'resolved', resolvedAt: new Date() }).catch(() => {})
             }
           }
         }
@@ -513,8 +523,8 @@ export async function POST(
         }, { headers: corsHeaders })
       }
 
-      // Escalation is resolved/dismissed/missing but isManualMode was not reset — auto-fix
-      updateDoc(sessionRef, { isManualMode: false }).catch(() => {})
+      // Escalation is resolved/dismissed/missing/stale but isManualMode was not reset — auto-fix
+      updateDoc(sessionRef, { isManualMode: false, escalationId: null }).catch(() => {})
     }
 
     // Check for human handoff request

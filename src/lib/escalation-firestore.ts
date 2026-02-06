@@ -415,3 +415,53 @@ export async function resolveEscalationsByConversation(
 
   return resolvedCount
 }
+
+// 24-hour timeout for stale escalations
+const ESCALATION_TIMEOUT_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Check if a conversation has an active (non-stale) escalation.
+ * Auto-resolves escalations older than 24 hours.
+ * Returns true if there's a genuinely active escalation.
+ */
+export async function hasActiveEscalation(
+  companyId: string,
+  conversationId: string
+): Promise<boolean> {
+  if (!db) return false
+
+  try {
+    const escalationsRef = collection(db, 'escalations')
+    const q = query(
+      escalationsRef,
+      where('companyId', '==', companyId),
+      where('conversationId', '==', conversationId),
+      where('status', 'in', ['pending', 'claimed']),
+    )
+    const snapshot = await getDocs(q)
+
+    if (snapshot.empty) return false
+
+    // Check each active escalation for staleness
+    let anyActive = false
+    for (const escDoc of snapshot.docs) {
+      const escData = escDoc.data()
+      const createdAt = (escData.createdAt as Timestamp)?.toDate?.() || new Date(escData.createdAt)
+      const ageMs = Date.now() - createdAt.getTime()
+
+      if (ageMs > ESCALATION_TIMEOUT_MS) {
+        // Auto-resolve stale escalation
+        updateDoc(doc(db, 'escalations', escDoc.id), {
+          status: 'resolved',
+          resolvedAt: serverTimestamp(),
+        }).catch(() => {})
+      } else {
+        anyActive = true
+      }
+    }
+
+    return anyActive
+  } catch {
+    return false
+  }
+}

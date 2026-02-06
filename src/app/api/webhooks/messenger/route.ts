@@ -15,9 +15,10 @@ import {
   getActiveInstructions,
   getKnowledgeDocuments,
   getMessengerChatManualMode,
+  clearMessengerChatManualMode,
 } from '@/lib/messenger-firestore'
 import { buildToneConfiguration } from '@/lib/groq'
-import { createEscalation } from '@/lib/escalation-firestore'
+import { createEscalation, hasActiveEscalation } from '@/lib/escalation-firestore'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
 import { isSubscriptionActive, getInactiveSubscriptionMessage } from '@/lib/subscription-check'
 import type { ToneConfig } from '@/types'
@@ -183,11 +184,17 @@ async function processMessage(
       messageId: message.messageId,
     }, customerInfo)
 
-    // Check if chat is in manual mode - if so, don't respond with AI
+    // Check if chat is in manual mode - verify escalation is still active
     const isManualMode = await getMessengerChatManualMode(companyId, message.senderId)
     if (isManualMode) {
-      console.log('[Messenger] Chat is in manual mode, skipping AI response')
-      return // Don't respond - employee will handle it
+      const escalationActive = await hasActiveEscalation(companyId, `messenger-${message.senderId}`)
+      if (escalationActive) {
+        console.log('[Messenger] Chat has active escalation, skipping AI response')
+        return
+      }
+      // Escalation resolved/missing/stale — auto-clear manual mode and let AI respond
+      console.log('[Messenger] Manual mode was stale, auto-clearing and resuming AI')
+      clearMessengerChatManualMode(companyId, message.senderId).catch(() => {})
     }
 
     // Check for human handoff request FIRST
