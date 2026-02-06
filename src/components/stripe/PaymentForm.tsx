@@ -15,14 +15,14 @@ interface PaymentFormProps {
   onSuccess: () => void
   onCancel: () => void
   clientSecret?: string
+  returnUrl?: string
 }
 
 interface PaymentError extends StripeErrorMapping {
   raw?: string
 }
 
-export default function PaymentForm({ onCancel, clientSecret }: PaymentFormProps) {
-  // Note: onSuccess is not used directly as Stripe redirects on success
+export default function PaymentForm({ onCancel, clientSecret, returnUrl }: PaymentFormProps) {
   const stripe = useStripe()
   const elements = useElements()
 
@@ -54,14 +54,14 @@ export default function PaymentForm({ onCancel, clientSecret }: PaymentFormProps
       return
     }
 
-    const returnUrl = `${window.location.origin}/admin/fakturering?success=true`
+    const confirmReturnUrl = returnUrl || `${window.location.origin}/admin/fakturering?success=true`
 
     // Use appropriate confirmation method based on intent type
     if (isSetupIntent) {
       // Setup intent for trial subscriptions - collect payment method for later
       const { error: confirmError } = await stripe.confirmSetup({
         elements,
-        confirmParams: { return_url: returnUrl },
+        confirmParams: { return_url: confirmReturnUrl },
       })
 
       if (confirmError) {
@@ -76,7 +76,7 @@ export default function PaymentForm({ onCancel, clientSecret }: PaymentFormProps
       // Payment intent for immediate payment
       const { error: confirmError } = await stripe.confirmPayment({
         elements,
-        confirmParams: { return_url: returnUrl },
+        confirmParams: { return_url: confirmReturnUrl },
       })
 
       if (confirmError) {

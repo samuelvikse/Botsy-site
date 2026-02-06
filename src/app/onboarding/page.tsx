@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
@@ -63,7 +63,13 @@ interface ChannelStatus {
 export default function OnboardingPage() {
   return (
     <ProtectedRoute>
-      <OnboardingContent />
+      <Suspense fallback={
+        <div className="min-h-screen bg-botsy-dark flex items-center justify-center">
+          <Loader2 className="h-10 w-10 text-botsy-lime animate-spin" />
+        </div>
+      }>
+        <OnboardingContent />
+      </Suspense>
     </ProtectedRoute>
   )
 }
@@ -83,6 +89,7 @@ function OnboardingContent() {
   ])
   const [isSaving, setIsSaving] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, userData, refreshUserData } = useAuth()
 
   // Channel connection state
@@ -100,8 +107,10 @@ function OnboardingContent() {
     widget: { connected: false }
   })
 
-  // Payment step state
-  const [paymentSuccess, setPaymentSuccess] = useState(false)
+  // Payment step state - check if returning from Stripe redirect
+  const [paymentSuccess, setPaymentSuccess] = useState(() => {
+    return searchParams.get('payment') === 'success'
+  })
 
   const totalSteps = 6
 
@@ -397,6 +406,7 @@ function OnboardingContent() {
                       setPaymentSuccess(true)
                     }}
                     onCancel={() => router.push('/')}
+                    returnUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/onboarding?payment=success`}
                   />
 
                   <div className="mt-6 space-y-3">

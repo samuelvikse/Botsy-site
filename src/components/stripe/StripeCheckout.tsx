@@ -17,6 +17,7 @@ const stripePromise = loadStripe(
 interface StripeCheckoutProps {
   onSuccess: () => void
   onCancel: () => void
+  returnUrl?: string
 }
 
 interface ApiError {
@@ -27,7 +28,7 @@ interface ApiError {
   retryAfter?: number
 }
 
-export default function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
+export default function StripeCheckout({ onSuccess, onCancel, returnUrl }: StripeCheckoutProps) {
   const { user } = useAuth()
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -302,7 +303,7 @@ export default function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutPr
           locale: 'nb',
         }}
       >
-        <PaymentForm onSuccess={onSuccess} onCancel={onCancel} clientSecret={clientSecret} />
+        <PaymentForm onSuccess={onSuccess} onCancel={onCancel} clientSecret={clientSecret} returnUrl={returnUrl} />
       </Elements>
 
       {/* Terms & Withdrawal Info */}
