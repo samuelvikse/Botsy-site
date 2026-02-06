@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { getUsersWithDailySummaryEnabled, getAllWidgetChats } from '@/lib/firestore'
+import { getUsersWithDailySummaryEnabled, getAllWidgetChats, getCompany } from '@/lib/firestore'
 import { getAllSMSChats } from '@/lib/sms-firestore'
 import { getAllMessengerChats } from '@/lib/messenger-firestore'
-import { getTeamMembers } from '@/lib/membership-firestore'
+import { getLeaderboard } from '@/lib/leaderboard-firestore'
 import { renderDailySummaryEmail } from '@/emails/DailySummaryEmail'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
     })
 
     // Get company name
-    const companyName = 'Din bedrift' // TODO: Fetch from company doc
+    const company = await getCompany(companyId)
+    const companyName = company?.businessName || 'Din bedrift'
 
     let emailsSent = 0
     const errors: string[] = []
@@ -214,27 +215,21 @@ async function gatherDailyStats(companyId: string): Promise<DailyStats> {
  */
 async function findEmployeeOfTheDay(companyId: string): Promise<EmployeeStats | null> {
   try {
-    const teamMembers = await getTeamMembers(companyId)
+    const leaderboard = await getLeaderboard(companyId, 1)
 
-    if (teamMembers.length === 0) return null
+    if (leaderboard.length === 0) return null
 
-    // For now, we'll use a simple calculation based on conversations handled
-    // In the future, this could be based on actual points from a leaderboard system
-    let bestEmployee: EmployeeStats | null = null
+    const top = leaderboard[0]
 
-    // TODO: Implement actual points tracking
-    // For now, return the first team member with placeholder data
-    if (teamMembers.length > 0) {
-      const member = teamMembers[0]
-      bestEmployee = {
-        userId: member.membership.userId,
-        name: member.user.displayName || member.user.email,
-        points: 0, // Would come from leaderboard
-        conversationsHandled: 0, // Would come from tracking
-      }
+    // No activity this month — skip employee of the day
+    if (top.totalScore === 0) return null
+
+    return {
+      userId: top.userId,
+      name: top.displayName,
+      points: top.totalScore,
+      conversationsHandled: top.answeredCustomers,
     }
-
-    return bestEmployee
   } catch (error) {
     console.error('[Daily Summary] Error finding employee of day:', error)
     return null

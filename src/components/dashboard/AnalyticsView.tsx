@@ -16,12 +16,32 @@ import {
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
-import { collection, getDocs } from 'firebase/firestore'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
+import { collection, getDocs, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { usePermissions } from '@/contexts/PermissionContext'
 
 interface AnalyticsViewProps {
   companyId: string
+}
+
+interface HourlyPlatformData {
+  hour: string
+  Widget: number
+  SMS: number
+  Email: number
+  Messenger: number
+  Instagram: number
+  Gjennomsnitt: number
 }
 
 interface AnalyticsData {
@@ -30,6 +50,7 @@ interface AnalyticsData {
   averageMessagesPerConversation: number
   topQuestions: Array<{ question: string; count: number }>
   conversationsPerDay: Array<{ date: string; count: number }>
+  conversationsByHour: HourlyPlatformData[]
   isLoading: boolean
 }
 
@@ -45,6 +66,7 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
     averageMessagesPerConversation: 0,
     topQuestions: [],
     conversationsPerDay: [],
+    conversationsByHour: [],
     isLoading: true,
   })
 
@@ -108,38 +130,80 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
         const startDate = new Date()
         startDate.setDate(startDate.getDate() - daysAgo)
 
-        // Fetch customer chat sessions
-        const chatsRef = collection(db, 'companies', companyId, 'customerChats')
-        const chatsSnapshot = await getDocs(chatsRef)
+        // Fetch all 5 collections in parallel
+        const collectionNames = ['customerChats', 'smsChats', 'emailChats', 'messengerChats', 'instagramChats'] as const
+        const platformLabels: Record<string, keyof HourlyPlatformData> = {
+          customerChats: 'Widget',
+          smsChats: 'SMS',
+          emailChats: 'Email',
+          messengerChats: 'Messenger',
+          instagramChats: 'Instagram',
+        }
+
+        const snapshots = await Promise.all(
+          collectionNames.map(name =>
+            getDocs(collection(db!, 'companies', companyId, name))
+          )
+        )
 
         let totalMessages = 0
         let filteredConversations = 0
         const conversationsPerDay: Record<string, number> = {}
         const questionCounts: Record<string, number> = {}
 
-        chatsSnapshot.forEach((doc) => {
-          const data = doc.data()
-          const messages = data.messages || []
+        // Hourly buckets per platform
+        const hourlyBuckets: Record<string, Record<string, number>> = {}
+        for (let h = 0; h < 24; h++) {
+          const key = `${h.toString().padStart(2, '0')}:00`
+          hourlyBuckets[key] = { Widget: 0, SMS: 0, Email: 0, Messenger: 0, Instagram: 0 }
+        }
 
-          // Filter by time range
-          const createdAt = data.createdAt?.toDate?.() || new Date(data.createdAt)
-          if (createdAt < startDate) return
+        snapshots.forEach((snapshot, idx) => {
+          const collName = collectionNames[idx]
+          const platform = platformLabels[collName] as string
 
-          filteredConversations++
-          totalMessages += messages.length
+          snapshot.forEach((doc) => {
+            const data = doc.data()
+            const messages = data.messages || []
 
-          // Count conversations per day
-          if (data.createdAt) {
-            const date = createdAt
-            const dateStr = date.toISOString().split('T')[0]
-            conversationsPerDay[dateStr] = (conversationsPerDay[dateStr] || 0) + 1
-          }
+            // Parse timestamp - handle Firestore Timestamp, string, or number
+            let createdAt: Date
+            const ts = data.createdAt || data.lastMessageAt
+            if (ts instanceof Timestamp) {
+              createdAt = ts.toDate()
+            } else if (ts?.toDate) {
+              createdAt = ts.toDate()
+            } else if (ts) {
+              createdAt = new Date(ts)
+            } else {
+              return // skip if no timestamp
+            }
 
-          // Extract questions (user messages)
-          messages.forEach((msg: { role: string; content: string }) => {
-            if (msg.role === 'user' && msg.content.includes('?')) {
-              const question = msg.content.slice(0, 50)
-              questionCounts[question] = (questionCounts[question] || 0) + 1
+            if (createdAt < startDate) return
+
+            filteredConversations++
+            totalMessages += messages.length
+
+            // Count conversations per day (only for widget chats to avoid double counting in bar chart)
+            if (collName === 'customerChats' && ts) {
+              const dateStr = createdAt.toISOString().split('T')[0]
+              conversationsPerDay[dateStr] = (conversationsPerDay[dateStr] || 0) + 1
+            }
+
+            // Hourly bucket
+            const hour = `${createdAt.getHours().toString().padStart(2, '0')}:00`
+            if (hourlyBuckets[hour]) {
+              hourlyBuckets[hour][platform] = (hourlyBuckets[hour][platform] || 0) + 1
+            }
+
+            // Extract questions (user messages, widget only)
+            if (collName === 'customerChats') {
+              messages.forEach((msg: { role: string; content: string }) => {
+                if (msg.role === 'user' && msg.content.includes('?')) {
+                  const question = msg.content.slice(0, 50)
+                  questionCounts[question] = (questionCounts[question] || 0) + 1
+                }
+              })
             }
           })
         })
@@ -156,6 +220,23 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
           .slice(-7)
           .map(([date, count]) => ({ date, count }))
 
+        // Build hourly platform data
+        const platformKeys = ['Widget', 'SMS', 'Email', 'Messenger', 'Instagram'] as const
+        const conversationsByHour: HourlyPlatformData[] = Object.entries(hourlyBuckets)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([hour, platforms]) => {
+            const total = platformKeys.reduce((sum, k) => sum + (platforms[k] || 0), 0)
+            return {
+              hour,
+              Widget: platforms.Widget || 0,
+              SMS: platforms.SMS || 0,
+              Email: platforms.Email || 0,
+              Messenger: platforms.Messenger || 0,
+              Instagram: platforms.Instagram || 0,
+              Gjennomsnitt: Math.round((total / platformKeys.length) * 10) / 10,
+            }
+          })
+
         setAnalytics({
           totalConversations: filteredConversations,
           totalMessages,
@@ -164,6 +245,7 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
             : 0,
           topQuestions,
           conversationsPerDay: formattedPerDay,
+          conversationsByHour,
           isLoading: false,
         })
       } catch {
@@ -313,6 +395,60 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
               </div>
             </Card>
           </div>
+
+          {/* Hourly Line Chart */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-white mb-6">Samtaler per klokkeslett</h2>
+            {analytics.conversationsByHour.some(d => d.Widget + d.SMS + d.Email + d.Messenger + d.Instagram > 0) ? (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={analytics.conversationsByHour} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis
+                      dataKey="hour"
+                      stroke="#6B7A94"
+                      tick={{ fill: '#6B7A94', fontSize: 12 }}
+                      interval={2}
+                    />
+                    <YAxis
+                      stroke="#6B7A94"
+                      tick={{ fill: '#6B7A94', fontSize: 12 }}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1a1f2e',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '12px',
+                        color: '#fff',
+                      }}
+                      labelStyle={{ color: '#6B7A94' }}
+                    />
+                    <Legend
+                      wrapperStyle={{ color: '#6B7A94', fontSize: 12 }}
+                    />
+                    <Line type="monotone" dataKey="Widget" stroke="#CCFF00" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="SMS" stroke="#3B82F6" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Email" stroke="#8B5CF6" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Messenger" stroke="#F59E0B" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="Instagram" stroke="#EC4899" strokeWidth={2} dot={false} />
+                    <Line
+                      type="monotone"
+                      dataKey="Gjennomsnitt"
+                      stroke="#6B7A94"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-72 flex items-center justify-center text-[#6B7A94] border border-dashed border-white/[0.1] rounded-xl">
+                Ingen data ennå
+              </div>
+            )}
+          </Card>
 
           {/* Top Questions */}
           <Card className="p-6">
