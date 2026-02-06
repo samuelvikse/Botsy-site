@@ -231,7 +231,7 @@ export default function DPAPage() {
               <div className="text-[#A8B4C8] space-y-1">
                 <p><strong>Botsy AS</strong></p>
                 <p>Org.nr: 837 094 682</p>
-                <p>Inndalsveien 28, 5063 Bergen</p>
+                <p>Haugesund, Rogaland</p>
                 <p>E-post:{' '}
                   <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">
                     hei@botsy.no

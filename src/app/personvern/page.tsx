@@ -206,7 +206,7 @@ export default function PrivacyPage() {
                   <strong className="text-white">Behandlingsansvarlig:</strong><br />
                   Botsy AS<br />
                   Org.nr: 837 094 682<br />
-                  Inndalsveien 28, 5063 Bergen<br />
+                  Haugesund, Rogaland<br />
                   E-post: hei@botsy.no
                 </p>
               </div>

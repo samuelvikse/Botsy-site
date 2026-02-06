@@ -82,7 +82,7 @@ export default function LandingPage() {
       >
         <div className="absolute inset-0 bg-botsy-dark/80 backdrop-blur-xl border-b border-white/[0.06]" />
         <div className="container mx-auto h-20 flex items-center justify-between relative">
-          <Link href="/" className="flex items-center gap-3 relative z-10 group">
+          <Link href="/" onClick={(e) => { if (window.location.pathname === '/') { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}} className="flex items-center gap-3 relative z-10 group">
             <div className="relative">
               <div className="absolute -inset-1 bg-botsy-lime/10 rounded-lg blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <Image
@@ -1054,7 +1054,7 @@ export default function LandingPage() {
 
           <div className="border-t border-white/[0.06] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-[#6B7A94] text-sm">
-              © {new Date().getFullYear()} Botsy AS · Org.nr: 837 094 682 · Inndalsveien 28, 5063 Bergen
+              © {new Date().getFullYear()} Botsy® av Vikse Bruvik Technology · Org.nr: 837 094 682 · Haugesund, Rogaland
             </p>
             <p className="text-[#6B7A94] text-sm">
               Laget med ❤️ i Norge

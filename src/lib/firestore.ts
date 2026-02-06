@@ -938,7 +938,7 @@ export async function getGeneralSettings(
     emailNotifications: true,
     dailySummary: false,
     allowEscalation: true,
-    autoEmailReply: true,
+    autoEmailReply: false,
   }
 
   if (!docSnap.exists()) return defaults

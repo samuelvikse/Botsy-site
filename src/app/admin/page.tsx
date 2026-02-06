@@ -1348,7 +1348,7 @@ function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKno
   const [settings, setSettings] = useState({
     botName: 'Botsy',
     allowEscalation: true,
-    autoEmailReply: true,
+    autoEmailReply: false,
   })
   const [notificationPrefs, setNotificationPrefs] = useState({
     emailNotifications: true,

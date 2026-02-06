@@ -151,6 +151,9 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
   // Google OAuth states
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false)
 
+  // Email auto-reply toggle
+  const [autoEmailReply, setAutoEmailReply] = useState(false)
+
   // SMS guide states
   const [showSmsGuide, setShowSmsGuide] = useState(false)
   const [smsWizardStep, setSmsWizardStep] = useState(0)
@@ -226,6 +229,12 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
           details: { emailAddress: channelsData.email.emailAddress },
         }
         setEmailAddress(channelsData.email.emailAddress)
+      }
+
+      // Load auto email reply setting
+      const generalSettings = data?.generalSettings
+      if (generalSettings?.autoEmailReply !== undefined) {
+        setAutoEmailReply(generalSettings.autoEmailReply)
       }
 
       setChannels(newChannels)
@@ -1439,6 +1448,34 @@ export function ChannelsView({ companyId }: ChannelsViewProps) {
                     <p className="text-[#A8B4C8] text-sm">{channels.email.details.emailAddress}</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Auto email reply toggle */}
+            {channels.email.isConfigured && (
+              <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+                <div className="flex-1 pr-4">
+                  <p className="text-white text-sm font-medium">Automatisk svar</p>
+                  <p className="text-[#6B7A94] text-sm">AI svarer automatisk på innkommende e-poster</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const newValue = !autoEmailReply
+                    setAutoEmailReply(newValue)
+                    try {
+                      await setDoc(doc(db!, 'companies', companyId), {
+                        generalSettings: { autoEmailReply: newValue },
+                      }, { merge: true })
+                      toast.success(newValue ? 'Automatisk svar aktivert' : 'Automatisk svar deaktivert')
+                    } catch {
+                      setAutoEmailReply(!newValue)
+                      toast.error('Kunne ikke oppdatere innstillingen')
+                    }
+                  }}
+                  className={`w-12 h-6 rounded-full relative transition-colors flex-shrink-0 ${autoEmailReply ? 'bg-botsy-lime' : 'bg-white/[0.1]'}`}
+                >
+                  <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${autoEmailReply ? 'right-1' : 'left-1 bg-white/50'}`} />
+                </button>
               </div>
             )}
 

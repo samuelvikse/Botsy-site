@@ -415,7 +415,7 @@ export default function ContactPage() {
                     <h3 className="text-white font-semibold mb-1">Bedriftsinformasjon</h3>
                     <p>Botsy AS</p>
                     <p>Org.nr: 837 094 682</p>
-                    <p>Inndalsveien 28, 5063 Bergen</p>
+                    <p>Haugesund, Rogaland</p>
                   </div>
                 </div>
               </Card>

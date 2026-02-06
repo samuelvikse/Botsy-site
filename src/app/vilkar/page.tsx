@@ -202,7 +202,7 @@ export default function TermsPage() {
               <p className="text-[#A8B4C8] leading-relaxed">
                 Disse vilkårene er underlagt norsk lov. Eventuelle tvister skal søkes løst i minnelighet.
                 Dersom dette ikke fører frem, skal tvisten avgjøres ved de ordinære domstoler med
-                Bergen tingrett som verneting.
+                Haugaland tingrett som verneting.
               </p>
             </section>
 
@@ -214,7 +214,7 @@ export default function TermsPage() {
               <div className="text-[#A8B4C8] space-y-1">
                 <p><strong>Botsy AS</strong></p>
                 <p>Org.nr: 837 094 682</p>
-                <p>Adresse: Inndalsveien 28, 5063 Bergen</p>
+                <p>Adresse: Haugesund, Rogaland</p>
                 <p>Telefon:{' '}
                   <a href="tel:+4794414444" className="text-botsy-lime hover:underline">
                     +47 944 14 444
