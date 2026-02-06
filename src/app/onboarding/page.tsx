@@ -379,10 +379,16 @@ function OnboardingContent() {
                   <p className="text-[#A8B4C8] mb-6">
                     Din {PRICING.trialDays} dagers gratis prøveperiode har startet. La oss sette opp chatboten din.
                   </p>
-                  <Button onClick={() => setStep(2)} className="shadow-lg shadow-botsy-lime/20">
-                    Sett opp chatboten
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button onClick={() => setStep(2)} className="shadow-lg shadow-botsy-lime/20">
+                      Sett opp chatboten
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                    <Button variant="outline" onClick={() => router.push('/admin')}>
+                      Gå til admin-panelet
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </div>
                 </Card>
               ) : (
                 <>
