@@ -50,8 +50,14 @@ export async function POST(request: NextRequest) {
 
     const companyData = companyDoc.data()
     const hasBusinessProfile = !!companyData?.businessProfile
-    const websiteUrl = companyData?.websiteUrl || companyData?.profile?.websiteUrl
-    const businessName = companyData?.businessName || companyData?.profile?.businessName || 'Bedrift'
+    const businessName = companyData?.businessName || companyData?.profile?.businessName || companyData?.name || 'Bedrift'
+
+    // Check multiple sources for website URL (company doc, profile, or sync config)
+    let websiteUrl = companyData?.websiteUrl || companyData?.profile?.websiteUrl
+    let cachedSyncConfig = !websiteUrl ? await getSyncConfig(companyId) : null
+    if (!websiteUrl) {
+      websiteUrl = cachedSyncConfig?.websiteUrl
+    }
 
     if (!websiteUrl) {
       return NextResponse.json(
@@ -157,7 +163,7 @@ export async function POST(request: NextRequest) {
 
     // Company already has businessProfile
     // Check if there's a sync config set up - if not, just return success
-    const syncConfig = await getSyncConfig(companyId)
+    const syncConfig = cachedSyncConfig || await getSyncConfig(companyId)
     
     if (!syncConfig || !syncConfig.enabled) {
       // No sync config - widget is enabled, profile exists, we're done
