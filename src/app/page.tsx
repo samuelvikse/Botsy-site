@@ -1057,7 +1057,7 @@ export default function LandingPage() {
               © {new Date().getFullYear()} Botsy® av Vikse Bruvik Technology · Org.nr: 837 094 682 · Haugesund, Rogaland
             </p>
             <p className="text-[#6B7A94] text-sm">
-              Laget med 💚 i Norge · Laget av <a href="https://futureproofstudio.no" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">FutureProof™</a>
+              Laget med 💚 i Norge · Laget av <a href="https://futureproofstudio.no" target="_blank" rel="noopener noreferrer" className="text-botsy-lime underline hover:text-white transition-colors">FutureProof™</a>
             </p>
           </div>
         </div>
