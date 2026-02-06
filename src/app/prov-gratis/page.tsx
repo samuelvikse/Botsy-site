@@ -173,7 +173,7 @@ export default function TryFreePage() {
               <motion.div variants={fadeInUp} className="flex flex-wrap items-center gap-6 mt-8 text-sm text-[#6B7A94]">
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-botsy-lime" />
-                  <span>Ingen kredittkort</span>
+                  <span>14 dager gratis</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-botsy-lime" />
@@ -483,8 +483,8 @@ export default function TryFreePage() {
                   </h3>
 
                   <p className="text-[#A8B4C8] mb-6 lg:mb-8">
-                    Test alt Botsy har å tilby uten risiko. Ingen kredittkort,
-                    ingen forpliktelser, ingen skjulte kostnader.
+                    Test alt Botsy har å tilby uten risiko. Du belastes ikke
+                    i prøveperioden, ingen forpliktelser, ingen skjulte kostnader.
                   </p>
 
                   <Link href="/registrer" className="w-full lg:w-auto">
@@ -544,7 +544,7 @@ export default function TryFreePage() {
                 Klar til å møte din nye digitale kollega?
               </h2>
               <p className="text-lg text-[#A8B4C8] mb-10 max-w-xl mx-auto">
-                Ingen kredittkort nødvendig. Ingen forpliktelser.
+                Du belastes ikke i prøveperioden. Ingen forpliktelser.
                 Start gratis i dag.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -561,7 +561,7 @@ export default function TryFreePage() {
                 </Link>
               </div>
               <p className="text-[#6B7A94] text-sm mt-6">
-                Ingen kredittkort nødvendig • Setup på 5 min • Kanseller når som helst
+                14 dager gratis • Setup på 5 min • Kanseller når som helst
               </p>
             </div>
           </motion.div>

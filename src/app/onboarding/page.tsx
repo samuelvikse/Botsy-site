@@ -31,7 +31,19 @@ import { useAuth } from '@/contexts/AuthContext'
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { saveBusinessProfile } from '@/lib/firestore'
+import { PRICING } from '@/lib/pricing'
 import type { BusinessProfile } from '@/types'
+import dynamic from 'next/dynamic'
+import { CreditCard, Shield } from 'lucide-react'
+
+const StripeCheckout = dynamic(() => import('@/components/stripe/StripeCheckout'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-8 w-8 text-botsy-lime animate-spin" />
+    </div>
+  ),
+})
 
 type SMSProvider = 'twilio' | 'messagebird'
 
@@ -79,7 +91,10 @@ export default function OnboardingPage() {
     widget: { connected: false }
   })
 
-  const totalSteps = 5
+  // Payment step state
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
+
+  const totalSteps = 6
 
   // Create company at the start of onboarding if user doesn't have one
   useEffect(() => {
@@ -100,10 +115,8 @@ export default function OnboardingPage() {
       }
 
       try {
-        // Create the company document with 14-day trial
+        // Create the company document (subscription set to incomplete until card is added)
         const companyRef = doc(db, 'companies', user.uid)
-        const trialEndDate = new Date()
-        trialEndDate.setDate(trialEndDate.getDate() + 14)
 
         await setDoc(companyRef, {
           name: '',
@@ -111,8 +124,7 @@ export default function OnboardingPage() {
           employeeCount: '',
           ownerId: user.uid,
           createdAt: serverTimestamp(),
-          subscriptionStatus: 'trialing',
-          subscriptionTrialEnd: trialEndDate.toISOString(),
+          subscriptionStatus: 'incomplete',
           settings: {
             botName: 'Botsy',
             tone: 'friendly',
@@ -169,7 +181,7 @@ export default function OnboardingPage() {
       ...prev,
       tone: profile.tone,
     }))
-    setStep(2)
+    setStep(3)
   }
 
   const companyId = userData?.companyId || user?.uid
@@ -329,10 +341,72 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Step 1: Website Analysis (NEW) */}
+          {/* Step 1: Payment */}
           {step === 1 && (
             <motion.div
               key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-2xl mx-auto"
+            >
+              <div className="text-center mb-10">
+                <div className="h-16 w-16 rounded-2xl bg-botsy-lime/10 flex items-center justify-center mx-auto mb-6">
+                  <CreditCard className="h-8 w-8 text-botsy-lime" />
+                </div>
+                <h1 className="text-3xl font-bold text-white mb-3">Start din gratis prøveperiode</h1>
+                <p className="text-[#A8B4C8] text-lg">
+                  Legg til betalingskort for å starte {PRICING.trialDays} dagers gratis prøveperiode.
+                  Du belastes ikke før prøveperioden er over.
+                </p>
+              </div>
+
+              {paymentSuccess ? (
+                <Card className="p-8 text-center">
+                  <div className="h-16 w-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Check className="h-8 w-8 text-green-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Betaling registrert!</h3>
+                  <p className="text-[#A8B4C8] mb-6">
+                    Din {PRICING.trialDays} dagers gratis prøveperiode har startet. La oss sette opp chatboten din.
+                  </p>
+                  <Button onClick={() => setStep(2)} className="shadow-lg shadow-botsy-lime/20">
+                    Sett opp chatboten
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Card>
+              ) : (
+                <>
+                  <StripeCheckout
+                    onSuccess={() => {
+                      setPaymentSuccess(true)
+                    }}
+                    onCancel={() => router.push('/')}
+                  />
+
+                  <div className="mt-6 space-y-3">
+                    <div className="flex items-center gap-3 text-[#A8B4C8] text-sm">
+                      <Shield className="h-4 w-4 text-botsy-lime flex-shrink-0" />
+                      <span>Du belastes ikke i prøveperioden på {PRICING.trialDays} dager</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[#A8B4C8] text-sm">
+                      <Shield className="h-4 w-4 text-botsy-lime flex-shrink-0" />
+                      <span>Kanseller når som helst uten kostnad</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[#A8B4C8] text-sm">
+                      <Shield className="h-4 w-4 text-botsy-lime flex-shrink-0" />
+                      <span>Etter prøveperioden: {PRICING.monthlyWithPeriod}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+
+          {/* Step 2: Website Analysis */}
+          {step === 2 && (
+            <motion.div
+              key="step2"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -344,10 +418,10 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Step 2: Personality */}
-          {step === 2 && (
+          {/* Step 3: Personality */}
+          {step === 3 && (
             <motion.div
-              key="step2"
+              key="step3"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -455,10 +529,10 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Step 3: FAQs */}
-          {step === 3 && (
+          {/* Step 4: FAQs */}
+          {step === 4 && (
             <motion.div
-              key="step3"
+              key="step4"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -522,10 +596,10 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Step 4: Channels */}
-          {step === 4 && (
+          {/* Step 5: Channels */}
+          {step === 5 && (
             <motion.div
-              key="step4"
+              key="step5"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -768,10 +842,10 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Step 5: Complete */}
-          {step === 5 && (
+          {/* Step 6: Complete */}
+          {step === 6 && (
             <motion.div
-              key="step5"
+              key="step6"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -847,7 +921,7 @@ export default function OnboardingPage() {
 
         {/* Navigation */}
         <div className="max-w-2xl mx-auto mt-8 flex items-center justify-between">
-          {step > 1 ? (
+          {step > 2 ? (
             <Button variant="ghost" onClick={() => setStep(step - 1)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Tilbake
@@ -856,9 +930,9 @@ export default function OnboardingPage() {
             <div />
           )}
 
-          {step > 1 && step < 5 && (
+          {step >= 3 && step <= 5 && (
             <Button onClick={() => setStep(step + 1)}>
-              {step === 4 ? 'Fullfør' : 'Fortsett'}
+              Fortsett
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           )}

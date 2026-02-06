@@ -35,9 +35,9 @@ export async function isSubscriptionActive(companyId: string): Promise<boolean> 
     return isActive
   } catch (error) {
     console.error(`[Subscription Check] Error checking subscription for ${companyId}:`, error)
-    // Fail open - if we can't check, allow the request
-    // This prevents service disruption due to temporary API issues
-    return true
+    // Fail closed - if we can't verify subscription, deny access
+    // Security over availability: prevents free access on API errors
+    return false
   }
 }
 

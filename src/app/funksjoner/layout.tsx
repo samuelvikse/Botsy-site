@@ -78,7 +78,7 @@ export default function FunksjonerLayout({
     },
     {
       question: 'Hva koster Botsy AI kundeservice?',
-      answer: 'Botsy koster fra 699 kr/mnd med alle funksjoner inkludert. Du kan prove gratis i 14 dager uten kredittkort. Det er ingen skjulte kostnader eller bindingstid.',
+      answer: 'Botsy koster fra 699 kr/mnd med alle funksjoner inkludert. Du far 14 dager gratis proveperiode. Det er ingen skjulte kostnader eller bindingstid.',
     },
   ]
 

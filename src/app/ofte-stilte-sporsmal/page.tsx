@@ -66,7 +66,7 @@ const faqs = [
     id: 2,
     category: 'pricing',
     question: 'Hvordan fungerer pr\u00f8veperioden?',
-    answer: 'Du f\u00e5r 14 dager gratis pr\u00f8veperiode med full tilgang til alle funksjoner. Ingen kredittkort er n\u00f8dvendig for \u00e5 starte. I l\u00f8pet av pr\u00f8veperioden kan du teste chatboten p\u00e5 alle kanaler, legge til FAQs, tilpasse utseende og tone, og se hvordan Botsy presterer for din bedrift. Etter pr\u00f8veperioden kan du velge \u00e5 abonnere eller la kontoen utl\u00f8pe.',
+    answer: 'Du f\u00e5r 14 dager gratis pr\u00f8veperiode med full tilgang til alle funksjoner. Du legger til betalingskort ved registrering, men belastes ikke f\u00f8r pr\u00f8veperioden er over. I l\u00f8pet av pr\u00f8veperioden kan du teste chatboten p\u00e5 alle kanaler, legge til FAQs, tilpasse utseende og tone, og se hvordan Botsy presterer for din bedrift. Du kan kansellere n\u00e5r som helst i pr\u00f8veperioden uten kostnad.',
     icon: Zap
   },
   {

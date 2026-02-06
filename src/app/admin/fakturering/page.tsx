@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import dynamic from 'next/dynamic'
+import { PRICING } from '@/lib/pricing'
 
 // Dynamic import to avoid SSR issues with Stripe
 const StripeCheckout = dynamic(() => import('@/components/stripe/StripeCheckout'), {
@@ -1067,7 +1068,7 @@ function BillingContent() {
                       <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-[#A8B4C8]">Botsy Standard</span>
-                          <span className="text-white font-semibold">699 kr/mnd</span>
+                          <span className="text-white font-semibold">{PRICING.monthlyWithPeriod}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-[#6B7A94]">Prøveperiode</span>
@@ -1141,8 +1142,8 @@ function BillingContent() {
 
                 <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 mb-6">
                   <div className="flex items-center justify-center gap-2 mb-4">
-                    <span className="text-[#6B7A94] line-through text-lg">1499 kr</span>
-                    <span className="text-4xl font-bold text-white">699 kr</span>
+                    <span className="text-[#6B7A94] line-through text-lg">{PRICING.originalMonthly} kr</span>
+                    <span className="text-4xl font-bold text-white">{PRICING.monthlyFormatted}</span>
                     <span className="text-[#6B7A94]">/mnd</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1219,7 +1220,7 @@ function BillingContent() {
                 <div>
                   {getStatusBadge(subscription?.status)}
                   <h2 className="text-3xl font-bold text-white mb-1 mt-3">
-                    699 kr<span className="text-lg text-[#6B7A94] font-normal">/mnd</span>
+                    {PRICING.monthly} kr<span className="text-lg text-[#6B7A94] font-normal">/mnd</span>
                   </h2>
                   <p className="text-[#6B7A94]">Botsy Standard • Faktureres månedlig</p>
                 </div>

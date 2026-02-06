@@ -191,6 +191,70 @@ export async function addDocumentRest(
   }
 }
 
+/**
+ * Delete a document from Firestore using REST API
+ */
+export async function deleteDocumentRest(path: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/${path}`, {
+      method: 'DELETE',
+    })
+
+    return response.ok || response.status === 404
+  } catch (error) {
+    console.error('[Firebase REST] Delete document error:', error)
+    return false
+  }
+}
+
+/**
+ * List documents in a collection/subcollection
+ */
+export async function listDocumentsRest(
+  path: string,
+  limit = 500
+): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+  try {
+    const response = await fetch(`${FIRESTORE_BASE_URL}/${path}?pageSize=${limit}`)
+
+    if (!response.ok) {
+      if (response.status === 404) return []
+      return []
+    }
+
+    const data = await response.json()
+    const documents = data.documents || []
+
+    return documents.map((doc: { name: string; fields: Record<string, unknown> }) => ({
+      id: doc.name.split('/').pop() || '',
+      data: parseFirestoreDocument(doc.fields || {}),
+    }))
+  } catch (error) {
+    console.error('[Firebase REST] List documents error:', error)
+    return []
+  }
+}
+
+/**
+ * Delete a Firebase Auth user account via REST API (using user's own ID token)
+ */
+export async function deleteAuthUserRest(idToken: string): Promise<boolean> {
+  if (!API_KEY) return false
+
+  try {
+    const response = await fetch(`${AUTH_BASE_URL}/accounts:delete?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    })
+
+    return response.ok
+  } catch (error) {
+    console.error('[Firebase REST] Delete auth user error:', error)
+    return false
+  }
+}
+
 // Helper functions for Firestore data conversion
 function parseFirestoreDocument(fields: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {}

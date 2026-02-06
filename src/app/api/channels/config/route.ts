@@ -55,7 +55,6 @@ export async function GET(request: NextRequest) {
       success: true,
       channels: {
         sms: smsChannel,
-        whatsapp: channels.whatsapp || null,
         messenger: channels.messenger || null,
         email: channels.email || null,
       },
@@ -81,7 +80,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!channel || !['sms', 'whatsapp', 'messenger', 'email'].includes(channel)) {
+    if (!channel || !['sms', 'messenger', 'instagram', 'email'].includes(channel)) {
       return NextResponse.json(
         { success: false, error: 'Ugyldig kanal' },
         { status: 400 }
@@ -138,21 +137,6 @@ export async function POST(request: NextRequest) {
     }
 
     switch (channel) {
-      case 'whatsapp':
-        if (!config.phoneNumber) {
-          return NextResponse.json(
-            { success: false, error: 'Telefonnummer er påkrevd' },
-            { status: 400 }
-          )
-        }
-        channelData = {
-          ...channelData,
-          provider: config.provider || 'meta',
-          phoneNumber: config.phoneNumber,
-          credentials: config.credentials || {},
-        }
-        break
-
       case 'messenger':
         if (!config.pageId || !config.pageName) {
           return NextResponse.json(
@@ -249,7 +233,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    if (!channel || !['sms', 'whatsapp', 'messenger', 'email'].includes(channel)) {
+    if (!channel || !['sms', 'messenger', 'instagram', 'email'].includes(channel)) {
       return NextResponse.json(
         { success: false, error: 'Ugyldig kanal' },
         { status: 400 }

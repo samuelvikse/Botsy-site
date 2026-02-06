@@ -7,6 +7,7 @@ import PaymentForm from './PaymentForm'
 import { Loader2, Sparkles, Check, Clock, Shield, AlertCircle, RefreshCw, Zap } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
+import { PRICING } from '@/lib/pricing'
 
 // Load Stripe outside of component to avoid recreating on every render
 const stripePromise = loadStripe(
@@ -264,9 +265,9 @@ export default function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutPr
         </div>
 
         <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-3xl font-bold text-white">699 kr</span>
+          <span className="text-3xl font-bold text-white">{PRICING.monthlyFormatted}</span>
           <span className="text-[#6B7A94]">/måned</span>
-          <span className="ml-2 text-[#6B7A94] line-through text-sm">1499 kr</span>
+          <span className="ml-2 text-[#6B7A94] line-through text-sm">{PRICING.originalMonthly} kr</span>
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-4">
@@ -303,6 +304,16 @@ export default function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutPr
       >
         <PaymentForm onSuccess={onSuccess} onCancel={onCancel} clientSecret={clientSecret} />
       </Elements>
+
+      {/* Terms & Withdrawal Info */}
+      <p className="text-[#6B7A94] text-xs text-center leading-relaxed">
+        Ved å starte abonnementet godtar du{' '}
+        <a href="/vilkar" target="_blank" className="text-botsy-lime hover:underline">vilkårene</a>
+        {' '}og{' '}
+        <a href="/personvern" target="_blank" className="text-botsy-lime hover:underline">personvernerklæringen</a>.
+        Du har 14 dagers angrerett etter kjøp, jf.{' '}
+        <a href="/vilkar#angrerett" target="_blank" className="text-botsy-lime hover:underline">angrerettloven</a>.
+      </p>
 
       {/* Security Badges */}
       <div className="flex items-center justify-center gap-6 py-2">

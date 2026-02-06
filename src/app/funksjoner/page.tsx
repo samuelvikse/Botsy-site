@@ -614,7 +614,7 @@ export default function FeaturesPage() {
                 Klar til å oppleve det selv?
               </h2>
               <p className="text-lg text-[#A8B4C8] mb-10 max-w-xl mx-auto">
-                Start din gratis prøveperiode i dag. Ingen kredittkort nødvendig.
+                Start din gratis prøveperiode i dag. Du belastes ikke de første 14 dagene.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/prov-gratis">

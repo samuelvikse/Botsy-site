@@ -75,9 +75,9 @@ function RegisterContent() {
           // Redirect back to invite page
           router.push(redirectUrl || '/admin')
         } else {
-          // Regular registration - use signUpOnly and redirect to admin
+          // Regular registration - redirect to onboarding for setup + payment
           await signUpOnly(formData.email, formData.password, formData.name)
-          router.push('/admin')
+          router.push('/onboarding')
         }
       } catch {
         // Error is handled by the auth context
@@ -93,8 +93,8 @@ function RegisterContent() {
 
     try {
       await signInWithGoogle(true)
-      // Redirect to invite page if coming from invite, otherwise to admin (WelcomeView will show)
-      router.push(redirectUrl || '/admin')
+      // Redirect to invite page if coming from invite, otherwise to onboarding
+      router.push(redirectUrl || '/onboarding')
     } catch {
       // Error is handled by the auth context
     } finally {
@@ -290,7 +290,7 @@ function RegisterContent() {
             {[
               { title: '14 dager gratis', desc: 'Test alle funksjoner uten forpliktelser' },
               { title: 'Ubegrenset meldinger', desc: 'Ingen ekstra kostnad uansett volum' },
-              { title: 'Alle kanaler inkludert', desc: 'WhatsApp, SMS, Messenger og e-post' },
+              { title: 'Alle kanaler inkludert', desc: 'Widget, SMS, Messenger, Instagram og e-post' },
               { title: 'Norsk AI', desc: 'Forstår nyanser og kontekst på norsk' },
               { title: 'GDPR-compliant', desc: 'Dine data er trygge og i EU/EØS' },
             ].map((item) => (

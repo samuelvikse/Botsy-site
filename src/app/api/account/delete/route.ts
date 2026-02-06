@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { adminDb, adminAuth } from '@/lib/firebase-admin'
-import { verifyIdToken } from '@/lib/auth-server'
+import {
+  verifyIdTokenRest,
+  getDocumentRest,
+  deleteDocumentRest,
+  listDocumentsRest,
+  deleteAuthUserRest,
+} from '@/lib/firebase-rest'
 
 /**
  * DELETE - Delete user account and all associated data
@@ -18,47 +23,34 @@ export async function DELETE(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await verifyIdToken(token)
+    const user = await verifyIdTokenRest(token)
 
-    if (!decodedToken) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Invalid token' },
         { status: 401 }
       )
     }
 
-    const userId = decodedToken.uid
-    const userEmail = decodedToken.email
+    const userId = user.uid
+    const userEmail = user.email
 
     console.log(`[Account Delete] Starting account deletion for user: ${userId} (${userEmail})`)
 
-    if (!adminDb || !adminAuth) {
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
-    }
-
     // Get user document to find their company
-    const userDoc = await adminDb.collection('users').doc(userId).get()
-    const userData = userDoc.data()
-    const companyId = userData?.companyId
+    const userData = await getDocumentRest('users', userId)
+    const companyId = userData?.companyId as string | undefined
 
     // Check if user is the owner of the company
     if (companyId) {
-      const companyDoc = await adminDb.collection('companies').doc(companyId).get()
-      const companyData = companyDoc.data()
+      const companyData = await getDocumentRest('companies', companyId)
 
       if (companyData?.ownerId === userId) {
-        // Check if there are other members
-        const membershipsSnapshot = await adminDb
-          .collection('companies')
-          .doc(companyId)
-          .collection('memberships')
-          .where('status', '==', 'active')
-          .get()
-
-        const activeMembers = membershipsSnapshot.docs.filter(doc => doc.id !== userId)
+        // Check if there are other active members
+        const memberships = await listDocumentsRest(`companies/${companyId}/memberships`)
+        const activeMembers = memberships.filter(
+          m => m.id !== userId && m.data.status === 'active'
+        )
 
         if (activeMembers.length > 0) {
           return NextResponse.json(
@@ -76,45 +68,20 @@ export async function DELETE(request: NextRequest) {
       } else {
         // User is not owner, just remove their membership
         console.log(`[Account Delete] Removing user membership from company: ${companyId}`)
-        await adminDb
-          .collection('companies')
-          .doc(companyId)
-          .collection('memberships')
-          .doc(userId)
-          .delete()
+        await deleteDocumentRest(`companies/${companyId}/memberships/${userId}`)
       }
     }
 
     // Delete user document
     console.log(`[Account Delete] Deleting user document`)
-    await adminDb.collection('users').doc(userId).delete()
+    await deleteDocumentRest(`users/${userId}`)
 
     // Delete user's notification preferences
-    try {
-      await adminDb.collection('userNotificationPreferences').doc(userId).delete()
-    } catch {
-      // May not exist
-    }
-
-    // Delete user's push subscriptions
-    try {
-      const pushSubscriptions = await adminDb
-        .collection('pushSubscriptions')
-        .where('userId', '==', userId)
-        .get()
-
-      const batch = adminDb.batch()
-      pushSubscriptions.docs.forEach(doc => {
-        batch.delete(doc.ref)
-      })
-      await batch.commit()
-    } catch {
-      // May not exist
-    }
+    await deleteDocumentRest(`userNotificationPreferences/${userId}`)
 
     // Finally, delete the Firebase Auth user
     console.log(`[Account Delete] Deleting Firebase Auth user`)
-    await adminAuth.deleteUser(userId)
+    await deleteAuthUserRest(token)
 
     console.log(`[Account Delete] Successfully deleted account for user: ${userId}`)
 
@@ -135,11 +102,6 @@ export async function DELETE(request: NextRequest) {
  * Delete all company data including subcollections
  */
 async function deleteCompanyData(companyId: string) {
-  if (!adminDb) return
-
-  const batch = adminDb.batch()
-
-  // Delete subcollections
   const subcollections = [
     'faqs',
     'chats',
@@ -154,29 +116,22 @@ async function deleteCompanyData(companyId: string) {
     'conflicts',
     'documents',
     'channels',
+    'invoices',
   ]
 
   for (const subcollection of subcollections) {
     try {
-      const snapshot = await adminDb
-        .collection('companies')
-        .doc(companyId)
-        .collection(subcollection)
-        .limit(500)
-        .get()
-
-      snapshot.docs.forEach(doc => {
-        batch.delete(doc.ref)
-      })
+      const docs = await listDocumentsRest(`companies/${companyId}/${subcollection}`)
+      for (const doc of docs) {
+        await deleteDocumentRest(`companies/${companyId}/${subcollection}/${doc.id}`)
+      }
     } catch {
       // Subcollection may not exist
     }
   }
 
   // Delete the company document itself
-  batch.delete(adminDb.collection('companies').doc(companyId))
-
-  await batch.commit()
+  await deleteDocumentRest(`companies/${companyId}`)
 
   console.log(`[Account Delete] Deleted company and all subcollections: ${companyId}`)
 }
@@ -195,59 +150,36 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await verifyIdToken(token)
+    const user = await verifyIdTokenRest(token)
 
-    if (!decodedToken) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Invalid token' },
         { status: 401 }
       )
     }
 
-    const userId = decodedToken.uid
-
-    if (!adminDb) {
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
-    }
+    const userId = user.uid
 
     // Collect all user data
-    const userData: Record<string, unknown> = {}
+    const exportData: Record<string, unknown> = {}
 
     // User document
-    const userDoc = await adminDb.collection('users').doc(userId).get()
-    userData.profile = userDoc.data() || {}
+    exportData.profile = await getDocumentRest('users', userId) || {}
 
     // Notification preferences
-    try {
-      const notifDoc = await adminDb.collection('userNotificationPreferences').doc(userId).get()
-      userData.notificationPreferences = notifDoc.data() || {}
-    } catch {
-      userData.notificationPreferences = {}
-    }
+    exportData.notificationPreferences = await getDocumentRest('userNotificationPreferences', userId) || {}
 
     // Company data if they have one
-    const companyId = (userData.profile as Record<string, unknown>)?.companyId as string | undefined
+    const companyId = (exportData.profile as Record<string, unknown>)?.companyId as string | undefined
     if (companyId) {
-      const companyDoc = await adminDb.collection('companies').doc(companyId).get()
-      userData.company = companyDoc.data() || {}
-
-      // Membership
-      const membershipDoc = await adminDb
-        .collection('companies')
-        .doc(companyId)
-        .collection('memberships')
-        .doc(userId)
-        .get()
-      userData.membership = membershipDoc.data() || {}
+      exportData.company = await getDocumentRest('companies', companyId) || {}
     }
 
     return NextResponse.json({
       success: true,
       exportDate: new Date().toISOString(),
-      data: userData,
+      data: exportData,
     })
   } catch (error) {
     console.error('[Account Export] Error:', error)

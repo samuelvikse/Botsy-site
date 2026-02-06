@@ -3,7 +3,7 @@ import { BreadcrumbJsonLd, FAQJsonLd } from '@/components/seo/JsonLd'
 
 export const metadata: Metadata = {
   title: 'Prov AI Kundeservice Gratis - Chatbot & Kundeservicebot fra 699 kr',
-  description: 'Prov Botsy AI kundeservice gratis i 14 dager. Ingen kredittkort nodvendig. Automatisk kundeservice med intelligent chatbot og kundeservicebot fra 699 kr/mnd. Oppsett tar kun 5 minutter.',
+  description: 'Prov Botsy AI kundeservice gratis i 14 dager. 14 dager gratis proveperiode. Automatisk kundeservice med intelligent chatbot og kundeservicebot fra 699 kr/mnd. Oppsett tar kun 5 minutter.',
   keywords: [
     // Hovedkeywords
     'AI kundeservice',
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: 'Prov AI Kundeservice Gratis - Chatbot & Kundeservicebot | Botsy',
-    description: 'Start gratis proveperiode med Botsy AI kundeservice. Intelligent chatbot og kundeservicebot fra 699 kr/mnd. Ingen kredittkort nodvendig.',
+    description: 'Start gratis proveperiode med Botsy AI kundeservice. Intelligent chatbot og kundeservicebot fra 699 kr/mnd. 14 dager gratis proveperiode.',
     url: 'https://botsy.no/prov-gratis',
     type: 'website',
     images: [
@@ -62,7 +62,7 @@ export default function ProvGratisLayout({
   const faqs = [
     {
       question: 'Er AI kundeservice fra Botsy virkelig gratis a prove?',
-      answer: 'Ja, du far 14 dager gratis proveperiode med full tilgang til alle funksjoner. Ingen kredittkort nodvendig, og du kan kansellere nar som helst.',
+      answer: 'Ja, du far 14 dager gratis proveperiode med full tilgang til alle funksjoner. 14 dager gratis proveperiode, og du kan kansellere nar som helst.',
     },
     {
       question: 'Hva koster Botsy AI kundeservice etter proveperioden?',

@@ -103,7 +103,7 @@ export function WelcomeView({ userEmail, userName }: WelcomeViewProps) {
                 Start din gratis prøveperiode
               </h2>
               <p className="text-[#A8B4C8] mb-4">
-                14 dager gratis. Ingen kredittkort nødvendig. Sett opp din AI-assistent på under 5 minutter.
+                14 dager gratis. Du belastes ikke i prøveperioden. Sett opp din AI-assistent på under 5 minutter.
               </p>
               <ul className="space-y-2 mb-6">
                 {[

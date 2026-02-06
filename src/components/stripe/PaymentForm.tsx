@@ -8,6 +8,7 @@ import {
 } from '@stripe/react-stripe-js'
 import { Button } from '@/components/ui/button'
 import { Loader2, Lock, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck } from 'lucide-react'
+import { PRICING } from '@/lib/pricing'
 import { getStripeErrorMessage, type StripeErrorMapping } from '@/lib/stripe-errors'
 
 interface PaymentFormProps {
@@ -197,8 +198,8 @@ export default function PaymentForm({ onCancel, clientSecret }: PaymentFormProps
       {/* Trial Notice */}
       {isSetupIntent && (
         <p className="text-center text-[#6B7A94] text-xs">
-          Ved å trykke &quot;Start abonnement&quot; godtar du at kortet belastes 699 kr/mnd
-          etter prøveperioden på 14 dager.
+          Ved å trykke &quot;Start abonnement&quot; godtar du at kortet belastes {PRICING.monthlyWithPeriod}
+          etter prøveperioden på {PRICING.trialDays} dager.
         </p>
       )}
     </form>

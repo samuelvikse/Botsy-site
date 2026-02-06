@@ -506,7 +506,7 @@ export default function LoginPage() {
               <p className="text-[#6B7A94] text-sm">Alltid på</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-botsy-lime">&lt;3s</p>
+              <p className="text-2xl font-bold text-botsy-lime">&lt;10s</p>
               <p className="text-[#6B7A94] text-sm">Responstid</p>
             </div>
             <div className="text-center">

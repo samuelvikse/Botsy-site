@@ -329,7 +329,7 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
               </p>
               <div className="space-y-2">
                 {[
-                  { key: 'channels' as const, label: 'Kanaler', desc: 'Konfigurer SMS, WhatsApp, etc.' },
+                  { key: 'channels' as const, label: 'Kanaler', desc: 'Konfigurer SMS, e-post, Messenger, etc.' },
                   { key: 'employees' as const, label: 'Ansatte', desc: 'Administrer teammedlemmer' },
                 ].map(({ key, label, desc }) => (
                   <button

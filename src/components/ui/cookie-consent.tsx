@@ -16,6 +16,9 @@ export function CookieConsent() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    // Don't show cookie consent inside iframes (e.g. widget)
+    if (window.self !== window.top) return
+
     const consent = localStorage.getItem(CONSENT_KEY)
     if (!consent) {
       const timer = setTimeout(() => setVisible(true), 1500)
@@ -35,9 +38,9 @@ export function CookieConsent() {
 
   return (
     <div
-      className="fixed bottom-4 left-4 right-4 z-[99999] animate-in slide-in-from-bottom-4 fade-in duration-300"
+      className="fixed bottom-4 left-4 z-[99999] animate-in slide-in-from-bottom-4 fade-in duration-300"
     >
-      <div className="max-w-lg mx-auto bg-[#141927] border border-white/[0.08] rounded-2xl shadow-2xl px-5 py-4">
+      <div className="max-w-lg bg-[#141927] border border-white/[0.08] rounded-2xl shadow-2xl px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="flex-1">
             <p className="text-white text-sm font-medium mb-1">Vi bruker informasjonskapsler</p>

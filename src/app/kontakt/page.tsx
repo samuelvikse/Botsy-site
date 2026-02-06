@@ -406,6 +406,20 @@ export default function ContactPage() {
                 </div>
               </Card>
 
+              <Card className="p-6 group hover:border-white/[0.15] transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-white/[0.06] flex items-center justify-center text-[#A8B4C8]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  </div>
+                  <div className="text-sm text-[#A8B4C8] space-y-1">
+                    <h3 className="text-white font-semibold mb-1">Bedriftsinformasjon</h3>
+                    <p>Botsy AS</p>
+                    <p>Org.nr: 837 094 682</p>
+                    <p>Inndalsveien 28, 5063 Bergen</p>
+                  </div>
+                </div>
+              </Card>
+
               {/* CTA Card */}
               <Card className="p-6 border-botsy-lime/20 bg-gradient-to-br from-botsy-lime/5 to-transparent">
                 <div className="flex items-center gap-3 mb-4">
@@ -418,7 +432,7 @@ export default function ContactPage() {
                   </div>
                 </div>
                 <p className="text-[#A8B4C8] text-sm mb-4">
-                  Se hvordan Botsy fungerer. 14 dager gratis, ingen kredittkort.
+                  Se hvordan Botsy fungerer. 14 dager gratis prøveperiode.
                 </p>
                 <Link href="/prov-gratis">
                   <Button size="sm" className="w-full shadow-lg shadow-botsy-lime/20">
@@ -467,7 +481,7 @@ export default function ContactPage() {
               },
               {
                 q: 'Hvordan fungerer integrasjonene?',
-                a: 'Vi guider deg gjennom hele prosessen for WhatsApp, Messenger, SMS og e-post.'
+                a: 'Vi guider deg gjennom hele prosessen for Messenger, Instagram, SMS og e-post.'
               },
             ].map((faq, i) => (
               <motion.div

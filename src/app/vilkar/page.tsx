@@ -105,7 +105,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">6. Abonnement og priser</h2>
               <p className="text-[#A8B4C8] leading-relaxed mb-4">
-                Botsy tilbys som et månedlig abonnement. Gjeldende pris er 699 kr/måned ekskl. mva.
+                Botsy tilbys som et månedlig abonnement. Gjeldende pris er 699 kr/måned.
               </p>
               <ul className="list-disc list-inside text-[#A8B4C8] space-y-2 mb-4">
                 <li><strong>Prøveperiode:</strong> Nye kunder får 14 dagers gratis prøveperiode. Du belastes ikke før prøveperioden utløper.</li>
@@ -152,11 +152,30 @@ export default function TermsPage() {
 
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">9. Angrerett</h2>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
+                I henhold til angrerettloven har forbrukere rett til å angre kjøpet innen 14 dager
+                etter at avtalen er inngått.
+              </p>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
+                <strong className="text-white">Samtykke til oppstart i angreperioden:</strong> Ved
+                aktivering av abonnementet etter prøveperioden, samtykker du uttrykkelig til at
+                leveringen av den digitale tjenesten starter umiddelbart, og du bekrefter at du er
+                klar over at angreretten bortfaller når tjenesten er tatt i bruk, jf. angrerettloven § 22
+                bokstav c.
+              </p>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
+                <strong className="text-white">Prøveperiode:</strong> Under den 14 dager lange gratis
+                prøveperioden belastes du ikke, og du kan når som helst avslutte uten kostnad.
+                Prøveperioden gir deg mulighet til å vurdere tjenesten før du forplikter deg økonomisk.
+              </p>
               <p className="text-[#A8B4C8] leading-relaxed">
-                I henhold til angrerettloven har forbrukere rett til å angre kjøpet innen 14 dager.
-                Merk at angreretten bortfaller hvis du har tatt tjenesten i bruk i angreperioden og
-                uttrykkelig samtykket til dette. Prøveperioden gir deg mulighet til å teste tjenesten
-                uten kostnad før du forplikter deg.
+                <strong className="text-white">Slik bruker du angreretten:</strong> For å benytte
+                angreretten, kontakt oss på{' '}
+                <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">hei@botsy.no</a>{' '}
+                innen 14 dager etter kjøpet. Du kan også bruke{' '}
+                <a href="https://www.regjeringen.no/no/dokumenter/angrerettskjema/id2637022/" target="_blank" rel="noopener noreferrer" className="text-botsy-lime hover:underline">
+                  standard angreskjema
+                </a>.
               </p>
             </section>
 
@@ -194,7 +213,7 @@ export default function TermsPage() {
               </p>
               <div className="text-[#A8B4C8] space-y-1">
                 <p><strong>Botsy AS</strong></p>
-                <p>Org.nr: 933 606 553</p>
+                <p>Org.nr: 837 094 682</p>
                 <p>Adresse: Inndalsveien 28, 5063 Bergen</p>
                 <p>Telefon:{' '}
                   <a href="tel:+4794414444" className="text-botsy-lime hover:underline">

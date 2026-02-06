@@ -113,8 +113,23 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">6. Datalagring og oppbevaring</h2>
               <p className="text-[#A8B4C8] leading-relaxed mb-4">
-                Alle data lagres på servere innenfor EU/EØS. Vi bruker Firebase (Google Cloud Platform)
-                med datalagring i Europa. Data krypteres både under overføring og ved lagring.
+                Hovedlagring av data skjer på servere innenfor EU/EØS via Firebase (Google Cloud Platform)
+                med datalagring i Europa. Data krypteres både under overføring (TLS) og ved lagring (AES-256).
+              </p>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
+                <strong className="text-white">Overføring til tredjeland:</strong> For å levere AI-basert
+                kundeservice sendes samtaledata til våre AI-leverandører, som kan behandle data i USA:
+              </p>
+              <ul className="list-disc list-inside text-[#A8B4C8] space-y-2 mb-4">
+                <li><strong className="text-white">Google Gemini:</strong> Behandler data innenfor Google Cloud (EU/US) under EUs Standard Contractual Clauses (SCC)</li>
+                <li><strong className="text-white">Groq:</strong> Behandler data i USA under EUs Standard Contractual Clauses (SCC). Data brukes ikke til modelltrening.</li>
+              </ul>
+              <p className="text-[#A8B4C8] leading-relaxed mb-4">
+                Overføring til USA skjer med hjemmel i GDPR Art. 46(2)(c) via EUs standardkontraktsklausuler (SCC).
+                Vi har vurdert at mottakerlandets lovgivning ikke undergraver beskyttelsen, og supplerende
+                sikkerhetstiltak (kryptering under overføring, minimering av persondata) er implementert.
+                Kun samtaleinnhold sendes til AI-leverandører — aldri direkte identifiserbare opplysninger
+                som navn eller e-post med mindre kunden selv oppgir dette i chatten.
               </p>
               <p className="text-[#A8B4C8] leading-relaxed mb-4">
                 <strong className="text-white">Oppbevaringstider:</strong>
@@ -137,7 +152,7 @@ export default function PrivacyPage() {
               </p>
               <ul className="list-disc list-inside text-[#A8B4C8] space-y-2">
                 <li><strong className="text-white">Firebase/Google Cloud:</strong> Database og autentisering (EU-lagring)</li>
-                <li><strong className="text-white">AI-leverandører:</strong> Groq, Anthropic, OpenAI - for tekstgenerering. Data brukes ikke til modelltrening.</li>
+                <li><strong className="text-white">AI-leverandører:</strong> Google Gemini (EU/US), Groq (USA) - for tekstgenerering. Data brukes ikke til modelltrening. Overføring til USA under SCC.</li>
                 <li><strong className="text-white">Twilio:</strong> SMS-tjenester</li>
                 <li><strong className="text-white">SendGrid:</strong> E-posttjenester</li>
                 <li><strong className="text-white">Stripe:</strong> Betalingsbehandling</li>
@@ -168,7 +183,17 @@ export default function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">10. Kontakt oss</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">10. Sikkerhetsbrudd</h2>
+              <p className="text-[#A8B4C8] leading-relaxed">
+                Ved brudd på datasikkerheten som medfører risiko for de registrertes rettigheter,
+                vil vi varsle Datatilsynet innen 72 timer etter at vi ble kjent med bruddet (GDPR Art. 33).
+                Dersom bruddet medfører høy risiko for de registrertes rettigheter og friheter,
+                vil vi også varsle de berørte personene direkte (GDPR Art. 34).
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-white mb-4">11. Kontakt oss</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
                 Har du spørsmål om personvern eller ønsker å utøve rettighetene dine?
                 Kontakt oss på{' '}
@@ -180,7 +205,8 @@ export default function PrivacyPage() {
                 <p className="text-[#A8B4C8]">
                   <strong className="text-white">Behandlingsansvarlig:</strong><br />
                   Botsy AS<br />
-                  Org.nr: [Organisasjonsnummer]<br />
+                  Org.nr: 837 094 682<br />
+                  Inndalsveien 28, 5063 Bergen<br />
                   E-post: hei@botsy.no
                 </p>
               </div>

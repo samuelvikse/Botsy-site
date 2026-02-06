@@ -65,7 +65,7 @@ export default function KontaktLayout({
     },
     {
       question: 'Kan jeg prove AI chatboten for jeg kjoper?',
-      answer: 'Ja, Botsy tilbyr 14 dager gratis proveperiode med full tilgang til alle funksjoner. Ingen kredittkort nodvendig.',
+      answer: 'Ja, Botsy tilbyr 14 dager gratis proveperiode med full tilgang til alle funksjoner. Du belastes ikke i proveperioden.',
     },
     {
       question: 'Hvordan fungerer integrasjonene med Messenger og Instagram?',

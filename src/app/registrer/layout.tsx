@@ -3,7 +3,7 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd'
 
 export const metadata: Metadata = {
   title: 'Opprett Konto - Start med AI Kundeservice & Chatbot | Botsy',
-  description: 'Opprett din Botsy-konto og start 14 dagers gratis proveperiode med AI kundeservice. Ingen kredittkort nodvendig. Fa din egen chatbot og kundeservicebot pa under 5 minutter.',
+  description: 'Opprett din Botsy-konto og start 14 dagers gratis proveperiode med AI kundeservice. 14 dager gratis proveperiode. Fa din egen chatbot og kundeservicebot pa under 5 minutter.',
   keywords: [
     // Hovedkeywords
     'AI kundeservice',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: 'Opprett Konto - Start med AI Kundeservice & Chatbot | Botsy',
-    description: 'Start 14 dagers gratis proveperiode med Botsy AI kundeservice. Ingen kredittkort nodvendig.',
+    description: 'Start 14 dagers gratis proveperiode med Botsy AI kundeservice. 14 dager gratis proveperiode.',
     url: 'https://botsy.no/registrer',
     type: 'website',
     images: [
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Opprett Konto - Start med AI Kundeservice | Botsy',
-    description: 'Start gratis med Botsy AI kundeservice og chatbot. Ingen kredittkort nodvendig.',
+    description: 'Start gratis med Botsy AI kundeservice og chatbot. 14 dager gratis proveperiode.',
     images: ['/og-image.png'],
   },
   alternates: {
