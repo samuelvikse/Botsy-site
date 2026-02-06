@@ -13,6 +13,36 @@ import {
 import { extractEmailAddress } from '@/lib/email'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
 
+// Skip automated/noreply senders
+const IGNORED_SENDER_PATTERNS = [
+  'noreply@',
+  'no-reply@',
+  'no_reply@',
+  'donotreply@',
+  'mailer-daemon@',
+  'postmaster@',
+  'notifications@',
+  'notification@',
+  'alert@',
+  'alerts@',
+  'newsletter@',
+  'news@',
+  'marketing@',
+  'promo@',
+  'updates@',
+  'info@stripe.com',
+  'notifications@stripe.com',
+  '@email.vippsmobilepay.com',
+  '@sendgrid.net',
+  '@mailgun.org',
+  'calendar-notification@google.com',
+]
+
+function isAutomatedSender(email: string): boolean {
+  const lower = email.toLowerCase()
+  return IGNORED_SENDER_PATTERNS.some(pattern => lower.includes(pattern))
+}
+
 /**
  * GET - Cron job to poll Gmail for new emails (every 2 minutes)
  */
@@ -84,9 +114,9 @@ export async function GET(request: NextRequest) {
               messageId: msgRef.id,
             })
 
-            // Filter out self-sent messages
+            // Filter out self-sent and automated messages
             const fromAddress = extractEmailAddress(fullMessage.from)
-            if (fromAddress.toLowerCase() === company.emailAddress.toLowerCase()) {
+            if (fromAddress.toLowerCase() === company.emailAddress.toLowerCase() || isAutomatedSender(fromAddress)) {
               updatedProcessedIds.push(msgRef.id)
               continue
             }
