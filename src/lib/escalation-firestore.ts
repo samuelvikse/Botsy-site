@@ -232,6 +232,26 @@ export async function resolveEscalation(escalationId: string): Promise<Escalatio
     resolvedAt: serverTimestamp(),
   })
 
+  // Reset isManualMode on the session document so the bot resumes responding
+  const convId = data.conversationId
+  let sessionId: string | null = null
+  let sessionCollection: string | null = null
+  if (convId.startsWith('widget-')) {
+    sessionId = convId.replace('widget-', '')
+    sessionCollection = 'customerChats'
+  } else if (convId.startsWith('messenger-')) {
+    sessionId = convId.replace('messenger-', '')
+    sessionCollection = 'messengerChats'
+  } else if (convId.startsWith('instagram-')) {
+    sessionId = convId.replace('instagram-', '')
+    sessionCollection = 'instagramChats'
+  }
+
+  if (sessionId && sessionCollection) {
+    const sessionRef = doc(db, 'companies', data.companyId, sessionCollection, sessionId)
+    updateDoc(sessionRef, { isManualMode: false }).catch(() => {})
+  }
+
   return {
     id: docSnap.id,
     companyId: data.companyId,
@@ -278,6 +298,26 @@ export async function dismissEscalation(
     status: 'dismissed',
     dismissedAt: serverTimestamp(),
   })
+
+  // Reset isManualMode on the session document so the bot resumes responding
+  const convId = data.conversationId as string
+  let sessionId: string | null = null
+  let sessionCollection: string | null = null
+  if (convId.startsWith('widget-')) {
+    sessionId = convId.replace('widget-', '')
+    sessionCollection = 'customerChats'
+  } else if (convId.startsWith('messenger-')) {
+    sessionId = convId.replace('messenger-', '')
+    sessionCollection = 'messengerChats'
+  } else if (convId.startsWith('instagram-')) {
+    sessionId = convId.replace('instagram-', '')
+    sessionCollection = 'instagramChats'
+  }
+
+  if (sessionId && sessionCollection) {
+    const sessionRef = doc(db, 'companies', companyId, sessionCollection, sessionId)
+    updateDoc(sessionRef, { isManualMode: false }).catch(() => {})
+  }
 }
 
 /**
@@ -352,6 +392,25 @@ export async function resolveEscalationsByConversation(
       })
       resolvedCount++
     }
+  }
+
+  // Reset isManualMode on the session document so the bot resumes responding
+  let sessionId: string | null = null
+  let sessionCollection: string | null = null
+  if (conversationId.startsWith('widget-')) {
+    sessionId = conversationId.replace('widget-', '')
+    sessionCollection = 'customerChats'
+  } else if (conversationId.startsWith('messenger-')) {
+    sessionId = conversationId.replace('messenger-', '')
+    sessionCollection = 'messengerChats'
+  } else if (conversationId.startsWith('instagram-')) {
+    sessionId = conversationId.replace('instagram-', '')
+    sessionCollection = 'instagramChats'
+  }
+
+  if (sessionId && sessionCollection) {
+    const sessionRef = doc(db, 'companies', companyId, sessionCollection, sessionId)
+    updateDoc(sessionRef, { isManualMode: false }).catch(() => {})
   }
 
   return resolvedCount
