@@ -255,6 +255,49 @@ export function verifyMailgunSignature(
 }
 
 /**
+ * Strip quoted reply content from an email body.
+ * Keeps only the new content the sender wrote, removing the quoted
+ * history that email clients append (Gmail, Outlook, Apple Mail, etc.)
+ */
+export function stripQuotedReply(text: string): string {
+  const lines = text.split('\n')
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+
+    // Gmail/Apple Mail: "On [date] [name] wrote:" or Norwegian "[date] skrev [name/email]:"
+    if (/\b(wrote|skrev)\b.*:\s*$/i.test(line)) {
+      return lines.slice(0, i).join('\n').trim()
+    }
+
+    // Outlook: "-----Original Message-----" or "-----Opprinnelig melding-----"
+    if (/^-{2,}\s*(Original Message|Opprinnelig melding)\s*-{2,}$/i.test(line)) {
+      return lines.slice(0, i).join('\n').trim()
+    }
+
+    // Outlook separator (long underscore line)
+    if (/^_{10,}$/.test(line)) {
+      return lines.slice(0, i).join('\n').trim()
+    }
+
+    // Block of 3+ consecutive ">" quoted lines = quoted reply
+    if (line.startsWith('>')) {
+      let quotedLines = 0
+      for (let j = i; j < lines.length && j < i + 6; j++) {
+        const l = lines[j].trim()
+        if (l.startsWith('>') || l === '') quotedLines++
+        else break
+      }
+      if (quotedLines >= 3) {
+        return lines.slice(0, i).join('\n').trim()
+      }
+    }
+  }
+
+  return text.trim()
+}
+
+/**
  * Extract email address from "Name <email>" format
  */
 export function extractEmailAddress(emailString: string): string {

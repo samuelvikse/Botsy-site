@@ -10,7 +10,7 @@ import {
   getRecentGmailMessages,
   getGmailMessage,
 } from '@/lib/google-oauth'
-import { extractEmailAddress } from '@/lib/email'
+import { extractEmailAddress, stripQuotedReply } from '@/lib/email'
 import { sendEscalationNotifications } from '@/lib/push-notifications'
 import { createEscalation } from '@/lib/escalation-firestore'
 
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
               from: fromAddress,
               to: company.emailAddress,
               subject: fullMessage.subject,
-              body: fullMessage.text || '(Ingen tekstinnhold)',
+              body: stripQuotedReply(fullMessage.text) || '(Ingen tekstinnhold)',
               timestamp: fullMessage.date,
             })
 

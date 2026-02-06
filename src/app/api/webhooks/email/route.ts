@@ -5,6 +5,7 @@ import {
   parseMailgunInbound,
   extractEmailAddress,
   formatReplySubject,
+  stripQuotedReply,
   type EmailCredentials,
 } from '@/lib/email'
 import {
@@ -112,13 +113,16 @@ async function processEmail(
       return
     }
 
+    // Strip quoted reply history — only keep the new content
+    const cleanBody = stripQuotedReply(email.text)
+
     // Save inbound email to conversation history
     await saveEmailMessage(companyId, fromAddress, {
       direction: 'inbound',
       from: fromAddress,
       to: toAddress,
       subject: email.subject,
-      body: email.text,
+      body: cleanBody,
       timestamp: email.timestamp,
     })
 
@@ -151,7 +155,7 @@ async function processEmail(
     // Generate AI response using shared module
     const aiResponse = await generateEmailAIResponse({
       emailSubject: email.subject,
-      emailBody: email.text,
+      emailBody: cleanBody,
       senderEmail: fromAddress,
       businessProfile,
       faqs,
