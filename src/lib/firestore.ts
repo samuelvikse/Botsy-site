@@ -587,6 +587,7 @@ export async function getCompany(companyId: string): Promise<{
   businessProfile: BusinessProfile | null
   widgetSettings: {
     primaryColor: string
+    secondaryColor?: string
     position: string
     greeting: string
     isEnabled: boolean
@@ -622,6 +623,7 @@ export async function getCompany(companyId: string): Promise<{
     businessProfile,
     widgetSettings: {
       primaryColor: data.widgetSettings?.primaryColor || '#CCFF00',
+      secondaryColor: data.widgetSettings?.secondaryColor || '#1A1A2E',
       position: data.widgetSettings?.position || 'bottom-right',
       greeting: data.widgetSettings?.greeting || 'Hei! Hvordan kan jeg hjelpe deg?',
       isEnabled: data.widgetSettings?.isEnabled ?? true,

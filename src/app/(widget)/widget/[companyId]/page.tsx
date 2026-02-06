@@ -17,6 +17,7 @@ interface WidgetConfig {
   botName: string
   greeting: string
   primaryColor: string
+  secondaryColor: string
   position: string
   isEnabled: boolean
   logoUrl: string | null
@@ -296,6 +297,7 @@ export default function WidgetPage({
             return {
               ...prev,
               primaryColor: data.config.primaryColor,
+              secondaryColor: data.config.secondaryColor,
               position: data.config.position,
               botName: data.config.botName,
               businessName: data.config.businessName,
@@ -650,6 +652,7 @@ export default function WidgetPage({
   }
 
   const primaryColor = config.primaryColor || '#CCFF00'
+  const secondaryColor = config.secondaryColor || '#1A1A2E'
 
   return (
     <div className="h-screen w-screen font-sans" style={{ background: 'transparent' }}>
@@ -769,17 +772,18 @@ export default function WidgetPage({
                   )}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">
+                  <h3 className="font-semibold" style={{ color: secondaryColor }}>
                     {config.botName || 'Botsy'}
                   </h3>
-                  <p className="text-xs text-gray-900/70">
+                  <p className="text-xs" style={{ color: secondaryColor, opacity: 0.7 }}>
                     {config.businessName}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-2 rounded-lg text-gray-900/70 hover:text-gray-900 hover:bg-gray-900/10 transition-colors"
+                className="p-2 rounded-lg hover:bg-black/10 transition-colors"
+                style={{ color: secondaryColor, opacity: 0.7 }}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -805,12 +809,12 @@ export default function WidgetPage({
                       <div
                         className={`rounded-2xl px-4 py-2.5 text-sm ${
                           msg.role === 'user'
-                            ? 'rounded-br-md text-gray-900'
+                            ? 'rounded-br-md'
                             : 'rounded-bl-md bg-white/10 text-white'
                         }`}
                         style={
                           msg.role === 'user'
-                            ? { backgroundColor: primaryColor }
+                            ? { backgroundColor: primaryColor, color: secondaryColor }
                             : {}
                         }
                       >
@@ -943,8 +947,8 @@ export default function WidgetPage({
                   <button
                     onClick={handleSendEmail}
                     disabled={!emailAddress || isSendingEmail}
-                    className="h-11 px-4 rounded-xl flex items-center justify-center text-gray-900 font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-                    style={{ backgroundColor: primaryColor }}
+                    className="h-11 px-4 rounded-xl flex items-center justify-center font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+                    style={{ backgroundColor: primaryColor, color: secondaryColor }}
                   >
                     {isSendingEmail ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -978,8 +982,8 @@ export default function WidgetPage({
                 <button
                   onClick={handleSend}
                   disabled={!inputValue.trim() || isLoading}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center text-gray-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-                  style={{ backgroundColor: primaryColor }}
+                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+                  style={{ backgroundColor: primaryColor, color: secondaryColor }}
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

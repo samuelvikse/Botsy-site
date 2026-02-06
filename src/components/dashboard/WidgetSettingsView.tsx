@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2, Maximize2, Sparkles, Play, X, Cloud } from 'lucide-react'
+import { Copy, Check, Eye, Palette, MessageCircle, Move, Code, ExternalLink, Upload, Trash2, ImageIcon, Loader2, Maximize2, Sparkles, Play, X, Cloud, Type } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -13,6 +13,7 @@ interface WidgetSettingsViewProps {
   companyId: string
   initialSettings?: {
     primaryColor: string
+    secondaryColor?: string
     position: string
     greeting: string
     isEnabled: boolean
@@ -83,6 +84,14 @@ const PRESET_COLORS = [
   { name: 'Rød', value: '#EF4444' },
 ]
 
+const SECONDARY_PRESET_COLORS = [
+  { name: 'Mørk', value: '#1A1A2E' },
+  { name: 'Sort', value: '#000000' },
+  { name: 'Grå', value: '#4B5563' },
+  { name: 'Hvit', value: '#FFFFFF' },
+  { name: 'Kremhvit', value: '#F5F5F0' },
+]
+
 export function WidgetSettingsView({
   companyId,
   initialSettings,
@@ -91,6 +100,7 @@ export function WidgetSettingsView({
 }: WidgetSettingsViewProps) {
   const [settings, setSettings] = useState({
     primaryColor: initialSettings?.primaryColor || '#CCFF00',
+    secondaryColor: initialSettings?.secondaryColor || '#1A1A2E',
     position: initialSettings?.position || 'bottom-right',
     isEnabled: initialSettings?.isEnabled ?? true,
     logoUrl: initialSettings?.logoUrl || null,
@@ -121,6 +131,7 @@ export function WidgetSettingsView({
         if (company?.widgetSettings) {
           const freshSettings = {
             primaryColor: company.widgetSettings.primaryColor || '#CCFF00',
+            secondaryColor: company.widgetSettings.secondaryColor || '#1A1A2E',
             position: company.widgetSettings.position || 'bottom-right',
             isEnabled: company.widgetSettings.isEnabled ?? true,
             logoUrl: company.widgetSettings.logoUrl || null,
@@ -444,7 +455,7 @@ export function WidgetSettingsView({
                           />
                         </div>
                       ) : (
-                        <MessageCircle className="h-5 w-5 text-gray-900" />
+                        <MessageCircle className="h-5 w-5" style={{ color: settings.secondaryColor }} />
                       )}
                     </motion.div>
                   )}
@@ -470,7 +481,7 @@ export function WidgetSettingsView({
                         style={{ backgroundColor: settings.primaryColor }}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-gray-900/20 flex items-center justify-center overflow-hidden relative">
+                          <div className="h-6 w-6 rounded-full flex items-center justify-center overflow-hidden relative" style={{ backgroundColor: `${settings.secondaryColor}20` }}>
                             {settings.logoUrl ? (
                               <Image
                                 src={settings.logoUrl}
@@ -479,10 +490,10 @@ export function WidgetSettingsView({
                                 className="object-cover rounded-full"
                               />
                             ) : (
-                              <MessageCircle className="h-3 w-3 text-gray-900" />
+                              <MessageCircle className="h-3 w-3" style={{ color: settings.secondaryColor }} />
                             )}
                           </div>
-                          <span className="text-gray-900 text-xs font-medium truncate max-w-[100px]">
+                          <span className="text-xs font-medium truncate max-w-[100px]" style={{ color: settings.secondaryColor }}>
                             {businessName || 'Din bedrift'}
                           </span>
                         </div>
@@ -490,7 +501,7 @@ export function WidgetSettingsView({
                           onClick={() => setShowPreview(false)}
                           className="p-1 rounded hover:bg-black/10"
                         >
-                          <X className="h-3.5 w-3.5 text-gray-900" />
+                          <X className="h-3.5 w-3.5" style={{ color: settings.secondaryColor }} />
                         </button>
                       </div>
                       <div className="p-3">
@@ -558,7 +569,7 @@ export function WidgetSettingsView({
                               transformStyle: 'preserve-3d'
                             }}
                           >
-                            <MessageCircle className="h-4 w-4 text-gray-900" />
+                            <MessageCircle className="h-4 w-4" style={{ color: settings.secondaryColor }} />
                           </motion.div>
                         ) : (
                           <motion.div
@@ -600,7 +611,7 @@ export function WidgetSettingsView({
                   title={color.name}
                 >
                   {settings.primaryColor === color.value && (
-                    <Check className="h-4 w-4 text-gray-900" />
+                    <Check className="h-4 w-4" style={{ color: settings.secondaryColor }} />
                   )}
                 </button>
               ))}
@@ -616,6 +627,48 @@ export function WidgetSettingsView({
                 type="text"
                 value={settings.primaryColor}
                 onChange={(e) => updateSettings(s => ({ ...s, primaryColor: e.target.value }))}
+                className="flex-1 h-10 px-3 bg-white/[0.03] border border-white/[0.06] rounded-lg text-white text-sm font-mono focus:outline-none focus:border-botsy-lime/50"
+              />
+            </div>
+          </Card>
+
+          {/* Secondary Color (Text Color) */}
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Type className="h-5 w-5 text-botsy-lime" />
+              <h3 className="text-white font-medium">Tekstfarge</h3>
+            </div>
+            <p className="text-[#6B7A94] text-sm mb-3">Fargen på tekst i header, brukerbobler og knapper</p>
+            <div className="grid grid-cols-5 gap-2">
+              {SECONDARY_PRESET_COLORS.map((color) => (
+                <button
+                  key={color.value}
+                  onClick={() => updateSettings(s => ({ ...s, secondaryColor: color.value }))}
+                  className={`aspect-square rounded-lg flex items-center justify-center transition-all ${
+                    settings.secondaryColor === color.value
+                      ? 'ring-2 ring-white ring-offset-2 ring-offset-botsy-dark scale-90'
+                      : 'hover:scale-90'
+                  }`}
+                  style={{ backgroundColor: color.value, border: color.value === '#FFFFFF' || color.value === '#F5F5F0' ? '1px solid rgba(255,255,255,0.2)' : undefined }}
+                  title={color.name}
+                >
+                  {settings.secondaryColor === color.value && (
+                    <Check className="h-4 w-4" style={{ color: color.value === '#FFFFFF' || color.value === '#F5F5F0' ? '#1A1A2E' : '#FFFFFF' }} />
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <input
+                type="color"
+                value={settings.secondaryColor}
+                onChange={(e) => updateSettings(s => ({ ...s, secondaryColor: e.target.value }))}
+                className="h-10 w-10 rounded-lg cursor-pointer bg-transparent border border-white/10"
+              />
+              <input
+                type="text"
+                value={settings.secondaryColor}
+                onChange={(e) => updateSettings(s => ({ ...s, secondaryColor: e.target.value }))}
                 className="flex-1 h-10 px-3 bg-white/[0.03] border border-white/[0.06] rounded-lg text-white text-sm font-mono focus:outline-none focus:border-botsy-lime/50"
               />
             </div>
