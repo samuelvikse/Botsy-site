@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
     const hasBusinessProfile = !!companyData?.businessProfile
     const businessName = companyData?.businessName || companyData?.profile?.businessName || companyData?.name || 'Bedrift'
 
-    // Check multiple sources for website URL: request body, company doc, profile, or sync config
-    let websiteUrl = requestUrl || companyData?.websiteUrl || companyData?.profile?.websiteUrl
+    // Check multiple sources for website URL: request body, company doc, profile, businessProfile, or sync config
+    let websiteUrl = requestUrl || companyData?.websiteUrl || companyData?.profile?.websiteUrl || companyData?.businessProfile?.websiteUrl
     let cachedSyncConfig = !websiteUrl ? await getSyncConfig(companyId) : null
     if (!websiteUrl) {
       websiteUrl = cachedSyncConfig?.websiteUrl

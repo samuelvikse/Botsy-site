@@ -344,14 +344,14 @@ function TestingContent() {
   }
 
   // Sync website for a specific company
-  const handleSyncCompanyWebsite = async (targetCompanyId: string, businessName?: string) => {
+  const handleSyncCompanyWebsite = async (targetCompanyId: string, businessName?: string, websiteUrl?: string) => {
     setSyncingCompany(targetCompanyId)
 
     try {
       const response = await fetch('/api/sync/website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId: targetCompanyId }),
+        body: JSON.stringify({ companyId: targetCompanyId, websiteUrl }),
       })
       const data = await response.json()
 
@@ -1187,7 +1187,7 @@ function TestingContent() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleSyncCompanyWebsite(company.id, company.businessName)}
+                            onClick={() => handleSyncCompanyWebsite(company.id, company.businessName, company.websiteUrl)}
                             disabled={syncingCompany === company.id}
                             className="text-purple-400 border-purple-400/30 hover:bg-purple-400/10"
                           >
