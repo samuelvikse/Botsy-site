@@ -343,14 +343,35 @@ export function SimpleNotificationBell({
         const currentIds = new Set<string>(newEscalations.map((e: { id: string }) => e.id))
         const newIds = newEscalations.filter((e: { id: string }) => !previousEscalationIds.current.has(e.id))
 
-        // Only show toast if we had previous data (not on initial load)
+        // Only show toast/sound if we had previous data (not on initial load)
         if (previousEscalationIds.current.size > 0 && newIds.length > 0) {
+          // Play notification sound
+          try {
+            const audio = new Audio('/sounds/notification.wav')
+            audio.volume = 0.5
+            audio.play().catch(() => {})
+          } catch {
+            // Audio not supported
+          }
+
           for (const esc of newIds) {
             const message = esc.customerMessage || 'Kunde trenger assistanse'
-            toast.warning(
-              'Kunde trenger hjelp',
-              `${esc.customerIdentifier || 'Ukjent'}: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}"`
-            )
+            const title = `${esc.customerIdentifier || 'Ukjent'}: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}"`
+
+            toast.warning('Kunde trenger hjelp', title)
+
+            // Show browser notification if permitted
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification('Kunde trenger hjelp', {
+                  body: title,
+                  icon: '/brand/botsy-icon-dark.svg',
+                  tag: `escalation-${esc.id}`,
+                })
+              } catch {
+                // Notification not supported
+              }
+            }
           }
         }
 

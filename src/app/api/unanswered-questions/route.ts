@@ -56,6 +56,38 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { questionId, companyId } = body
+
+    if (!questionId || !companyId) {
+      return NextResponse.json({ error: 'questionId og companyId er påkrevd' }, { status: 400 })
+    }
+
+    // Update the document to mark it as resolved
+    const url = `${FIRESTORE_BASE_URL}/companies/${companyId}/unansweredQuestions/${questionId}?updateMask.fieldPaths=resolved`
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          resolved: { booleanValue: true },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return NextResponse.json({ error: 'Kunne ikke oppdatere spørsmål' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('[Unanswered Questions] PATCH Error:', error)
+    return NextResponse.json({ error: 'Intern feil' }, { status: 500 })
+  }
+}
+
 function parseValue(field: unknown): unknown {
   if (!field || typeof field !== 'object') return null
   const f = field as Record<string, unknown>

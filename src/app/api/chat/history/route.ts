@@ -73,6 +73,10 @@ export async function GET(request: NextRequest) {
       success: true,
       messages,
       isManualMode: data.isManualMode || false,
+      agentTypingAt: data.agentTypingAt?.toDate?.()?.toISOString() || null,
+      customerTypingAt: data.customerTypingAt?.toDate?.()?.toISOString() || null,
+      lastReadByAgent: data.lastReadByAgent?.toDate?.()?.toISOString() || null,
+      lastReadByCustomer: data.lastReadByCustomer?.toDate?.()?.toISOString() || null,
     }, { headers: corsHeaders })
   } catch {
     return NextResponse.json(

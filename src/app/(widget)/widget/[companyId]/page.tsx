@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef, use } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, X, Loader2 } from 'lucide-react'
+import { Send, X, Loader2, ThumbsUp, ThumbsDown, Check, CheckCheck } from 'lucide-react'
 import Image from 'next/image'
 
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
+  feedbackGiven?: 'positive' | 'negative'
 }
 
 interface WidgetConfig {
@@ -159,8 +160,11 @@ export default function WidgetPage({
   const [emailSent, setEmailSent] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [logoError, setLogoError] = useState(false)
+  const [agentTyping, setAgentTyping] = useState(false)
+  const [lastReadByAgent, setLastReadByAgent] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Initialize session ID and mount state
   useEffect(() => {
@@ -334,34 +338,58 @@ export default function WidgetPage({
         const response = await fetch(`/api/chat/history?companyId=${companyId}&sessionId=${sessionId}`)
         const data = await response.json()
 
-        if (data.success && data.messages.length > lastServerMessageCount.current) {
-          // Get only new messages from the server
-          const serverMessages = data.messages as Array<{ role: 'user' | 'assistant'; content: string; isManual?: boolean }>
-          const newServerMessages = serverMessages.slice(lastServerMessageCount.current)
-
-          // Only add manual assistant messages (marked with isManual flag)
-          const manualMessages = newServerMessages.filter(msg => msg.role === 'assistant' && msg.isManual === true)
-
-          if (manualMessages.length > 0) {
-            setMessages((prev) => {
-              // Check if any of these messages already exist (by content)
-              const existingContents = new Set(prev.map(m => m.content))
-              const trulyNewMessages = manualMessages.filter(msg => !existingContents.has(msg.content))
-
-              if (trulyNewMessages.length === 0) return prev
-
-              return [
-                ...prev,
-                ...trulyNewMessages.map((msg, index) => ({
-                  id: `polled-${Date.now()}-${index}`,
-                  role: msg.role as 'user' | 'assistant',
-                  content: msg.content,
-                })),
-              ]
-            })
+        if (data.success) {
+          // Check agent typing status
+          if (data.agentTypingAt) {
+            const typingAge = Date.now() - new Date(data.agentTypingAt).getTime()
+            setAgentTyping(typingAge < 5000) // Show typing if within 5 seconds
+          } else {
+            setAgentTyping(false)
           }
 
-          lastServerMessageCount.current = data.messages.length
+          // Track read receipts
+          if (data.lastReadByAgent) {
+            setLastReadByAgent(data.lastReadByAgent)
+          }
+
+          // Send read receipt (fire-and-forget)
+          if (data.messages.length > 0) {
+            fetch('/api/chat/read', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ companyId, sessionId, who: 'customer' }),
+            }).catch(() => {})
+          }
+
+          if (data.messages.length > lastServerMessageCount.current) {
+            // Get only new messages from the server
+            const serverMessages = data.messages as Array<{ role: 'user' | 'assistant'; content: string; isManual?: boolean }>
+            const newServerMessages = serverMessages.slice(lastServerMessageCount.current)
+
+            // Only add manual assistant messages (marked with isManual flag)
+            const manualMessages = newServerMessages.filter(msg => msg.role === 'assistant' && msg.isManual === true)
+
+            if (manualMessages.length > 0) {
+              setMessages((prev) => {
+                // Check if any of these messages already exist (by content)
+                const existingContents = new Set(prev.map(m => m.content))
+                const trulyNewMessages = manualMessages.filter(msg => !existingContents.has(msg.content))
+
+                if (trulyNewMessages.length === 0) return prev
+
+                return [
+                  ...prev,
+                  ...trulyNewMessages.map((msg, index) => ({
+                    id: `polled-${Date.now()}-${index}`,
+                    role: msg.role as 'user' | 'assistant',
+                    content: msg.content,
+                  })),
+                ]
+              })
+            }
+
+            lastServerMessageCount.current = data.messages.length
+          }
         }
       } catch {
         // Silent fail - polling will retry
@@ -412,6 +440,38 @@ export default function WidgetPage({
       window.parent.postMessage({ type: 'botsy-size', size: config.widgetSize }, '*')
     }
   }, [config?.widgetSize])
+
+  // Debounced typing indicator
+  const sendTypingStatus = () => {
+    if (!sessionId || !companyId) return
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      fetch('/api/chat/typing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, sessionId, who: 'customer' }),
+      }).catch(() => {})
+    }, 300)
+  }
+
+  // Handle feedback on a message
+  const handleFeedback = async (messageId: string, messageIndex: number, rating: 'positive' | 'negative', content: string) => {
+    // Update local state immediately
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedbackGiven: rating } : m))
+
+    // Send feedback to API (fire-and-forget)
+    fetch('/api/chat/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyId,
+        sessionId,
+        messageIndex,
+        rating,
+        messageContent: content,
+      }),
+    }).catch(() => {})
+  }
 
   // Ref to prevent double submissions
   const isSubmitting = useRef(false)
@@ -727,31 +787,80 @@ export default function WidgetPage({
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${
-                    msg.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                      msg.role === 'user'
-                        ? 'rounded-br-md text-gray-900'
-                        : 'rounded-bl-md bg-white/10 text-white'
+              {messages.map((msg, msgIndex) => {
+                const isAssistant = msg.role === 'assistant'
+                const isGreeting = msg.id === 'greeting'
+                const showFeedback = isAssistant && !isGreeting
+
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex ${
+                      msg.role === 'user' ? 'justify-end' : 'justify-start'
                     }`}
-                    style={
-                      msg.role === 'user'
-                        ? { backgroundColor: primaryColor }
-                        : {}
-                    }
                   >
-                    {msg.content}
-                  </div>
-                </motion.div>
-              ))}
+                    <div className="max-w-[80%]">
+                      <div
+                        className={`rounded-2xl px-4 py-2.5 text-sm ${
+                          msg.role === 'user'
+                            ? 'rounded-br-md text-gray-900'
+                            : 'rounded-bl-md bg-white/10 text-white'
+                        }`}
+                        style={
+                          msg.role === 'user'
+                            ? { backgroundColor: primaryColor }
+                            : {}
+                        }
+                      >
+                        {msg.content}
+                      </div>
+                      {msg.role === 'user' && (
+                        <div className="flex justify-end mt-0.5 mr-1">
+                          {lastReadByAgent ? (
+                            <CheckCheck className="h-3 w-3 text-blue-400" />
+                          ) : (
+                            <Check className="h-3 w-3 text-white/30" />
+                          )}
+                        </div>
+                      )}
+                      {showFeedback && (
+                        <div className="flex items-center gap-1 mt-1 ml-1">
+                          <button
+                            onClick={() => handleFeedback(msg.id, msgIndex, 'positive', msg.content)}
+                            disabled={!!msg.feedbackGiven}
+                            className={`p-1 rounded transition-colors ${
+                              msg.feedbackGiven === 'positive'
+                                ? 'text-green-400'
+                                : msg.feedbackGiven
+                                ? 'text-white/10 cursor-default'
+                                : 'text-white/20 hover:text-green-400'
+                            }`}
+                            title="Bra svar"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => handleFeedback(msg.id, msgIndex, 'negative', msg.content)}
+                            disabled={!!msg.feedbackGiven}
+                            className={`p-1 rounded transition-colors ${
+                              msg.feedbackGiven === 'negative'
+                                ? 'text-red-400'
+                                : msg.feedbackGiven
+                                ? 'text-white/10 cursor-default'
+                                : 'text-white/20 hover:text-red-400'
+                            }`}
+                            title="Dårlig svar"
+                          >
+                            <ThumbsDown className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
 
               {isLoading && (
                 <motion.div
@@ -773,6 +882,35 @@ export default function WidgetPage({
                           }}
                         />
                       ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {agentTyping && !isLoading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex justify-start"
+                >
+                  <div className="bg-white/10 px-4 py-2 rounded-2xl rounded-bl-md">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/50 text-xs">Agent skriver</span>
+                      <div className="flex gap-0.5">
+                        {[0, 1, 2].map((i) => (
+                          <motion.div
+                            key={i}
+                            className="h-1.5 w-1.5 rounded-full bg-white/40"
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              delay: i * 0.2,
+                            }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -831,7 +969,7 @@ export default function WidgetPage({
                   ref={inputRef}
                   type="text"
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
+                  onChange={(e) => { setInputValue(e.target.value); sendTypingStatus(); }}
                   onKeyDown={handleKeyDown}
                   placeholder="Skriv en melding..."
                   className="flex-1 h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 text-sm focus:outline-none focus:border-white/30 transition-colors"

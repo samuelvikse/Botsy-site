@@ -38,6 +38,7 @@ import {
   RefreshCw,
   Mail,
   Send,
+  HelpCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -506,6 +507,17 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const [editTarget, setEditTarget] = useState<{ id: string; question: string; answer: string } | null>(null)
   const [newFaq, setNewFaq] = useState({ question: '', answer: '' })
 
+  // Unanswered questions state
+  const [unansweredQuestions, setUnansweredQuestions] = useState<Array<{
+    id: string
+    question: string
+    customerIdentifier?: string
+    channel?: string
+    createdAt?: string
+  }>>([])
+  const [unansweredAnswers, setUnansweredAnswers] = useState<Record<string, string>>({})
+  const [savingUnanswered, setSavingUnanswered] = useState<string | null>(null)
+
   // Duplicate detection states
   const [duplicatesModalOpen, setDuplicatesModalOpen] = useState(false)
   const [similarPairs, setSimilarPairs] = useState<SimilarFaqPair[]>([])
@@ -527,8 +539,22 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
     }
   }
 
+  // Load unanswered questions
+  const loadUnansweredQuestions = async () => {
+    try {
+      const response = await fetch(`/api/unanswered-questions?companyId=${companyId}`)
+      const data = await response.json()
+      if (data.questions) {
+        setUnansweredQuestions(data.questions)
+      }
+    } catch {
+      // Silent fail
+    }
+  }
+
   useEffect(() => {
     loadFaqs()
+    loadUnansweredQuestions()
   }, [companyId])
 
   // Check for similar FAQs after loading
@@ -764,6 +790,68 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
     }
   }
 
+  // Handle adding an unanswered question as FAQ
+  const handleAddUnansweredAsFaq = async (questionId: string, question: string) => {
+    const answer = unansweredAnswers[questionId]?.trim()
+    if (!answer) return
+
+    setSavingUnanswered(questionId)
+    try {
+      const { addFAQ } = await import('@/lib/firestore')
+      const newFaqData = {
+        id: `faq-${Date.now()}`,
+        question,
+        answer,
+        source: 'user' as const,
+        confirmed: true,
+      }
+      await addFAQ(companyId, newFaqData)
+      setFaqs(prev => [...prev, newFaqData])
+
+      // Mark question as resolved
+      await fetch('/api/unanswered-questions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId, companyId }),
+      })
+
+      setUnansweredQuestions(prev => prev.filter(q => q.id !== questionId))
+      setUnansweredAnswers(prev => {
+        const next = { ...prev }
+        delete next[questionId]
+        return next
+      })
+      toast.success('FAQ lagt til', 'Spørsmålet ble besvart og lagt til i kunnskapsbasen')
+    } catch {
+      toast.error('Kunne ikke legge til', 'Prøv igjen senere')
+    } finally {
+      setSavingUnanswered(null)
+    }
+  }
+
+  // Handle ignoring an unanswered question
+  const handleIgnoreUnanswered = async (questionId: string) => {
+    setSavingUnanswered(questionId)
+    try {
+      await fetch('/api/unanswered-questions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId, companyId }),
+      })
+
+      setUnansweredQuestions(prev => prev.filter(q => q.id !== questionId))
+      setUnansweredAnswers(prev => {
+        const next = { ...prev }
+        delete next[questionId]
+        return next
+      })
+    } catch {
+      toast.error('Kunne ikke ignorere', 'Prøv igjen senere')
+    } finally {
+      setSavingUnanswered(null)
+    }
+  }
+
   const handleAddFaq = () => {
     setNewFaq({ question: '', answer: '' })
     setAddModalOpen(true)
@@ -909,6 +997,61 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
                 Godkjenn alle
               </Button>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Unanswered Questions Section */}
+      {unansweredQuestions.length > 0 && (
+        <Card className="p-5 bg-purple-500/5 border-purple-500/20">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+              <HelpCircle className="h-5 w-5 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-white font-medium">Kunder spurte om dette, men Botsy hadde ikke svar</p>
+              <p className="text-[#A8B4C8] text-sm">Legg til svar for å forbedre Botsy sine kunnskaper</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {unansweredQuestions.map((q) => (
+              <div key={q.id} className="p-4 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+                <p className="text-purple-300 text-sm mb-1">En kunde spurte nylig:</p>
+                <p className="text-white font-medium mb-3">&ldquo;{q.question}&rdquo;</p>
+                <textarea
+                  rows={2}
+                  value={unansweredAnswers[q.id] || ''}
+                  onChange={(e) => setUnansweredAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                  placeholder="Hva skal Botsy svare på dette?"
+                  className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-purple-500/50 resize-none mb-3"
+                  disabled={savingUnanswered === q.id}
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleAddUnansweredAsFaq(q.id, q.question)}
+                    disabled={!unansweredAnswers[q.id]?.trim() || savingUnanswered === q.id}
+                    className="bg-purple-500 hover:bg-purple-600 text-white"
+                  >
+                    {savingUnanswered === q.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-1" />
+                    )}
+                    Legg til som FAQ
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleIgnoreUnanswered(q.id)}
+                    disabled={savingUnanswered === q.id}
+                    className="text-[#6B7A94] hover:text-white"
+                  >
+                    Ignorer
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       )}
