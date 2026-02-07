@@ -253,7 +253,7 @@ Gjør en grundig analyse og returner JSON.`,
 
   try {
     // Try to extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+    const jsonMatch = responseText.match(/\{[\s\S]*?\}/)
     const jsonStr = jsonMatch ? jsonMatch[0] : responseText
     const parsed = JSON.parse(jsonStr)
 
@@ -455,7 +455,6 @@ export async function chatWithOwner(
 
     if (result.success) {
       reply = result.response
-      console.log(`[Owner Chat] Response from ${result.provider}, length: ${reply.length}`)
     } else {
       console.error('[Owner Chat] All AI providers failed')
       reply = 'Beklager, jeg kunne ikke behandle forespørselen akkurat nå. Prøv igjen om litt.'

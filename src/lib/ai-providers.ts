@@ -67,19 +67,16 @@ export async function generateAIResponse(
   }
 
   // PHASE 2: Both failed - try sequential with full retries
-  console.log('[AI] Both providers failed in parallel, trying sequential with retries...')
 
   // Try Gemini with full retries
   const geminiRetry = await callGeminiWithRetry(systemPrompt, messages, maxTokens, temperature, MAX_RETRIES)
   if (geminiRetry.success) {
-    console.log('[AI] Gemini succeeded on sequential retry')
     return { ...geminiRetry, provider: 'gemini' }
   }
 
   // Try Groq with full retries
   const groqRetry = await callGroqWithRetry(systemPrompt, messages, maxTokens, temperature, MAX_RETRIES)
   if (groqRetry.success) {
-    console.log('[AI] Groq succeeded on sequential retry')
     return { ...groqRetry, provider: 'groq' }
   }
 
@@ -141,7 +138,6 @@ async function callGeminiWithRetry(
 
         if (attempt < maxRetries) {
           const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1)
-          console.log(`[Gemini] Attempt ${attempt} failed, retrying in ${delay}ms...`)
           await sleep(delay)
           continue
         }
@@ -163,7 +159,6 @@ async function callGeminiWithRetry(
       lastError = error instanceof Error ? error.message : 'Unknown error'
       if (attempt < maxRetries) {
         const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1)
-        console.log(`[Gemini] Exception on attempt ${attempt}, retrying in ${delay}ms: ${lastError}`)
         await sleep(delay)
         continue
       }
@@ -226,7 +221,6 @@ async function callGroqWithRetry(
 
         if (attempt < maxRetries) {
           const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1)
-          console.log(`[Groq] Attempt ${attempt} failed, retrying in ${delay}ms...`)
           await sleep(delay)
           continue
         }
@@ -248,7 +242,6 @@ async function callGroqWithRetry(
       lastError = error instanceof Error ? error.message : 'Unknown error'
       if (attempt < maxRetries) {
         const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1)
-        console.log(`[Groq] Exception on attempt ${attempt}, retrying in ${delay}ms: ${lastError}`)
         await sleep(delay)
         continue
       }

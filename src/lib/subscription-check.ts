@@ -11,28 +11,18 @@ export async function isSubscriptionActive(companyId: string): Promise<boolean> 
     const companyData = await getDocumentRest('companies', companyId)
 
     if (!companyData) {
-      console.log(`[Subscription Check] Company not found: ${companyId}`)
       return false
     }
 
     // Check for lifetime access first
     if (companyData.lifetimeAccess === true) {
-      console.log(`[Subscription Check] Company ${companyId} has lifetime access`)
       return true
     }
 
     const status = companyData.subscriptionStatus as SubscriptionStatus
-
-    // Active statuses that allow access
     const activeStatuses: SubscriptionStatus[] = ['active', 'trialing']
 
-    const isActive = activeStatuses.includes(status)
-
-    if (!isActive) {
-      console.log(`[Subscription Check] Company ${companyId} has inactive subscription: ${status}`)
-    }
-
-    return isActive
+    return activeStatuses.includes(status)
   } catch (error) {
     console.error(`[Subscription Check] Error checking subscription for ${companyId}:`, error)
     // Fail closed - if we can't verify subscription, deny access

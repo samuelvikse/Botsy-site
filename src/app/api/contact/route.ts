@@ -131,8 +131,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Also send a confirmation email to the user
-    await fetch('https://api.resend.com/emails', {
+    // Send confirmation email (fire-and-forget, don't block response)
+    fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
 </html>
 `,
       }),
-    })
+    }).catch(() => {})
 
     return NextResponse.json({
       success: true,

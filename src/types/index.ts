@@ -3,7 +3,7 @@ export interface FAQ {
   id: string
   question: string
   answer: string
-  source: 'extracted' | 'user' | 'generated'
+  source: 'extracted' | 'user' | 'generated' | 'website'
   confirmed: boolean
   category?: string
 }
