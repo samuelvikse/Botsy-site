@@ -37,19 +37,31 @@ const groq = new Groq({
 
 const MODEL = 'llama-3.3-70b-versatile'
 
-const DOCUMENT_ANALYSIS_PROMPT = `Du er en ekspert på å analysere bedriftsdokumenter og trekke ut viktig informasjon.
+const FAQ_CATEGORIES = ['Priser', 'Tjenester', 'Kontakt', 'Åpningstider', 'Ansatte', 'Retningslinjer', 'Produkter', 'Levering', 'Betaling', 'Generelt'] as const
 
-Analyser følgende dokument og trekk ut:
+const DOCUMENT_ANALYSIS_PROMPT = `Du er en ekspert kundeservice-analytiker. Din oppgave er å analysere bedriftsdokumenter GRUNDIG og trekke ut ALL informasjon som kan hjelpe en AI-chatbot å svare kunder.
 
-1. **FAQs** - Spørsmål og svar som kunder ofte lurer på
-2. **Regler** - Bedriftsregler som ansatte/kunder må følge
-3. **Policies** - Retningslinjer for retur, garanti, personvern, etc.
-4. **Viktig informasjon** - Åpningstider, kontaktinfo, priser, etc.
+ANALYSER DOKUMENTET I FLERE STEG:
+
+**Steg 1 - Direkte informasjon:**
+Trekk ut all eksplisitt informasjon (priser, åpningstider, kontaktinfo, tjenester, produkter, regler).
+
+**Steg 2 - Implisitte FAQs (VIKTIG):**
+Tenk som en KUNDE som leser dette dokumentet. Hvilke spørsmål ville de stilt?
+- Hvis dokumentet nevner en tjeneste → "Hva koster [tjeneste]?", "Hvordan bestiller jeg [tjeneste]?"
+- Hvis dokumentet nevner ansatte → "Hvem kan jeg kontakte om [tema]?"
+- Hvis dokumentet nevner regler → "Hva er reglene for [tema]?"
+- Hvis dokumentet nevner prosesser → "Hvordan fungerer [prosess]?"
+
+**Steg 3 - Oppfølgingsspørsmål:**
+For hver FAQ, tenk: "Hva ville kunden spurt om ETTERPÅ?" og lag FAQs for det også.
+
+KATEGORIER for FAQs: ${FAQ_CATEGORIES.join(', ')}
 
 Returner ALLTID gyldig JSON med denne strukturen:
 {
   "faqs": [
-    {"question": "Spørsmål?", "answer": "Svar"}
+    {"question": "Spørsmål?", "answer": "Detaljert svar med kontekst", "category": "Kategori"}
   ],
   "rules": ["Regel 1", "Regel 2"],
   "policies": ["Policy 1", "Policy 2"],
@@ -57,12 +69,15 @@ Returner ALLTID gyldig JSON med denne strukturen:
   "summary": "2-3 setninger som oppsummerer dokumentet"
 }
 
-VIKTIG:
+KRAV:
+- Generer MINST 10 FAQs, gjerne 15-20 hvis dokumentet har nok innhold
 - Svar KUN med gyldig JSON, ingen annen tekst
 - Bruk norsk språk i alle verdier
+- category SKAL være en av: ${FAQ_CATEGORIES.join(', ')}
+- Hvert svar skal være 2-4 setninger med kontekst, ikke bare ett ord
+- ALDRI oversett e-postadresser, telefonnumre, adresser eller navn - behold dem nøyaktig
 - Hvis noe ikke finnes i dokumentet, bruk tomme arrays []
-- Vær grundig og trekk ut ALL relevant informasjon
-- ALDRI oversett e-postadresser, telefonnumre, adresser eller navn - behold dem nøyaktig som de står`
+- ALDRI dikt opp informasjon som ikke finnes i dokumentet`
 
 async function extractTextFromFile(file: File): Promise<string> {
   const fileType = file.name.split('.').pop()?.toLowerCase()
@@ -142,7 +157,7 @@ async function extractTextFromFile(file: File): Promise<string> {
 }
 
 async function analyzeDocument(content: string): Promise<{
-  faqs: Array<{ question: string; answer: string }>
+  faqs: Array<{ question: string; answer: string; category?: string }>
   rules: string[]
   policies: string[]
   importantInfo: string[]
@@ -164,11 +179,11 @@ async function analyzeDocument(content: string): Promise<{
       },
       {
         role: 'user',
-        content: `DOKUMENT TIL ANALYSE:\n---\n${content.slice(0, 15000)}\n---\n\nAnalyser dokumentet og returner JSON.`,
+        content: `DOKUMENT TIL ANALYSE:\n---\n${content.slice(0, 15000)}\n---\n\nAnalyser dokumentet grundig. Generer minst 10-15 FAQs fra kundens perspektiv, inkludert implisitte spørsmål. Returner JSON.`,
       },
     ],
     temperature: 0.3,
-    max_tokens: 4000,
+    max_tokens: 8000,
   })
 
   const responseText = response.choices[0]?.message?.content || ''
@@ -188,10 +203,10 @@ async function analyzeDocument(content: string): Promise<{
     const parsed = JSON.parse(jsonStr)
 
     return {
-      faqs: (parsed.faqs || []).map((f: { question: string; answer: string }) => ({
-        ...f,
+      faqs: (parsed.faqs || []).map((f: { question: string; answer: string; category?: string }) => ({
         question: fixUnicodeEscapes(f.question),
         answer: fixUnicodeEscapes(f.answer),
+        category: f.category || 'Generelt',
       })),
       rules: (parsed.rules || []).map((r: string) => fixUnicodeEscapes(r)),
       policies: (parsed.policies || []).map((p: string) => fixUnicodeEscapes(p)),
@@ -370,6 +385,7 @@ export async function POST(request: NextRequest) {
               answer: faq.answer,
               source: 'extracted',
               confirmed: false, // Mark as unconfirmed so user can review
+              category: (faq as { category?: string }).category || 'Generelt',
             })
           }
         }

@@ -65,7 +65,7 @@ export interface WebsiteSyncJob {
 // Knowledge Conflicts
 // ============================================
 
-export type ConflictStatus = 'pending' | 'resolved_keep_current' | 'resolved_use_website' | 'resolved_merged' | 'dismissed'
+export type ConflictStatus = 'pending' | 'resolved_keep_current' | 'resolved_use_website' | 'resolved_merged' | 'resolved_keep_both' | 'dismissed'
 
 export interface KnowledgeConflict {
   id: string

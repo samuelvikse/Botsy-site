@@ -45,7 +45,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">1. Innledning</h2>
               <p className="text-[#A8B4C8] leading-relaxed">
-                Botsy AS (&quot;vi&quot;, &quot;oss&quot;, &quot;vår&quot;) er opptatt av å beskytte personvernet ditt.
+                Vikse Bruvik Technology (&quot;vi&quot;, &quot;oss&quot;, &quot;vår&quot;) er opptatt av å beskytte personvernet ditt.
                 Denne personvernerklæringen forklarer hvordan vi samler inn, bruker og beskytter
                 personopplysningene dine når du bruker våre tjenester.
               </p>
@@ -204,7 +204,7 @@ export default function PrivacyPage() {
               <div className="mt-4 p-4 bg-white/[0.03] rounded-xl">
                 <p className="text-[#A8B4C8]">
                   <strong className="text-white">Behandlingsansvarlig:</strong><br />
-                  Botsy AS<br />
+                  Vikse Bruvik Technology<br />
                   Org.nr: 837 094 682<br />
                   Haugesund, Rogaland<br />
                   E-post: hei@botsy.no
@@ -218,7 +218,7 @@ export default function PrivacyPage() {
       {/* Footer */}
       <footer className="border-t border-white/[0.06] py-8 mt-12">
         <div className="container mx-auto text-center text-[#6B7A94] text-sm">
-          <p>© {new Date().getFullYear()} Botsy AS. Alle rettigheter reservert.</p>
+          <p>© {new Date().getFullYear()} Botsy. Alle rettigheter reservert.</p>
         </div>
       </footer>
     </div>

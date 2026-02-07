@@ -515,7 +515,8 @@ interface SimilarFaqPair {
 function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [sourceFilter, setSourceFilter] = useState<'all' | 'user' | 'extracted'>('all')
-  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string; source: string; confirmed: boolean }>>([])
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string; source: string; confirmed: boolean; category?: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -527,7 +528,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ id: string; question: string; answer: string } | null>(null)
-  const [newFaq, setNewFaq] = useState({ question: '', answer: '' })
+  const [newFaq, setNewFaq] = useState({ question: '', answer: '', category: 'Generelt' })
 
   // Unanswered questions state
   const [unansweredQuestions, setUnansweredQuestions] = useState<Array<{
@@ -720,12 +721,14 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
       faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
       faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesSource = sourceFilter === 'all' || faq.source === sourceFilter
-    return matchesSearch && matchesSource
+    const matchesCategory = categoryFilter === 'all' || (faq.category || 'Generelt') === categoryFilter
+    return matchesSearch && matchesSource && matchesCategory
   })
 
   const extractedCount = faqs.filter(f => f.source === 'extracted').length
   const manualCount = faqs.filter(f => f.source === 'user').length
   const unconfirmedCount = faqs.filter(f => !f.confirmed).length
+  const availableCategories = [...new Set(faqs.map(f => f.category || 'Generelt'))].sort()
 
   const handleConfirmAllFaqs = async () => {
     const unconfirmed = faqs.filter(f => !f.confirmed)
@@ -875,7 +878,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   }
 
   const handleAddFaq = () => {
-    setNewFaq({ question: '', answer: '' })
+    setNewFaq({ question: '', answer: '', category: 'Generelt' })
     setAddModalOpen(true)
   }
 
@@ -890,6 +893,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
           answer: newFaq.answer,
           source: 'user' as const,
           confirmed: true,
+          category: newFaq.category,
         }
         await addFAQ(companyId, newFaqData)
         setFaqs([...faqs, newFaqData])
@@ -966,6 +970,20 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
         >
           Fra dokumenter ({extractedCount})
         </button>
+
+        {/* Category Filter */}
+        {availableCategories.length > 1 && (
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="ml-auto px-3 py-2 rounded-lg text-sm bg-white/[0.03] border border-white/[0.06] text-[#A8B4C8] focus:outline-none focus:border-botsy-lime/50"
+          >
+            <option value="all">Alle kategorier</option>
+            {availableCategories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Search */}
@@ -1104,6 +1122,11 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
                     }>
                       {faq.source === 'user' || faq.source === 'manual' ? 'Manuell' : faq.source === 'generated' ? 'Generert' : faq.source === 'website_auto' || faq.source === 'website' ? 'Fra nettside' : 'Fra dokument'}
                     </Badge>
+                    {faq.category && (
+                      <Badge variant="secondary" className="bg-white/[0.05] text-[#A8B4C8] border-white/[0.1]">
+                        {faq.category}
+                      </Badge>
+                    )}
                     {faq.confirmed ? (
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Bekreftet</Badge>
                     ) : (
@@ -1198,6 +1221,18 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
               placeholder="Skriv svaret Botsy skal gi..."
               className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 resize-none"
             />
+          </div>
+          <div>
+            <label className="text-white text-sm font-medium block mb-2">Kategori</label>
+            <select
+              value={newFaq.category}
+              onChange={(e) => setNewFaq({ ...newFaq, category: e.target.value })}
+              className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white text-sm focus:outline-none focus:border-botsy-lime/50"
+            >
+              {['Generelt', 'Priser', 'Tjenester', 'Kontakt', 'Åpningstider', 'Ansatte', 'Retningslinjer', 'Produkter', 'Levering', 'Betaling'].map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => setAddModalOpen(false)} className="flex-1">

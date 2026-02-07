@@ -531,7 +531,7 @@ export default function FAQPage() {
               <Link href="/personvern" className="hover:text-white transition-colors">Personvern</Link>
               <Link href="/vilkar" className="hover:text-white transition-colors">Vilk\u00e5r</Link>
               <Link href="/kontakt" className="hover:text-white transition-colors">Kontakt</Link>
-              <span>&copy; {new Date().getFullYear()} Botsy AS</span>
+              <span>&copy; {new Date().getFullYear()} Botsy</span>
             </div>
           </div>
         </div>

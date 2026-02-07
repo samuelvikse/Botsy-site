@@ -5,6 +5,7 @@ export interface FAQ {
   answer: string
   source: 'extracted' | 'user' | 'generated'
   confirmed: boolean
+  category?: string
 }
 
 // Tone configuration for precise control over Botsy's communication style

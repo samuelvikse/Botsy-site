@@ -8,7 +8,7 @@ interface OrganizationJsonLdProps {
 }
 
 export function OrganizationJsonLd({
-  name = 'Botsy AS',
+  name = 'Botsy',
   url = 'https://botsy.no',
   logo = 'https://botsy.no/brand/botsy-full-logo.svg',
   description = 'Botsy er Norges ledende leverandor av AI kundeservice og chatbot-losninger. Vi hjelper norske bedrifter med automatisk kundeservice 24/7 via Messenger, Instagram, SMS og nettside.',
@@ -18,7 +18,7 @@ export function OrganizationJsonLd({
     '@type': 'Organization',
     '@id': `${url}/#organization`,
     name,
-    legalName: 'Botsy AS',
+    legalName: 'Vikse Bruvik Technology',
     url,
     logo: {
       '@type': 'ImageObject',
@@ -345,7 +345,7 @@ interface LocalBusinessJsonLdProps {
 }
 
 export function LocalBusinessJsonLd({
-  name = 'Botsy AS',
+  name = 'Vikse Bruvik Technology',
   description = 'Botsy leverer AI kundeservice og chatbot-losninger for norske bedrifter. Vi tilbyr automatisk kundeservice med intelligent kundeservicebot som svarer 24/7.',
   url = 'https://botsy.no',
 }: LocalBusinessJsonLdProps) {

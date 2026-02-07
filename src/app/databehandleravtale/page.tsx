@@ -45,7 +45,7 @@ export default function DPAPage() {
             <div className="p-4 bg-botsy-lime/5 border border-botsy-lime/20 rounded-xl">
               <p className="text-[#A8B4C8] text-sm">
                 Denne databehandleravtalen (&quot;Avtalen&quot;) er inngått mellom deg som behandlingsansvarlig
-                (&quot;Kunden&quot;) og Botsy AS som databehandler (&quot;Botsy&quot;), i samsvar med GDPR
+                (&quot;Kunden&quot;) og Vikse Bruvik Technology som databehandler (&quot;Botsy&quot;), i samsvar med GDPR
                 artikkel 28.
               </p>
             </div>
@@ -64,7 +64,7 @@ export default function DPAPage() {
               <h2 className="text-2xl font-semibold text-white mb-4">2. Definisjoner</h2>
               <ul className="list-disc list-inside text-[#A8B4C8] space-y-2">
                 <li><strong className="text-white">Behandlingsansvarlig (Kunden):</strong> Den bedriften som bruker Botsy til å håndtere kundeservice, og som bestemmer formålet med behandlingen av personopplysninger.</li>
-                <li><strong className="text-white">Databehandler (Botsy):</strong> Botsy AS, org.nr 837 094 682, som behandler personopplysninger på vegne av Kunden.</li>
+                <li><strong className="text-white">Databehandler (Botsy):</strong> Vikse Bruvik Technology, org.nr 837 094 682, som behandler personopplysninger på vegne av Kunden.</li>
                 <li><strong className="text-white">Registrerte:</strong> Kundens sluttkunder hvis personopplysninger behandles gjennom Botsys tjenester.</li>
               </ul>
             </section>
@@ -229,7 +229,7 @@ export default function DPAPage() {
                 For spørsmål om denne databehandleravtalen, kontakt:
               </p>
               <div className="text-[#A8B4C8] space-y-1">
-                <p><strong>Botsy AS</strong></p>
+                <p><strong>Vikse Bruvik Technology</strong></p>
                 <p>Org.nr: 837 094 682</p>
                 <p>Haugesund, Rogaland</p>
                 <p>E-post:{' '}
@@ -246,7 +246,7 @@ export default function DPAPage() {
       {/* Footer */}
       <footer className="border-t border-white/[0.06] py-8 mt-12">
         <div className="container mx-auto text-center text-[#6B7A94] text-sm">
-          <p>&copy; {new Date().getFullYear()} Botsy AS. Alle rettigheter reservert.</p>
+          <p>&copy; {new Date().getFullYear()} Botsy. Alle rettigheter reservert.</p>
         </div>
       </footer>
     </div>

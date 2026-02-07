@@ -431,6 +431,13 @@ export function WebsiteSyncView({ companyId }: WebsiteSyncViewProps) {
               </Button>
               <Button
                 variant="outline"
+                onClick={() => handleResolveConflict('keep_both')}
+                className="col-span-2 border-botsy-lime/30 text-botsy-lime hover:bg-botsy-lime/10"
+              >
+                Behold begge
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => handleResolveConflict('merge')}
                 className="col-span-2"
               >

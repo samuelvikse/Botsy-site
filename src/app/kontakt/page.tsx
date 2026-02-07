@@ -413,7 +413,7 @@ export default function ContactPage() {
                   </div>
                   <div className="text-sm text-[#A8B4C8] space-y-1">
                     <h3 className="text-white font-semibold mb-1">Bedriftsinformasjon</h3>
-                    <p>Botsy AS</p>
+                    <p>Vikse Bruvik Technology</p>
                     <p>Org.nr: 837 094 682</p>
                     <p>Haugesund, Rogaland</p>
                   </div>
@@ -517,7 +517,7 @@ export default function ContactPage() {
             <div className="flex items-center gap-6 text-sm text-[#6B7A94]">
               <Link href="/personvern" className="hover:text-white transition-colors">Personvern</Link>
               <Link href="/vilkar" className="hover:text-white transition-colors">Vilkår</Link>
-              <span>© {new Date().getFullYear()} Botsy AS</span>
+              <span>© {new Date().getFullYear()} Botsy</span>
             </div>
           </div>
         </div>

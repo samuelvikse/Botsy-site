@@ -63,9 +63,9 @@ export const metadata: Metadata = {
     'reduser kundeservice kostnader',
     'effektiv kundeservice',
   ],
-  authors: [{ name: 'Botsy AS', url: 'https://botsy.no' }],
-  creator: 'Botsy AS',
-  publisher: 'Botsy AS',
+  authors: [{ name: 'Botsy', url: 'https://botsy.no' }],
+  creator: 'Botsy',
+  publisher: 'Botsy',
   formatDetection: {
     email: false,
     address: false,

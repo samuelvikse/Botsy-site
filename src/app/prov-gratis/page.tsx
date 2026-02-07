@@ -585,7 +585,7 @@ export default function TryFreePage() {
               <Link href="/personvern" className="hover:text-white transition-colors">Personvern</Link>
               <Link href="/vilkar" className="hover:text-white transition-colors">Vilkår</Link>
               <Link href="/kontakt" className="hover:text-white transition-colors">Kontakt</Link>
-              <span>© {new Date().getFullYear()} Botsy AS</span>
+              <span>© {new Date().getFullYear()} Botsy</span>
             </div>
           </div>
         </div>

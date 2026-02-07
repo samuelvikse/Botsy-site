@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getConflicts, getConflict, resolveConflict } from '@/lib/knowledge-sync/firestore'
-import { updateFAQ } from '@/lib/firestore'
+import { updateFAQ, addFAQ } from '@/lib/firestore'
 import type { ConflictStatus } from '@/lib/knowledge-sync/types'
 
 export const dynamic = 'force-dynamic'
@@ -97,6 +97,18 @@ export async function POST(request: NextRequest) {
           answer: mergedAnswer,
         })
         status = 'resolved_merged'
+        break
+
+      case 'keep_both':
+        // Keep existing FAQ AND create new FAQ from website version
+        await addFAQ(companyId, {
+          id: `web-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          question: conflict.websiteQuestion,
+          answer: conflict.websiteAnswer,
+          source: 'website',
+          confirmed: true,
+        })
+        status = 'resolved_keep_both'
         break
 
       case 'dismiss':

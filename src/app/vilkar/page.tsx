@@ -212,14 +212,9 @@ export default function TermsPage() {
                 Har du spørsmål om disse vilkårene eller tjenesten? Ta kontakt med oss:
               </p>
               <div className="text-[#A8B4C8] space-y-1">
-                <p><strong>Botsy AS</strong></p>
+                <p><strong>Vikse Bruvik Technology</strong></p>
                 <p>Org.nr: 837 094 682</p>
                 <p>Adresse: Haugesund, Rogaland</p>
-                <p>Telefon:{' '}
-                  <a href="tel:+4794414444" className="text-botsy-lime hover:underline">
-                    +47 944 14 444
-                  </a>
-                </p>
                 <p>E-post:{' '}
                   <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">
                     hei@botsy.no
@@ -234,7 +229,7 @@ export default function TermsPage() {
       {/* Footer */}
       <footer className="border-t border-white/[0.06] py-8 mt-12">
         <div className="container mx-auto text-center text-[#6B7A94] text-sm">
-          <p>© {new Date().getFullYear()} Botsy AS. Alle rettigheter reservert.</p>
+          <p>© {new Date().getFullYear()} Botsy. Alle rettigheter reservert.</p>
         </div>
       </footer>
     </div>
