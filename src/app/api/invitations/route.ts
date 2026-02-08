@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
 import { sendTeamInvitationEmail } from '@/lib/botsy-emails'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 import type { Invitation, EmployeePermissions, AdminPermissions } from '@/types'
 import crypto from 'crypto'
 
@@ -12,7 +14,14 @@ function generateToken(): string {
 }
 
 // GET - Fetch pending invitations for a company
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -23,6 +32,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // First, try the simple query without orderBy to avoid composite index requirement
     const queryBody = {
@@ -108,6 +120,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a new invitation
 export async function POST(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { companyId, email, role, permissions, invitedBy, inviterName, companyName } = body
@@ -120,6 +135,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Check if there's already a pending invitation for this email
     const checkQuery = {
@@ -247,6 +265,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Cancel an invitation
 export async function DELETE(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const invitationId = searchParams.get('invitationId')

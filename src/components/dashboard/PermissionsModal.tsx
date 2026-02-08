@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/toast'
+import { authFetch } from '@/lib/auth-fetch'
 import type { TeamMember, EmployeePermissions, AdminPermissions, UserRole } from '@/types'
 
 interface PermissionsModalProps {
@@ -39,7 +40,7 @@ export function PermissionsModal({ isOpen, onClose, member, onSuccess, isOwner }
   const handleSave = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/memberships', {
+      const response = await authFetch('/api/memberships', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

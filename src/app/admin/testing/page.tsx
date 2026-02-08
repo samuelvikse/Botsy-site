@@ -40,6 +40,7 @@ import { useToast } from '@/components/ui/toast'
 import { db } from '@/lib/firebase'
 import { collection, getDocs, query, where, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
 import { Input } from '@/components/ui/input'
+import { authFetch } from '@/lib/auth-fetch'
 
 // Developer email - only this user can access this page
 const DEVELOPER_EMAIL = 'hei@botsy.no'
@@ -348,7 +349,7 @@ function TestingContent() {
     setSyncingCompany(targetCompanyId)
 
     try {
-      const response = await fetch('/api/sync/website', {
+      const response = await authFetch('/api/sync/website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId: targetCompanyId, websiteUrl }),
@@ -375,10 +376,10 @@ function TestingContent() {
     setTestingWidget(targetCompanyId)
 
     try {
-      const response = await fetch(`/api/chat/${targetCompanyId}`, {
+      const response = await authFetch(`/api/chat/${targetCompanyId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: 'Hei, dette er en test!',
           sessionId: `test-${Date.now()}`
         }),
@@ -484,7 +485,7 @@ function TestingContent() {
     setDailySummaryTest({ status: 'loading' })
 
     try {
-      const response = await fetch('/api/notifications/daily-summary', {
+      const response = await authFetch('/api/notifications/daily-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId }),
@@ -517,7 +518,7 @@ function TestingContent() {
   // Test: Preview Daily Summary Email
   const handlePreviewDailySummary = async () => {
     try {
-      const response = await fetch('/api/test/daily-summary-preview', {
+      const response = await authFetch('/api/test/daily-summary-preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId }),
@@ -541,7 +542,7 @@ function TestingContent() {
     setWebsiteSyncTest({ status: 'loading' })
 
     try {
-      const response = await fetch('/api/sync/website', {
+      const response = await authFetch('/api/sync/website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId }),
@@ -577,7 +578,7 @@ function TestingContent() {
     setTestEmailTest({ status: 'loading' })
 
     try {
-      const response = await fetch('/api/test-email', {
+      const response = await authFetch('/api/test-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email }),
@@ -612,7 +613,7 @@ function TestingContent() {
     setHealthCheck({ status: 'loading' })
 
     try {
-      const response = await fetch('/api/test/health-check')
+      const response = await authFetch('/api/test/health-check')
       const data = await response.json()
 
       const checks = {
@@ -646,7 +647,7 @@ function TestingContent() {
     setAiProviderTest({ status: 'loading' })
 
     try {
-      const response = await fetch('/api/test/ai-provider', {
+      const response = await authFetch('/api/test/ai-provider', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

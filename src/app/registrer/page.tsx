@@ -186,9 +186,9 @@ function RegisterContent() {
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={(e) => updateForm('password', e.target.value)}
-                  placeholder="Minst 6 tegn"
+                  placeholder="Minst 8 tegn"
                   required
-                  minLength={6}
+                  minLength={8}
                   className="w-full h-12 pl-12 pr-12 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white placeholder:text-[#6B7A94] text-sm focus:outline-none focus:border-botsy-lime/50 transition-colors"
                 />
                 <button

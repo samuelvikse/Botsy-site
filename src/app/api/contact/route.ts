@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { escapeHtml } from '@/lib/sanitize'
+import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
+import { widgetCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: widgetCorsHeaders })
+}
 
 interface ContactFormData {
   name: string
@@ -10,6 +17,17 @@ interface ContactFormData {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 requests per minute per IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip')
+    const identifier = getRateLimitIdentifier(undefined, ip)
+    const rateLimitResult = checkRateLimit(identifier + ':contact', RATE_LIMITS.contact)
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'For mange henvendelser. Prøv igjen om litt.' },
+        { status: 429, headers: widgetCorsHeaders }
+      )
+    }
+
     const body = (await request.json()) as ContactFormData
     const { name, email, company, message, type } = body
 
@@ -17,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!name || !email || !message) {
       return NextResponse.json(
         { success: false, error: 'Mangler påkrevde felt' },
-        { status: 400 }
+        { status: 400, headers: widgetCorsHeaders }
       )
     }
 
@@ -26,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { success: false, error: 'Ugyldig e-postadresse' },
-        { status: 400 }
+        { status: 400, headers: widgetCorsHeaders }
       )
     }
 
@@ -35,7 +53,7 @@ export async function POST(request: NextRequest) {
       console.error('[Contact] Resend API key not configured')
       return NextResponse.json(
         { success: false, error: 'E-posttjenesten er ikke konfigurert' },
-        { status: 503 }
+        { status: 503, headers: widgetCorsHeaders }
       )
     }
 
@@ -47,9 +65,14 @@ export async function POST(request: NextRequest) {
       general: 'Generell henvendelse',
       booking: 'Møteforespørsel',
     }
-    const subject = `[Botsy Kontakt] ${typeLabels[type] || 'Ny henvendelse'} fra ${name}`
+    const subject = `[Botsy Kontakt] ${typeLabels[type] || 'Ny henvendelse'} fra ${escapeHtml(name)}`
 
-    // Create email HTML
+    // Create email HTML - escape user input to prevent XSS
+    const safeName = escapeHtml(name)
+    const safeEmail = escapeHtml(email)
+    const safeCompany = company ? escapeHtml(company) : ''
+    const safeMessage = escapeHtml(message)
+
     const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -71,16 +94,16 @@ export async function POST(request: NextRequest) {
     <table style="width: 100%; border-collapse: collapse;">
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #888;">Navn:</td>
-        <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #fff;">${name}</td>
+        <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #fff;">${safeName}</td>
       </tr>
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #888;">E-post:</td>
-        <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1);"><a href="mailto:${email}" style="color: #CCFF00;">${email}</a></td>
+        <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1);"><a href="mailto:${safeEmail}" style="color: #CCFF00;">${safeEmail}</a></td>
       </tr>
-      ${company ? `
+      ${safeCompany ? `
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #888;">Bedrift:</td>
-        <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #fff;">${company}</td>
+        <td style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #fff;">${safeCompany}</td>
       </tr>
       ` : ''}
     </table>
@@ -88,12 +111,12 @@ export async function POST(request: NextRequest) {
     <div style="margin-top: 24px;">
       <p style="color: #888; margin-bottom: 8px;">Melding:</p>
       <div style="background-color: rgba(255,255,255,0.05); border-radius: 8px; padding: 16px;">
-        <p style="margin: 0; color: #fff; white-space: pre-wrap;">${message}</p>
+        <p style="margin: 0; color: #fff; white-space: pre-wrap;">${safeMessage}</p>
       </div>
     </div>
 
     <div style="margin-top: 32px; text-align: center;">
-      <a href="mailto:${email}" style="display: inline-block; background-color: #CCFF00; color: #1a1a2e; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Svar på henvendelsen</a>
+      <a href="mailto:${safeEmail}" style="display: inline-block; background-color: #CCFF00; color: #1a1a2e; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Svar på henvendelsen</a>
     </div>
   </div>
 
@@ -127,7 +150,7 @@ export async function POST(request: NextRequest) {
       console.error('[Contact] Failed to send email:', errorData)
       return NextResponse.json(
         { success: false, error: 'Kunne ikke sende melding. Prøv igjen senere.' },
-        { status: 500 }
+        { status: 500, headers: widgetCorsHeaders }
       )
     }
 
@@ -154,7 +177,7 @@ export async function POST(request: NextRequest) {
     <h1 style="color: #1a1a2e; font-size: 24px; margin-bottom: 16px;">Takk for din henvendelse!</h1>
 
     <p style="color: #4a5568; line-height: 1.6;">
-      Hei ${name}!
+      Hei ${safeName}!
     </p>
 
     <p style="color: #4a5568; line-height: 1.6;">
@@ -163,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     <div style="background-color: #f8f9fa; border-radius: 8px; padding: 16px; margin: 24px 0;">
       <p style="color: #6b7a94; margin: 0 0 8px 0; font-size: 14px;">Din melding:</p>
-      <p style="color: #1a1a2e; margin: 0; white-space: pre-wrap;">${message}</p>
+      <p style="color: #1a1a2e; margin: 0; white-space: pre-wrap;">${safeMessage}</p>
     </div>
 
     <p style="color: #4a5568; line-height: 1.6;">
@@ -186,12 +209,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Melding sendt!',
-    })
+    }, { headers: widgetCorsHeaders })
   } catch (error) {
     console.error('[Contact] Error:', error)
     return NextResponse.json(
       { success: false, error: 'En feil oppstod. Prøv igjen.' },
-      { status: 500 }
+      { status: 500, headers: widgetCorsHeaders }
     )
   }
 }

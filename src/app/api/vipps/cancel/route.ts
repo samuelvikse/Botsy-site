@@ -9,9 +9,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stopVippsAgreement, isVippsConfigured } from '@/lib/vipps'
 import { updateDocumentRest, getDocumentRest } from '@/lib/firebase-rest'
 import { logSubscriptionEvent } from '@/lib/audit-log'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     if (!isVippsConfigured()) {
       return NextResponse.json(
         { error: 'Vipps er ikke konfigurert' },

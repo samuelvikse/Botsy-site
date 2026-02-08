@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
-import { verifyIdTokenRest, getDocumentRest, updateDocumentRest } from '@/lib/firebase-rest'
+import { getDocumentRest, updateDocumentRest } from '@/lib/firebase-rest'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 /**
  * POST - Create a Stripe Checkout Session for subscription
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const token = authHeader.split('Bearer ')[1]
-    const user = await verifyIdTokenRest(token)
-
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
 
     if (!stripe) {
       console.error('[Stripe Checkout] Stripe not configured')

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatWithCustomer } from '@/lib/groq'
 import { getInactiveSubscriptionMessage } from '@/lib/subscription-check'
+import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore'
 import { createEscalation, getEscalation } from '@/lib/escalation-firestore'
@@ -9,6 +10,7 @@ import { incrementPositiveFeedback } from '@/lib/leaderboard-firestore'
 import { logError } from '@/lib/error-logger'
 import { scrapeWithFAQPage, formatForAnalysis } from '@/lib/scraper'
 import { analyzeWebsiteContent } from '@/lib/groq'
+import { widgetCorsHeaders } from '@/lib/cors'
 import type { BusinessProfile, Instruction, FAQ } from '@/types'
 
 // Phrases that indicate user wants human assistance
@@ -100,16 +102,9 @@ function detectUnansweredQuestion(response: string): boolean {
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-}
-
 // Handle OPTIONS for CORS preflight
 export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders })
+  return NextResponse.json({}, { headers: widgetCorsHeaders })
 }
 
 // Initialize Firebase Client SDK
@@ -291,13 +286,24 @@ export async function POST(
   try {
     const { companyId } = await params
 
+    // Rate limit: 30 requests per minute per IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip')
+    const identifier = getRateLimitIdentifier(undefined, ip)
+    const rateLimitResult = checkRateLimit(identifier + ':chat', RATE_LIMITS.chat)
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'For mange meldinger. Prøv igjen om litt.' },
+        { status: 429, headers: widgetCorsHeaders }
+      )
+    }
+
     let body: ChatRequest
     try {
       body = (await request.json()) as ChatRequest
     } catch {
       return NextResponse.json(
         { success: false, error: 'Ugyldig request body' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: widgetCorsHeaders }
       )
     }
 
@@ -307,14 +313,14 @@ export async function POST(
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Melding er påkrevd' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: widgetCorsHeaders }
       )
     }
 
     if (!sessionId || typeof sessionId !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Session ID er påkrevd' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: widgetCorsHeaders }
       )
     }
 
@@ -322,7 +328,7 @@ export async function POST(
     if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY) {
       return NextResponse.json(
         { success: false, error: 'AI-tjenesten er ikke konfigurert.' },
-        { status: 500, headers: corsHeaders }
+        { status: 500, headers: widgetCorsHeaders }
       )
     }
 
@@ -336,7 +342,7 @@ export async function POST(
         instructions: [],
         conversationHistory: [],
       })
-      return NextResponse.json({ success: true, reply }, { headers: corsHeaders })
+      return NextResponse.json({ success: true, reply }, { headers: widgetCorsHeaders })
     }
 
     // === PHASE 1: Get company data (single fetch - replaces separate subscription check) ===
@@ -348,7 +354,7 @@ export async function POST(
     if (!companyDoc.exists()) {
       return NextResponse.json(
         { success: false, error: 'Bedrift ikke funnet. Prøv /widget/demo for testing.' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: widgetCorsHeaders }
       )
     }
 
@@ -364,7 +370,7 @@ export async function POST(
             reply: getInactiveSubscriptionMessage('no'),
             subscriptionInactive: true,
           },
-          { headers: corsHeaders }
+          { headers: widgetCorsHeaders }
         )
       }
     }
@@ -373,7 +379,7 @@ export async function POST(
     if (companyData?.widgetSettings?.isEnabled === false) {
       return NextResponse.json(
         { success: false, error: 'Chat er ikke aktivert for denne bedriften' },
-        { status: 403, headers: corsHeaders }
+        { status: 403, headers: widgetCorsHeaders }
       )
     }
 
@@ -395,13 +401,13 @@ export async function POST(
         } else {
           return NextResponse.json(
             { success: true, reply: 'Vi setter opp chatten nå. Vennligst prøv igjen om noen sekunder!', isSettingUp: true },
-            { headers: corsHeaders }
+            { headers: widgetCorsHeaders }
           )
         }
       } else {
         return NextResponse.json(
           { success: true, reply: 'Chatten er ikke ferdig konfigurert ennå. Ta kontakt med bedriften direkte.', notConfigured: true },
-          { headers: corsHeaders }
+          { headers: widgetCorsHeaders }
         )
       }
     } else {
@@ -520,7 +526,7 @@ export async function POST(
           success: true,
           reply: 'En kundebehandler vil svare deg snart.',
           isManualMode: true,
-        }, { headers: corsHeaders })
+        }, { headers: widgetCorsHeaders })
       }
 
       // Escalation is resolved/dismissed/missing/stale but isManualMode was not reset — auto-fix
@@ -556,7 +562,7 @@ export async function POST(
           reply: escalationReply,
           isManualMode: true,
           escalated: true,
-        }, { headers: corsHeaders })
+        }, { headers: widgetCorsHeaders })
       } catch (escalationError) {
         console.error('Error creating escalation:', escalationError)
       }
@@ -616,7 +622,7 @@ export async function POST(
       success: true,
       reply,
       shouldOfferEmail,
-    }, { headers: corsHeaders })
+    }, { headers: widgetCorsHeaders })
   } catch (error) {
     logError(error, {
       page: '/api/chat/[companyId]',
@@ -627,7 +633,7 @@ export async function POST(
     const errorMessage = error instanceof Error ? error.message : 'En ukjent feil oppstod'
     return NextResponse.json(
       { success: false, error: errorMessage },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: widgetCorsHeaders }
     )
   }
 }
@@ -662,7 +668,7 @@ export async function GET(
     if (!companyDoc.exists()) {
       return NextResponse.json(
         { success: false, error: 'Bedrift ikke funnet. Bruk /widget/demo for testing.' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: widgetCorsHeaders }
       )
     }
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import { authFetch } from '@/lib/auth-fetch'
 import { usePermissions } from '@/contexts/PermissionContext'
 import { ArrowRight, CreditCard, AlertTriangle, Users, Mail, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,12 +40,7 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
       if (!user) return
 
       try {
-        const token = await user.getIdToken()
-        const response = await fetch('/api/stripe/subscription', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        })
+        const response = await authFetch('/api/stripe/subscription')
 
         if (!response.ok) {
           setStatus('inactive')

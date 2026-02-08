@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { verifyIdTokenRest, getDocumentRest } from '@/lib/firebase-rest'
+import { getDocumentRest } from '@/lib/firebase-rest'
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { formatStripeError } from '@/lib/stripe-errors'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 /**
  * POST - Create a Stripe Customer Portal session
  * Allows customers to manage their subscription, payment methods, and view invoices
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const token = authHeader.split('Bearer ')[1]
-    const user = await verifyIdTokenRest(token)
-
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
 
     // Rate limiting
     const rateLimitResult = checkRateLimit(

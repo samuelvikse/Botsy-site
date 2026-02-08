@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { toFirestoreValue } from '@/lib/firestore-utils'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
@@ -8,8 +10,15 @@ const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJE
 // This endpoint is for updating the avatar URL in the user document after upload
 
 // POST - Update user avatar URL after upload
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { userId, avatarUrl } = body
 
@@ -49,6 +58,9 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove user avatar
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
 

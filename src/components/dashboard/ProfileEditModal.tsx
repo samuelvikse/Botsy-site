@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { uploadUserAvatar } from '@/lib/storage'
+import { authFetch } from '@/lib/auth-fetch'
 
 interface ProfileEditModalProps {
   isOpen: boolean
@@ -85,7 +86,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       }
 
       if (Object.keys(updates).length > 0) {
-        const response = await fetch('/api/user/profile', {
+        const response = await authFetch('/api/user/profile', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { authFetch } from '@/lib/auth-fetch'
 import { getAllSMSChats, getSMSHistory, saveSMSMessage } from '@/lib/sms-firestore'
 import { getSMSChannel } from '@/lib/sms-firestore'
 import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
@@ -145,7 +146,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 
     // Send read receipt for widget conversations
     if (conv.channel === 'widget' && conv.phone) {
-      fetch('/api/chat/read', {
+      authFetch('/api/chat/read', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, sessionId: conv.phone, who: 'agent' }),
@@ -156,7 +157,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     if (conv.channel === 'email' && conv.email) {
       const normalizedEmail = conv.email.toLowerCase().trim().replace(/[.#$[\]]/g, '_')
       attendedEmailTimes.current.set(conv.id, Date.now())
-      fetch('/api/chat/read', {
+      authFetch('/api/chat/read', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, sessionId: normalizedEmail, who: 'agent', channel: 'email' }),
@@ -174,7 +175,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
       )
 
       // Resolve escalation in backend (fire-and-forget)
-      fetch('/api/escalations', {
+      authFetch('/api/escalations', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -235,7 +236,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 
       // Fetch Messenger chats via API
       try {
-        const messengerResponse = await fetch(`/api/messenger/chats?companyId=${companyId}`)
+        const messengerResponse = await authFetch(`/api/messenger/chats?companyId=${companyId}`)
         if (messengerResponse.ok) {
           const messengerData = await messengerResponse.json()
           if (messengerData.success && messengerData.chats) {
@@ -269,7 +270,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 
       // Fetch Instagram chats via API
       try {
-        const instagramResponse = await fetch(`/api/instagram/chats?companyId=${companyId}`)
+        const instagramResponse = await authFetch(`/api/instagram/chats?companyId=${companyId}`)
         if (instagramResponse.ok) {
           const instagramData = await instagramResponse.json()
           if (instagramData.success && instagramData.chats) {
@@ -420,7 +421,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         }))
       } else if (conversation.channel === 'messenger') {
         // Fetch Messenger messages via API
-        const messengerResponse = await fetch(
+        const messengerResponse = await authFetch(
           `/api/messenger/chats?companyId=${companyId}&senderId=${conversation.phone}`
         )
         if (messengerResponse.ok) {
@@ -441,7 +442,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         }
       } else if (conversation.channel === 'instagram') {
         // Fetch Instagram messages via API
-        const instagramResponse = await fetch(
+        const instagramResponse = await authFetch(
           `/api/instagram/chats?companyId=${companyId}&senderId=${conversation.phone}`
         )
         if (instagramResponse.ok) {
@@ -507,7 +508,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 
       // Check typing status and read receipts for widget conversations
       if (selectedConversation.channel === 'widget' && selectedConversation.phone) {
-        fetch(`/api/chat/history?companyId=${companyId}&sessionId=${selectedConversation.phone}`)
+        authFetch(`/api/chat/history?companyId=${companyId}&sessionId=${selectedConversation.phone}`)
           .then(res => res.json())
           .then(data => {
             if (data.success) {
@@ -534,7 +535,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     if (!selectedConversation?.phone || selectedConversation.channel !== 'widget') return
     if (agentTypingTimeoutRef.current) clearTimeout(agentTypingTimeoutRef.current)
     agentTypingTimeoutRef.current = setTimeout(() => {
-      fetch('/api/chat/typing', {
+      authFetch('/api/chat/typing', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -570,7 +571,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         ? { companyId, senderId: selectedConversation.phone, isManual: newMode }
         : { companyId, sessionId: selectedConversation.phone, isManual: newMode }
 
-      const response = await fetch(apiUrl, {
+      const response = await authFetch(apiUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyData),
@@ -649,7 +650,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         )
       } else if (selectedConversation.channel === 'messenger') {
         // Messenger - send via API
-        const response = await fetch('/api/messenger/send', {
+        const response = await authFetch('/api/messenger/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -687,7 +688,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         }
       } else if (selectedConversation.channel === 'instagram') {
         // Instagram - send via API
-        const response = await fetch('/api/instagram/send', {
+        const response = await authFetch('/api/instagram/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -725,7 +726,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         }
       } else {
         // Widget chat - send via API
-        const response = await fetch('/api/chat/manual', {
+        const response = await authFetch('/api/chat/manual', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -801,7 +802,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     if (!isNew) setEmailReplyMode('suggestion')
 
     try {
-      const response = await fetch('/api/email/suggest', {
+      const response = await authFetch('/api/email/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -836,7 +837,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
       const subjectMatch = lastMsg?.content.match(/^\*\*(.+?)\*\*/)
       const subject = subjectMatch?.[1] || 'Henvendelse'
 
-      const response = await fetch('/api/email/send', {
+      const response = await authFetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -890,7 +891,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     setEmailSummary('')
 
     try {
-      const response = await fetch('/api/email/summarize', {
+      const response = await authFetch('/api/email/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -921,7 +922,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
     setEmailSummary('')
 
     try {
-      const response = await fetch('/api/email/summarize', {
+      const response = await authFetch('/api/email/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

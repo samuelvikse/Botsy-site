@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getEmailChannel, saveEmailMessage } from '@/lib/email-firestore'
 import { sendEmail, formatReplySubject } from '@/lib/email'
 import type { EmailCredentials } from '@/lib/email'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 /**
  * POST - Send email reply via configured provider (Gmail, SendGrid, etc.)
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { companyId, customerEmail, subject, body: emailBody } = body
 
@@ -17,6 +26,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Get email channel configuration
     const channel = await getEmailChannel(companyId)

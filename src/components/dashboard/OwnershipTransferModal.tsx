@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { authFetch } from '@/lib/auth-fetch'
 import type { TeamMember } from '@/types'
 
 interface OwnershipTransferModalProps {
@@ -43,7 +44,7 @@ export function OwnershipTransferModal({
 
     setIsLoading(true)
     try {
-      const response = await fetch('/api/ownership-transfer', {
+      const response = await authFetch('/api/ownership-transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -2,14 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getConflicts, getConflict, resolveConflict } from '@/lib/knowledge-sync/firestore'
 import { updateFAQ, addFAQ } from '@/lib/firestore'
 import type { ConflictStatus } from '@/lib/knowledge-sync/types'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET - Get all conflicts for a company
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
     const conflictId = searchParams.get('conflictId')
@@ -21,6 +30,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Get specific conflict
     if (conflictId) {
@@ -53,6 +65,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { companyId, conflictId, resolution, userId, note } = body
 
@@ -62,6 +77,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Get the conflict
     const conflict = await getConflict(companyId, conflictId)

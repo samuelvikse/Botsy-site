@@ -7,12 +7,21 @@ import {
   getKnowledgeDocuments,
 } from '@/lib/email-firestore'
 import { generateEmailAIResponse } from '@/lib/email-ai'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 /**
  * POST - Generate AI suggestion for email reply
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { companyId, customerEmail, previousSuggestions } = body
 
@@ -22,6 +31,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Fetch context in parallel
     const [businessProfile, faqs, instructions, emailHistory, knowledgeDocuments] = await Promise.all([

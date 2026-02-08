@@ -4,9 +4,18 @@ import {
   deactivatePushSubscription,
   getPushSubscriptionByUser,
 } from '@/lib/escalation-firestore'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { userId, companyId, subscription } = await request.json()
 
     if (!userId || !companyId || !subscription) {
@@ -15,6 +24,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Deactivate any existing subscriptions for this user
     await deactivatePushSubscription(userId)

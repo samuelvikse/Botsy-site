@@ -21,6 +21,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
+import { authFetch } from '@/lib/auth-fetch'
 import type { Instruction, InstructionCategory, InstructionPriority } from '@/types'
 
 interface InstructionsViewProps {
@@ -100,7 +101,7 @@ export function InstructionsView({ companyId, instructions, onInstructionsChange
     if (!deleteTarget) return
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `/api/instructions?companyId=${companyId}&instructionId=${deleteTarget}`,
         { method: 'DELETE' }
       )
@@ -117,7 +118,7 @@ export function InstructionsView({ companyId, instructions, onInstructionsChange
 
   const handleToggleActive = async (instruction: Instruction) => {
     try {
-      const response = await fetch('/api/instructions', {
+      const response = await authFetch('/api/instructions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -380,7 +381,7 @@ function InstructionForm({
             instruction: { content, category, priority, isActive: true, expiresAt: expiresAt ? new Date(expiresAt) : null, createdBy: '' },
           }
 
-      const response = await fetch('/api/instructions', {
+      const response = await authFetch('/api/instructions', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

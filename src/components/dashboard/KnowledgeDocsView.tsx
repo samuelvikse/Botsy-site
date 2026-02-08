@@ -24,6 +24,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
+import { authFetch } from '@/lib/auth-fetch'
 import type { KnowledgeDocument } from '@/types'
 
 interface KnowledgeDocsViewProps {
@@ -45,7 +46,7 @@ export function KnowledgeDocsView({ companyId, userId }: KnowledgeDocsViewProps)
   const fetchDocuments = useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/knowledge/upload?companyId=${companyId}`)
+      const response = await authFetch(`/api/knowledge/upload?companyId=${companyId}`)
       const data = await response.json()
 
       if (data.success) {
@@ -82,7 +83,7 @@ export function KnowledgeDocsView({ companyId, userId }: KnowledgeDocsViewProps)
 
       setUploadProgress(30)
 
-      const response = await fetch('/api/knowledge/upload', {
+      const response = await authFetch('/api/knowledge/upload', {
         method: 'POST',
         body: formData,
       })
@@ -115,7 +116,7 @@ export function KnowledgeDocsView({ companyId, userId }: KnowledgeDocsViewProps)
     if (!deleteTarget) return
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `/api/knowledge/upload?companyId=${companyId}&documentId=${deleteTarget}`,
         { method: 'DELETE' }
       )

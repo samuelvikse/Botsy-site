@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { findFAQAnswer, reformulateAnswer } from '@/lib/groq'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 interface FindFAQAnswerRequest {
   question: string
@@ -13,8 +15,15 @@ interface ReformulateRequest {
 }
 
 // POST /api/find-faq-answer - Find answer to a question from website content
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { question, websiteContent } = body as FindFAQAnswerRequest
 
@@ -61,6 +70,9 @@ export async function POST(request: NextRequest) {
 // PATCH /api/find-faq-answer - Reformulate a user-provided answer
 export async function PATCH(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { question, userAnswer, tone } = body as ReformulateRequest
 

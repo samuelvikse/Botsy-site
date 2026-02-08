@@ -9,6 +9,7 @@ import { CheckCircle, XCircle, Clock, Loader2, Crown, AlertTriangle } from 'luci
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useAuth } from '@/contexts/AuthContext'
+import { authFetch } from '@/lib/auth-fetch'
 
 type PageStatus = 'loading' | 'valid' | 'invalid' | 'expired' | 'confirmed' | 'completed' | 'error'
 
@@ -41,7 +42,7 @@ export default function TransferPage() {
 
     setIsConfirming(true)
     try {
-      const response = await fetch('/api/ownership-transfer/confirm', {
+      const response = await authFetch('/api/ownership-transfer/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

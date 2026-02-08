@@ -33,6 +33,7 @@ import { usePermissions } from '@/contexts/PermissionContext'
 import { InviteModal } from './InviteModal'
 import { PermissionsModal } from './PermissionsModal'
 import { OwnershipTransferModal } from './OwnershipTransferModal'
+import { authFetch } from '@/lib/auth-fetch'
 import type { TeamMember, Invitation, OwnershipTransfer, LeaderboardEntry } from '@/types'
 
 interface EmployeesViewProps {
@@ -68,7 +69,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
       console.log('[EmployeesView] Fetching data for company:', companyId)
 
       // Fetch team members
-      const membersResponse = await fetch(`/api/memberships?companyId=${companyId}`)
+      const membersResponse = await authFetch(`/api/memberships?companyId=${companyId}`)
       if (membersResponse.ok) {
         const membersData = await membersResponse.json()
         console.log('[EmployeesView] Members response:', membersData)
@@ -78,13 +79,13 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
       }
 
       // Fetch pending invitations
-      const invitationsResponse = await fetch(`/api/invitations?companyId=${companyId}`)
+      const invitationsResponse = await authFetch(`/api/invitations?companyId=${companyId}`)
       const invitationsData = await invitationsResponse.json()
       console.log('[EmployeesView] Invitations response:', invitationsData)
       setInvitations(invitationsData.invitations || [])
 
       // Fetch pending ownership transfer
-      const transferResponse = await fetch(`/api/ownership-transfer?companyId=${companyId}`)
+      const transferResponse = await authFetch(`/api/ownership-transfer?companyId=${companyId}`)
       if (transferResponse.ok) {
         const transferData = await transferResponse.json()
         console.log('[EmployeesView] Transfer response:', transferData)
@@ -92,7 +93,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
       }
 
       // Fetch leaderboard
-      const leaderboardResponse = await fetch(`/api/leaderboard?companyId=${companyId}&topCount=3`)
+      const leaderboardResponse = await authFetch(`/api/leaderboard?companyId=${companyId}&topCount=3`)
       if (leaderboardResponse.ok) {
         const leaderboardData = await leaderboardResponse.json()
         console.log('[EmployeesView] Leaderboard response:', leaderboardData)
@@ -116,7 +117,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
 
     setActionLoading(selectedMember.membership.id)
     try {
-      const response = await fetch(`/api/memberships?membershipId=${selectedMember.membership.id}`, {
+      const response = await authFetch(`/api/memberships?membershipId=${selectedMember.membership.id}`, {
         method: 'DELETE',
       })
 
@@ -140,7 +141,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
 
     setActionLoading(cancelInviteId)
     try {
-      const response = await fetch(`/api/invitations?invitationId=${cancelInviteId}`, {
+      const response = await authFetch(`/api/invitations?invitationId=${cancelInviteId}`, {
         method: 'DELETE',
       })
 
@@ -164,7 +165,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
 
     setActionLoading('leave')
     try {
-      const response = await fetch('/api/memberships/leave', {
+      const response = await authFetch('/api/memberships/leave', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,7 +196,7 @@ export function EmployeesView({ companyId }: EmployeesViewProps) {
 
     setActionLoading('transfer')
     try {
-      const response = await fetch(`/api/ownership-transfer?transferId=${pendingTransfer.id}`, {
+      const response = await authFetch(`/api/ownership-transfer?transferId=${pendingTransfer.id}`, {
         method: 'DELETE',
       })
 

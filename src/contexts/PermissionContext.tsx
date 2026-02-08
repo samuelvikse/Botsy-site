@@ -51,7 +51,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await fetch(`/api/memberships?userId=${user.uid}&companyId=${userData.companyId}`)
+      const { authFetch } = await import('@/lib/auth-fetch')
+      const response = await authFetch(`/api/memberships?userId=${user.uid}&companyId=${userData.companyId}`)
       if (response.ok) {
         const data = await response.json()
         if (data.membership) {
@@ -133,8 +134,8 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
 
       if (role === 'admin') {
         const adminPerms = permissions as AdminPermissions
-        if (panel === 'channels') return adminPerms.channels ?? true
-        if (panel === 'employees') return adminPerms.employees ?? true
+        if (panel === 'channels') return adminPerms.channels ?? false
+        if (panel === 'employees') return adminPerms.employees ?? false
       }
 
       if (role === 'employee') {

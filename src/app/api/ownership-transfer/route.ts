@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 import crypto from 'crypto'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
@@ -10,7 +12,14 @@ function generateToken(): string {
 }
 
 // GET - Get pending ownership transfer for a company
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -21,6 +30,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const queryBody = {
       structuredQuery: {
@@ -93,6 +105,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a new ownership transfer
 export async function POST(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { companyId, fromUserId, toUserId } = body
@@ -103,6 +118,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Verify the fromUser is the current owner
     const companyResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
@@ -272,6 +290,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Cancel an ownership transfer
 export async function DELETE(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const transferId = searchParams.get('transferId')

@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getLeaderboard, getAllPerformances, getCurrentMonth } from '@/lib/leaderboard-firestore'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering (uses request.url)
 export const dynamic = 'force-dynamic'
 
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -17,6 +26,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const month = getCurrentMonth()
 

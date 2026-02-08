@@ -72,8 +72,12 @@ const IFRAME_PADDING = 20
 const INACTIVITY_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
 const AWAY_TIMEOUT = 15 * 60 * 1000 // 15 minutes in milliseconds
 
-// Generate a unique session ID
+// Generate a unique session ID using cryptographic randomness
 function generateSessionId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return 'session_' + crypto.randomUUID()
+  }
+  // Fallback for older browsers
   return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
 }
 
@@ -164,14 +168,23 @@ export default function WidgetPage({
   const [logoError, setLogoError] = useState(false)
   const [agentTyping, setAgentTyping] = useState(false)
   const [lastReadByAgent, setLastReadByAgent] = useState<string | null>(null)
+  const [parentOrigin, setParentOrigin] = useState<string>('*')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Initialize session ID and mount state
+  // Initialize session ID, mount state, and parent origin
   useEffect(() => {
     setSessionId(getSessionId(companyId))
     setIsMounted(true)
+    // Determine parent origin from document.referrer for secure postMessage
+    if (document.referrer) {
+      try {
+        setParentOrigin(new URL(document.referrer).origin)
+      } catch {
+        // Invalid referrer URL, keep '*' as fallback
+      }
+    }
   }, [companyId])
 
   // Track page visibility and record leave time
@@ -416,6 +429,9 @@ export default function WidgetPage({
   // Listen for parent window messages (open/close)
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
+      // Validate origin - only accept messages from the parent window
+      if (parentOrigin !== '*' && event.origin !== parentOrigin) return
+
       if (event.data.type === 'botsy-toggle') {
         setIsOpen(event.data.isOpen)
       }
@@ -423,26 +439,26 @@ export default function WidgetPage({
 
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [])
+  }, [parentOrigin])
 
   // Notify parent of state changes
   useEffect(() => {
-    window.parent.postMessage({ type: 'botsy-state', isOpen }, '*')
-  }, [isOpen])
+    window.parent.postMessage({ type: 'botsy-state', isOpen }, parentOrigin)
+  }, [isOpen, parentOrigin])
 
   // Notify parent of position
   useEffect(() => {
     if (config?.position) {
-      window.parent.postMessage({ type: 'botsy-position', position: config.position }, '*')
+      window.parent.postMessage({ type: 'botsy-position', position: config.position }, parentOrigin)
     }
-  }, [config?.position])
+  }, [config?.position, parentOrigin])
 
   // Notify parent of size
   useEffect(() => {
     if (config?.widgetSize) {
-      window.parent.postMessage({ type: 'botsy-size', size: config.widgetSize }, '*')
+      window.parent.postMessage({ type: 'botsy-size', size: config.widgetSize }, parentOrigin)
     }
-  }, [config?.widgetSize])
+  }, [config?.widgetSize, parentOrigin])
 
   // Debounced typing indicator
   const sendTypingStatus = () => {

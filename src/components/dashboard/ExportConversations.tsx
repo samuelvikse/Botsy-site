@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { auth } from '@/lib/firebase'
+import { authFetch } from '@/lib/auth-fetch'
 
 interface ExportConversationsProps {
   companyId: string
@@ -57,11 +58,7 @@ export function ExportConversations({ companyId, isOpen, onClose }: ExportConver
         endDate,
       })
 
-      const response = await fetch(`/api/conversations/export?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-        },
-      })
+      const response = await authFetch(`/api/conversations/export?${params}`)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))

@@ -38,6 +38,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import dynamic from 'next/dynamic'
 import { PRICING } from '@/lib/pricing'
+import { authFetch } from '@/lib/auth-fetch'
 
 // Dynamic import to avoid SSR issues with Stripe
 const StripeCheckout = dynamic(() => import('@/components/stripe/StripeCheckout'), {
@@ -432,7 +433,7 @@ function BillingContent() {
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/stripe/subscription', {
+      const response = await authFetch('/api/stripe/subscription', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -496,7 +497,7 @@ function BillingContent() {
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/stripe/portal', {
+      const response = await authFetch('/api/stripe/portal', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -546,7 +547,7 @@ function BillingContent() {
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/stripe/subscription', {
+      const response = await authFetch('/api/stripe/subscription', {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -591,7 +592,7 @@ function BillingContent() {
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/stripe/subscription', {
+      const response = await authFetch('/api/stripe/subscription', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -635,7 +636,7 @@ function BillingContent() {
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/stripe/subscription/pause', {
+      const response = await authFetch('/api/stripe/subscription/pause', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -682,7 +683,7 @@ function BillingContent() {
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/stripe/subscription/retry', {
+      const response = await authFetch('/api/stripe/subscription/retry', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -735,7 +736,7 @@ function BillingContent() {
     setError(null)
 
     try {
-      const response = await fetch('/api/vipps/create-agreement', {
+      const response = await authFetch('/api/vipps/create-agreement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -788,7 +789,7 @@ function BillingContent() {
     setError(null)
 
     try {
-      const response = await fetch('/api/vipps/cancel', {
+      const response = await authFetch('/api/vipps/cancel', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

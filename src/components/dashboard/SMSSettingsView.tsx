@@ -21,6 +21,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
+import { authFetch } from '@/lib/auth-fetch'
 import type { SMSProvider } from '@/types'
 
 interface SMSSettingsViewProps {
@@ -86,7 +87,7 @@ export function SMSSettingsView({ companyId }: SMSSettingsViewProps) {
   const fetchConfig = useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/sms/config?companyId=${companyId}`)
+      const response = await authFetch(`/api/sms/config?companyId=${companyId}`)
       const data = await response.json()
 
       if (data.success) {
@@ -116,7 +117,7 @@ export function SMSSettingsView({ companyId }: SMSSettingsViewProps) {
     setIsSaving(true)
 
     try {
-      const response = await fetch('/api/sms/config', {
+      const response = await authFetch('/api/sms/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -154,7 +155,7 @@ export function SMSSettingsView({ companyId }: SMSSettingsViewProps) {
     setIsTesting(true)
 
     try {
-      const response = await fetch('/api/sms/test', {
+      const response = await authFetch('/api/sms/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +188,7 @@ export function SMSSettingsView({ companyId }: SMSSettingsViewProps) {
     setIsSaving(true)
 
     try {
-      const response = await fetch(`/api/sms/config?companyId=${companyId}`, {
+      const response = await authFetch(`/api/sms/config?companyId=${companyId}`, {
         method: 'DELETE',
       })
 

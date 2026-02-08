@@ -16,6 +16,7 @@ import {
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { authFetch } from '@/lib/auth-fetch'
 import {
   LineChart,
   Line,
@@ -73,7 +74,7 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
   const handleExportAnalytics = async () => {
     setIsExportingAnalytics(true)
     try {
-      const response = await fetch(`/api/export/analytics?companyId=${companyId}&period=${timeRange}`)
+      const response = await authFetch(`/api/export/analytics?companyId=${companyId}&period=${timeRange}`)
       if (!response.ok) throw new Error('Failed to export')
 
       const blob = await response.blob()
@@ -97,7 +98,7 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
   const handleExportContacts = async () => {
     setIsExportingContacts(true)
     try {
-      const response = await fetch(`/api/export/contacts?companyId=${companyId}`)
+      const response = await authFetch(`/api/export/contacts?companyId=${companyId}`)
       if (!response.ok) throw new Error('Failed to export')
 
       const blob = await response.blob()

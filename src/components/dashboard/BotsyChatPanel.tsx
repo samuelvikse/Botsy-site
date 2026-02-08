@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ChatBubble, ChatContainer } from '@/components/ui/chat-bubble'
 import { usePermissions } from '@/contexts/PermissionContext'
+import { authFetch } from '@/lib/auth-fetch'
 import type { OwnerChatMessage, BusinessProfile, Instruction, PendingAction, FAQ } from '@/types'
 
 interface BotsyChatPanelProps {
@@ -77,7 +78,7 @@ export function BotsyChatPanel({
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/owner-chat', {
+      const response = await authFetch('/api/owner-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -137,7 +138,7 @@ export function BotsyChatPanel({
             ? `/api/export/analytics?companyId=${companyId}&period=30`
             : `/api/export/contacts?companyId=${companyId}`
 
-          const exportResponse = await fetch(exportUrl)
+          const exportResponse = await authFetch(exportUrl)
           if (exportResponse.ok) {
             const blob = await exportResponse.blob()
             const url = window.URL.createObjectURL(blob)

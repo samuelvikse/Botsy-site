@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Button } from './button'
 import { useToast } from './toast'
+import { authFetch } from '@/lib/auth-fetch'
 
 export interface Notification {
   id: string
@@ -327,7 +328,7 @@ export function SimpleNotificationBell({
     if (!companyId) return
 
     try {
-      const response = await fetch(`/api/escalations?companyId=${companyId}`)
+      const response = await authFetch(`/api/escalations?companyId=${companyId}`)
       if (response.ok) {
         const data = await response.json()
         const newEscalations = data.escalations || [] as Array<{
@@ -398,7 +399,7 @@ export function SimpleNotificationBell({
           const subscription = await registration.pushManager.getSubscription()
           if (subscription) {
             await subscription.unsubscribe()
-            await fetch('/api/push/subscribe', {
+            await authFetch('/api/push/subscribe', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userId }),
@@ -437,7 +438,7 @@ export function SimpleNotificationBell({
         })
 
         // Send subscription to server
-        await fetch('/api/push/subscribe', {
+        await authFetch('/api/push/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -587,7 +588,7 @@ export function SimpleNotificationBell({
                           e.stopPropagation()
                           // Dismiss this escalation
                           try {
-                            await fetch('/api/escalations', {
+                            await authFetch('/api/escalations', {
                               method: 'DELETE',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({

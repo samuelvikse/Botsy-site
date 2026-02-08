@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { authFetch } from '@/lib/auth-fetch'
 import type { EmployeePermissions, AdminPermissions } from '@/types'
 
 interface InviteModalProps {
@@ -52,7 +53,7 @@ export function InviteModal({ isOpen, onClose, companyId, onSuccess, isOwner }: 
 
     setIsLoading(true)
     try {
-      const response = await fetch('/api/invitations', {
+      const response = await authFetch('/api/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

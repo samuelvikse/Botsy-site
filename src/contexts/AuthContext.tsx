@@ -778,7 +778,7 @@ function getFirebaseErrorMessage(error: unknown): string {
     case 'auth/operation-not-allowed':
       return 'Denne operasjonen er ikke tillatt'
     case 'auth/weak-password':
-      return 'Passordet er for svakt. Bruk minst 6 tegn'
+      return 'Passordet er for svakt. Bruk minst 8 tegn'
     case 'auth/user-disabled':
       return 'Denne brukerkontoen er deaktivert'
     case 'auth/user-not-found':

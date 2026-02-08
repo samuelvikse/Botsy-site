@@ -34,6 +34,7 @@ import { db } from '@/lib/firebase'
 import { saveBusinessProfile } from '@/lib/firestore'
 import { PRICING } from '@/lib/pricing'
 import type { BusinessProfile } from '@/types'
+import { authFetch } from '@/lib/auth-fetch'
 import dynamic from 'next/dynamic'
 import { CreditCard, Shield } from 'lucide-react'
 
@@ -233,7 +234,7 @@ function OnboardingContent() {
     setSmsError(null)
 
     try {
-      const response = await fetch('/api/sms/config', {
+      const response = await authFetch('/api/sms/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

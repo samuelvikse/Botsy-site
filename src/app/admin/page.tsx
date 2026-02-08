@@ -68,6 +68,7 @@ import { useToast } from '@/components/ui/toast'
 import { doc, getDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { saveInstruction } from '@/lib/firestore'
+import { authFetch } from '@/lib/auth-fetch'
 import type { BusinessProfile, Instruction } from '@/types'
 
 type Tab = 'dashboard' | 'conversations' | 'knowledge' | 'documents' | 'instructions' | 'analytics' | 'widget' | 'channels' | 'tone' | 'security' | 'settings' | 'employees'
@@ -565,7 +566,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   // Load unanswered questions
   const loadUnansweredQuestions = async () => {
     try {
-      const response = await fetch(`/api/unanswered-questions?companyId=${companyId}`)
+      const response = await authFetch(`/api/unanswered-questions?companyId=${companyId}`)
       const data = await response.json()
       if (data.questions) {
         setUnansweredQuestions(data.questions)
@@ -698,7 +699,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const syncFromDocuments = async () => {
     setIsSyncing(true)
     try {
-      const response = await fetch(`/api/knowledge/sync-faqs?companyId=${companyId}`, {
+      const response = await authFetch(`/api/knowledge/sync-faqs?companyId=${companyId}`, {
         method: 'POST',
       })
       const data = await response.json()
@@ -834,7 +835,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
       setFaqs(prev => [...prev, newFaqData])
 
       // Mark question as resolved
-      await fetch('/api/unanswered-questions', {
+      await authFetch('/api/unanswered-questions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ questionId, companyId }),
@@ -858,7 +859,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   const handleIgnoreUnanswered = async (questionId: string) => {
     setSavingUnanswered(questionId)
     try {
-      await fetch('/api/unanswered-questions', {
+      await authFetch('/api/unanswered-questions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ questionId, companyId }),
@@ -1426,7 +1427,7 @@ function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKno
 
     setIsSendingSummary(true)
     try {
-      const response = await fetch('/api/notifications/daily-summary/send-now', {
+      const response = await authFetch('/api/notifications/daily-summary/send-now', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, email }),
@@ -1482,7 +1483,7 @@ function SettingsView({ companyId, userId, onNavigateToChannels, onNavigateToKno
         // Continue with sync even if config save fails
       }
 
-      const response = await fetch('/api/sync/website', {
+      const response = await authFetch('/api/sync/website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, websiteUrl: syncConfig.websiteUrl }),

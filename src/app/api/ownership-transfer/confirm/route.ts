@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
 // POST - Confirm ownership transfer
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Verify the user is authenticated
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { token, userType } = body
 
@@ -78,6 +88,15 @@ export async function POST(request: NextRequest) {
     const doc = data[0].document
     const parsed = parseFirestoreFields(doc.fields)
     const docId = doc.name.split('/').pop()
+
+    // Verify the authenticated user matches the expected user for this confirmation
+    const expectedUserId = userType === 'from' ? parsed.fromUserId : parsed.toUserId
+    if (user.uid !== expectedUserId) {
+      return NextResponse.json(
+        { error: 'Du har ikke tilgang til å bekrefte denne overføringen' },
+        { status: 403 }
+      )
+    }
 
     // Check expiration
     const expiresAt = new Date(parsed.expiresAt as string)

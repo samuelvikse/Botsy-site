@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { toFirestoreValue } from '@/lib/firestore-utils'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
 // PATCH - Update user profile
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function PATCH(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { userId, updates } = body

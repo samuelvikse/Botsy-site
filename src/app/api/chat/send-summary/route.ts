@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import Groq from 'groq-sdk'
+import { sanitizeEmailHeader } from '@/lib/sanitize'
+import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
+import { widgetCorsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -66,8 +69,23 @@ Hold det kort og profesjonelt. Ikke inkluder hilsener eller avslutninger.`,
   return response.choices[0]?.message?.content || 'Kunne ikke generere oppsummering.'
 }
 
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: widgetCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 3 requests per minute per IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip')
+    const identifier = getRateLimitIdentifier(undefined, ip)
+    const rateLimitResult = checkRateLimit(identifier + ':emailSummary', RATE_LIMITS.emailSummary)
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Prøv igjen om litt.' },
+        { status: 429, headers: widgetCorsHeaders }
+      )
+    }
+
     const body = (await request.json()) as SendSummaryRequest
     const { companyId, customerEmail, messages } = body
 
@@ -76,14 +94,14 @@ export async function POST(request: NextRequest) {
     if (!customerEmail || !emailRegex.test(customerEmail)) {
       return NextResponse.json(
         { success: false, error: 'Ugyldig e-postadresse' },
-        { status: 400 }
+        { status: 400, headers: widgetCorsHeaders }
       )
     }
 
     if (!messages || messages.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Ingen meldinger å oppsummere' },
-        { status: 400 }
+        { status: 400, headers: widgetCorsHeaders }
       )
     }
 
@@ -157,7 +175,7 @@ export async function POST(request: NextRequest) {
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json(
         { success: false, error: 'E-posttjenesten er ikke konfigurert. Kontakt bedriften direkte.' },
-        { status: 503 }
+        { status: 503, headers: widgetCorsHeaders }
       )
     }
 
@@ -168,7 +186,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: `${businessName} <hei@botsy.no>`,
+        from: `${sanitizeEmailHeader(businessName)} <hei@botsy.no>`,
         to: customerEmail,
         subject: `Samtale-oppsummering fra ${businessName}`,
         html: emailHtml,
@@ -178,18 +196,18 @@ export async function POST(request: NextRequest) {
     if (!emailResponse.ok) {
       return NextResponse.json(
         { success: false, error: 'Kunne ikke sende e-post. Prøv igjen senere.' },
-        { status: 500 }
+        { status: 500, headers: widgetCorsHeaders }
       )
     }
 
     return NextResponse.json({
       success: true,
       message: 'E-post sendt!',
-    })
+    }, { headers: widgetCorsHeaders })
   } catch {
     return NextResponse.json(
       { success: false, error: 'Kunne ikke sende oppsummering' },
-      { status: 500 }
+      { status: 500, headers: widgetCorsHeaders }
     )
   }
 }

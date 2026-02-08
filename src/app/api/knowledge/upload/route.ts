@@ -10,6 +10,8 @@ import {
 import type { FAQ } from '@/types'
 import Groq from 'groq-sdk'
 import { fixUnicodeEscapes } from '@/lib/utils'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -220,7 +222,14 @@ async function analyzeDocument(content: string): Promise<{
   }
 }
 
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -240,6 +249,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Validate file type
     const fileName = file.name
@@ -421,6 +433,9 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint to retrieve knowledge documents
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -431,6 +446,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const { getKnowledgeDocuments } = await import('@/lib/firestore')
     const documents = await getKnowledgeDocuments(companyId)
@@ -449,6 +467,9 @@ export async function GET(request: NextRequest) {
 
 // DELETE endpoint to remove a knowledge document
 export async function DELETE(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -460,6 +481,9 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const { deleteKnowledgeDocument } = await import('@/lib/firestore')
     await deleteKnowledgeDocument(companyId, documentId)

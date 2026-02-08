@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth()
+  const { user, userData, loading } = useAuth()
   const router = useRouter()
   const [showContent, setShowContent] = useState(false)
   const [initialCheckDone, setInitialCheckDone] = useState(false)
@@ -19,11 +19,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       setInitialCheckDone(true)
       if (!user) {
         router.push('/logg-inn')
+      } else if (!userData?.companyId || userData?.role === 'pending') {
+        // Users without a company or with pending role go to onboarding
+        router.push('/onboarding')
       } else {
         setShowContent(true)
       }
     }
-  }, [user, loading, router])
+  }, [user, userData, loading, router])
 
   // Show a minimal loading state only on initial load (very fast)
   // This prevents flash of content before auth state is determined
@@ -39,6 +42,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // If no user after check, don't render anything (redirect happening)
   if (!user) {
+    return null
+  }
+
+  // If user has no company, don't render (redirect to onboarding happening)
+  if (!userData?.companyId || userData?.role === 'pending') {
     return null
   }
 

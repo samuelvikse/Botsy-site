@@ -13,6 +13,18 @@ import { logSubscriptionEvent } from '@/lib/audit-log'
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify webhook signature if secret is configured
+    const webhookSecret = process.env.VIPPS_WEBHOOK_SECRET
+    if (webhookSecret) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader !== `Bearer ${webhookSecret}`) {
+        console.error('[Vipps Webhook] Invalid webhook signature')
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+    } else {
+      console.warn('[Vipps Webhook] No VIPPS_WEBHOOK_SECRET configured - processing without verification')
+    }
+
     const body = await request.json()
     const event = parseVippsWebhook(body)
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSMSChannel, updateSMSChannel } from '@/lib/sms-firestore'
 import { getSMSProvider, formatPhoneNumber, isValidE164 } from '@/lib/sms'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 interface TestSMSRequest {
   companyId: string
@@ -8,8 +10,15 @@ interface TestSMSRequest {
 }
 
 // POST - Send a test SMS to verify configuration
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = (await request.json()) as TestSMSRequest
     const { companyId, testPhone } = body
 
@@ -19,6 +28,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     if (!testPhone) {
       return NextResponse.json(

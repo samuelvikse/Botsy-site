@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { widgetCorsHeaders } from '@/lib/cors'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'PUT, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-}
-
 export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders })
+  return NextResponse.json({}, { headers: widgetCorsHeaders })
 }
 
 export async function PUT(request: NextRequest) {
@@ -19,11 +15,17 @@ export async function PUT(request: NextRequest) {
     const { companyId, sessionId, who } = body
 
     if (!companyId || !sessionId || !who) {
-      return NextResponse.json({ error: 'Manglende felter' }, { status: 400, headers: corsHeaders })
+      return NextResponse.json({ error: 'Manglende felter' }, { status: 400, headers: widgetCorsHeaders })
     }
 
     if (who !== 'customer' && who !== 'agent') {
-      return NextResponse.json({ error: 'who må være customer eller agent' }, { status: 400, headers: corsHeaders })
+      return NextResponse.json({ error: 'who må være customer eller agent' }, { status: 400, headers: widgetCorsHeaders })
+    }
+
+    // Require auth for agent/owner actions; allow customer widget requests without auth
+    if (who === 'agent') {
+      const user = await verifyAuth(request)
+      if (!user) return unauthorizedResponse()
     }
 
     const fieldName = who === 'customer' ? 'customerTypingAt' : 'agentTypingAt'
@@ -41,12 +43,12 @@ export async function PUT(request: NextRequest) {
     })
 
     if (!response.ok) {
-      return NextResponse.json({ error: 'Kunne ikke oppdatere' }, { status: 500, headers: corsHeaders })
+      return NextResponse.json({ error: 'Kunne ikke oppdatere' }, { status: 500, headers: widgetCorsHeaders })
     }
 
-    return NextResponse.json({ success: true }, { headers: corsHeaders })
+    return NextResponse.json({ success: true }, { headers: widgetCorsHeaders })
   } catch (error) {
     console.error('[Typing] Error:', error)
-    return NextResponse.json({ error: 'Intern feil' }, { status: 500, headers: corsHeaders })
+    return NextResponse.json({ error: 'Intern feil' }, { status: 500, headers: widgetCorsHeaders })
   }
 }

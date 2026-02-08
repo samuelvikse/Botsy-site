@@ -24,6 +24,7 @@ import {
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { authFetch } from '@/lib/auth-fetch'
 
 interface DashboardStats {
   totalConversations: number
@@ -170,7 +171,7 @@ export function DashboardView({ companyId, onViewAllConversations, onViewConvers
 
     async function fetchEscalations() {
       try {
-        const response = await fetch(`/api/escalations?companyId=${companyId}`)
+        const response = await authFetch(`/api/escalations?companyId=${companyId}`)
         if (response.ok) {
           const data = await response.json()
           setEscalations(data.escalations || [])
@@ -182,7 +183,7 @@ export function DashboardView({ companyId, onViewAllConversations, onViewConvers
 
     async function fetchUnansweredQuestions() {
       try {
-        const response = await fetch(`/api/unanswered-questions?companyId=${companyId}`)
+        const response = await authFetch(`/api/unanswered-questions?companyId=${companyId}`)
         if (response.ok) {
           const data = await response.json()
           setUnansweredQuestions(data.questions || [])

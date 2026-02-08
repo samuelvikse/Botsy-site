@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getInstagramChannel, saveInstagramMessage } from '@/lib/instagram-firestore'
 import { sendInstagramMessage } from '@/lib/instagram'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { companyId, senderId, message } = await request.json()
 
     if (!companyId || !senderId || !message) {
@@ -12,6 +21,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Get Instagram channel configuration
     const channel = await getInstagramChannel(companyId)

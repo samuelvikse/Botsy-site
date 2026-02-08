@@ -5,6 +5,8 @@ import { getAllSMSChats } from '@/lib/sms-firestore'
 import { getAllMessengerChats } from '@/lib/messenger-firestore'
 import { getTeamMembers } from '@/lib/membership-firestore'
 import { renderDailySummaryEmail } from '@/emails/DailySummaryEmail'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -25,8 +27,15 @@ interface EmployeeStats {
 /**
  * POST - Send daily summary to a specific email (for testing / manual trigger)
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { companyId, email } = await request.json()
 
     if (!companyId || !email) {
@@ -35,6 +44,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Gather statistics for the day
     const stats = await gatherDailyStats(companyId)

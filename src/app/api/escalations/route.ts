@@ -4,16 +4,26 @@ import { incrementAnsweredCustomers } from '@/lib/leaderboard-firestore'
 import { clearWidgetChatManualMode } from '@/lib/firestore'
 import { clearMessengerChatManualMode } from '@/lib/messenger-firestore'
 import { clearInstagramChatManualMode } from '@/lib/instagram-firestore'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
 
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const companyId = request.nextUrl.searchParams.get('companyId')
 
     if (!companyId) {
-      // For now, return empty array if no companyId
-      // In production, this should get the companyId from the authenticated user
       return NextResponse.json({ escalations: [] })
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const escalations = await getPendingEscalations(companyId)
 
@@ -34,8 +44,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { escalationId, action, userId, companyId, conversationId } = await request.json()
+
+    if (companyId) {
+      const access = await requireCompanyAccess(user.uid, companyId)
+      if (!access) return forbiddenResponse()
+    }
 
     // Support resolving all pending escalations for a company (bulk cleanup)
     if (action === 'resolveAll' && companyId) {
@@ -107,6 +125,9 @@ export async function PATCH(request: NextRequest) {
  * DELETE - Dismiss/delete an escalation notification
  */
 export async function DELETE(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { escalationId, companyId } = await request.json()
 
@@ -116,6 +137,9 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     await dismissEscalation(companyId, escalationId)
 

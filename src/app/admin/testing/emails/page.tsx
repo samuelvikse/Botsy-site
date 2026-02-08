@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/ui/toast'
+import { authFetch } from '@/lib/auth-fetch'
 
 const DEVELOPER_EMAIL = 'hei@botsy.no'
 const TARGET_EMAIL = 'hei@botsy.no'
@@ -145,7 +146,7 @@ function EmailTestingContent() {
     setResults({})
     
     try {
-      const response = await fetch('/api/test/email-demos', {
+      const response = await authFetch('/api/test/email-demos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: TARGET_EMAIL }),
@@ -176,10 +177,10 @@ function EmailTestingContent() {
     setSendingId(templateId)
     
     try {
-      const response = await fetch('/api/test/send-single-email', {
+      const response = await authFetch('/api/test/send-single-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           templateId,
           email: TARGET_EMAIL,
         }),
@@ -206,7 +207,7 @@ function EmailTestingContent() {
     setPreviewLoading(templateId)
     
     try {
-      const response = await fetch(`/api/test/preview-email?templateId=${templateId}`)
+      const response = await authFetch(`/api/test/preview-email?templateId=${templateId}`)
       const data = await response.json()
       
       if (data.html) {

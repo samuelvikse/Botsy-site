@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
+import { authFetch } from '@/lib/auth-fetch'
 
 export default function SecuritySettingsView() {
   const { user, userData, setupTwoFactor, verifyTwoFactorSetup, disableTwoFactor, reauthenticate, error, clearError, loading } = useAuth()
@@ -125,7 +126,7 @@ export default function SecuritySettingsView() {
     setIsExporting(true)
     try {
       const token = await user?.getIdToken()
-      const response = await fetch('/api/account/delete', {
+      const response = await authFetch('/api/account/delete', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -166,7 +167,7 @@ export default function SecuritySettingsView() {
 
     try {
       const token = await user?.getIdToken()
-      const response = await fetch('/api/account/delete', {
+      const response = await authFetch('/api/account/delete', {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

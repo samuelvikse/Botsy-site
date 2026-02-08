@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { Instruction, InstructionDoc } from '@/types'
 import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
@@ -9,7 +11,14 @@ const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJE
 export const dynamic = 'force-dynamic'
 
 // GET - Fetch instructions for a company
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -20,6 +29,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Use REST API to get instructions
     const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`)
@@ -78,6 +90,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a new instruction
 export async function POST(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { companyId, instruction } = body as {
@@ -91,6 +106,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     if (!instruction || !instruction.content) {
       return NextResponse.json(
@@ -166,6 +184,9 @@ export async function POST(request: NextRequest) {
 
 // PATCH - Update an instruction
 export async function PATCH(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { companyId, instructionId, updates } = body as {
@@ -180,6 +201,9 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Build update fields and mask
     const fields: Record<string, unknown> = {}
@@ -223,6 +247,9 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE - Deactivate an instruction
 export async function DELETE(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -234,6 +261,9 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Soft delete by setting isActive to false
     const updateResponse = await fetch(

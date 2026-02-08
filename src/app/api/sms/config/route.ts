@@ -7,6 +7,8 @@ import {
 } from '@/lib/sms-firestore'
 import { formatPhoneNumber, isValidE164 } from '@/lib/sms'
 import type { SMSProvider, SMSCredentials } from '@/types'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 interface SMSConfigRequest {
   companyId: string
@@ -16,8 +18,15 @@ interface SMSConfigRequest {
 }
 
 // GET - Retrieve SMS configuration
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const companyId = request.nextUrl.searchParams.get('companyId')
 
     if (!companyId) {
@@ -26,6 +35,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const channel = await getSMSChannel(companyId)
 
@@ -71,6 +83,9 @@ export async function GET(request: NextRequest) {
 // POST - Create or update SMS configuration
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = (await request.json()) as SMSConfigRequest
     const { companyId, provider, phoneNumber, credentials } = body
 
@@ -81,6 +96,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     if (!provider) {
       return NextResponse.json(
@@ -160,6 +178,9 @@ export async function POST(request: NextRequest) {
 // PATCH - Update specific fields
 export async function PATCH(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { companyId, ...updates } = body
 
@@ -169,6 +190,9 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Format phone number if provided
     if (updates.phoneNumber) {
@@ -203,6 +227,9 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Deactivate SMS configuration
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const companyId = request.nextUrl.searchParams.get('companyId')
 
     if (!companyId) {
@@ -211,6 +238,9 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     await deleteSMSChannel(companyId)
 

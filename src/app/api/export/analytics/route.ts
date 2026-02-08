@@ -2,14 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { generateAnalyticsExcel, timestampToDate } from '@/lib/excel-export'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
 
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   const companyId = request.nextUrl.searchParams.get('companyId')
   const period = request.nextUrl.searchParams.get('period') || '30' // days
 
   if (!companyId) {
     return NextResponse.json({ error: 'Company ID required' }, { status: 400 })
   }
+
+  const access = await requireCompanyAccess(user.uid, companyId)
+  if (!access) return forbiddenResponse()
 
   if (!db) {
     return NextResponse.json({ error: 'Database not initialized' }, { status: 500 })

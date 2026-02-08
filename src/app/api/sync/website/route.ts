@@ -6,6 +6,8 @@ import { analyzeWebsiteContent } from '@/lib/groq'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { BusinessProfile, FAQ } from '@/types'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds
@@ -17,8 +19,15 @@ export const maxDuration = 60 // Allow up to 60 seconds
  * 1. Run the normal sync (adds FAQs to subcollection)
  * 2. If no businessProfile exists, create one from the website
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { companyId, websiteUrl: requestUrl } = await request.json()
 
     if (!companyId) {
@@ -27,6 +36,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     console.log(`[Sync API] Starting manual sync for company: ${companyId}`)
 
@@ -195,6 +207,9 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { companyId, ...config } = body
 
@@ -204,6 +219,9 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     await saveSyncConfig(companyId, config)
 
@@ -222,6 +240,9 @@ export async function PUT(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
 
@@ -231,6 +252,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const config = await getSyncConfig(companyId)
 

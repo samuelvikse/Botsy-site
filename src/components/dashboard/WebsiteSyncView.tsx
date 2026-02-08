@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
+import { authFetch } from '@/lib/auth-fetch'
 import type {
   SyncConfiguration,
   WebsiteSyncJob,
@@ -58,7 +59,7 @@ export function WebsiteSyncView({ companyId }: WebsiteSyncViewProps) {
       setIsLoading(true)
 
       // Load sync status
-      const statusResponse = await fetch(`/api/sync/status?companyId=${companyId}`)
+      const statusResponse = await authFetch(`/api/sync/status?companyId=${companyId}`)
       const statusData = await statusResponse.json()
 
       if (statusData.success) {
@@ -67,7 +68,7 @@ export function WebsiteSyncView({ companyId }: WebsiteSyncViewProps) {
       }
 
       // Load conflicts
-      const conflictsResponse = await fetch(`/api/conflicts?companyId=${companyId}&status=pending`)
+      const conflictsResponse = await authFetch(`/api/conflicts?companyId=${companyId}&status=pending`)
       const conflictsData = await conflictsResponse.json()
 
       if (conflictsData.success) {
@@ -84,7 +85,7 @@ export function WebsiteSyncView({ companyId }: WebsiteSyncViewProps) {
   const handleSaveConfig = async () => {
     setIsSaving(true)
     try {
-      const response = await fetch('/api/sync/website', {
+      const response = await authFetch('/api/sync/website', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, ...config }),
@@ -112,7 +113,7 @@ export function WebsiteSyncView({ companyId }: WebsiteSyncViewProps) {
 
     setIsSyncing(true)
     try {
-      const response = await fetch('/api/sync/website', {
+      const response = await authFetch('/api/sync/website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId }),
@@ -140,7 +141,7 @@ export function WebsiteSyncView({ companyId }: WebsiteSyncViewProps) {
     if (!selectedConflict) return
 
     try {
-      const response = await fetch('/api/conflicts', {
+      const response = await authFetch('/api/conflicts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

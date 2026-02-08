@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -35,7 +37,14 @@ interface SendMessageRequest {
 }
 
 // Toggle manual mode for a chat session
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function PUT(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = (await request.json()) as ToggleModeRequest
     const { companyId, sessionId, isManual } = body
@@ -46,6 +55,9 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const app = getFirebaseApp()
     const db = getFirestore(app)
@@ -79,6 +91,9 @@ export async function PUT(request: NextRequest) {
 
 // Send a manual message
 export async function POST(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = (await request.json()) as SendMessageRequest
     const { companyId, sessionId, message } = body
@@ -89,6 +104,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const app = getFirebaseApp()
     const db = getFirestore(app)
@@ -135,6 +153,9 @@ export async function POST(request: NextRequest) {
 
 // Get chat status including manual mode
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -146,6 +167,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const app = getFirebaseApp()
     const db = getFirestore(app)

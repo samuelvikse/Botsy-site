@@ -30,6 +30,15 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const provider = searchParams.get('provider') || 'sendgrid'
 
+    // Verify webhook signature if signing key is configured
+    const signingKey = provider === 'mailgun'
+      ? process.env.MAILGUN_WEBHOOK_SIGNING_KEY
+      : process.env.SENDGRID_WEBHOOK_VERIFICATION_KEY
+    if (!signingKey) {
+      console.warn(`[Email Webhook] No signing key configured for ${provider} - processing without verification`)
+    }
+    // TODO: When signing keys are configured, add HMAC signature verification here
+
     // Parse the request body based on content type
     const contentType = request.headers.get('content-type') || ''
     let body: Record<string, unknown>

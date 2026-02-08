@@ -57,6 +57,14 @@
   const scriptSrc = script.src;
   const baseUrl = scriptSrc.substring(0, scriptSrc.lastIndexOf('/'));
 
+  // Calculate expected iframe origin for postMessage validation
+  var expectedOrigin;
+  try {
+    expectedOrigin = new URL(scriptSrc).origin;
+  } catch (e) {
+    expectedOrigin = null;
+  }
+
   // Prevent duplicate widgets
   if (document.getElementById('botsy-widget-iframe')) {
     return;
@@ -140,6 +148,9 @@
 
   window.addEventListener('message', function(event) {
     if (!event.data) return;
+
+    // Validate message origin - only accept messages from the Botsy iframe
+    if (expectedOrigin && event.origin !== expectedOrigin) return;
 
     if (event.data.type === 'botsy-state') {
       // Clear any pending close timeout

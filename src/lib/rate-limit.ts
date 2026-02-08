@@ -104,6 +104,26 @@ export const RATE_LIMITS = {
     maxRequests: 30,
     windowMs: 60000,
   },
+  // Chat widget - 30 per minute
+  chat: {
+    maxRequests: 30,
+    windowMs: 60000,
+  },
+  // Contact form - 5 per minute
+  contact: {
+    maxRequests: 5,
+    windowMs: 60000,
+  },
+  // Email summary - 3 per minute
+  emailSummary: {
+    maxRequests: 3,
+    windowMs: 60000,
+  },
+  // Feedback - 10 per minute
+  feedback: {
+    maxRequests: 10,
+    windowMs: 60000,
+  },
 } as const
 
 /**

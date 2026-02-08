@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAllMessengerChats, getMessengerHistory } from '@/lib/messenger-firestore'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 /**
  * GET - Fetch Messenger chats for a company
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
     const senderId = searchParams.get('senderId')
@@ -13,6 +22,9 @@ export async function GET(request: NextRequest) {
     if (!companyId) {
       return NextResponse.json({ error: 'Missing companyId' }, { status: 400 })
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // If senderId is provided, fetch messages for that chat
     if (senderId) {

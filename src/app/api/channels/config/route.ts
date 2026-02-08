@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { ChannelType, SMSProvider } from '@/types'
 import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
 // GET - Fetch all channel configurations
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
 
@@ -17,6 +26,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Get SMS channel from subcollection
     let smsChannel = null
@@ -70,6 +82,9 @@ export async function GET(request: NextRequest) {
 // POST - Save channel configuration
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { companyId, channel, ...config } = body
 
@@ -79,6 +94,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     if (!channel || !['sms', 'messenger', 'instagram', 'email'].includes(channel)) {
       return NextResponse.json(
@@ -222,6 +240,9 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove channel configuration
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
     const channel = searchParams.get('channel') as ChannelType
@@ -232,6 +253,9 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     if (!channel || !['sms', 'messenger', 'instagram', 'email'].includes(channel)) {
       return NextResponse.json(

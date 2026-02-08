@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ChatBubble, ChatContainer } from '@/components/ui/chat-bubble'
 import type { BusinessProfile, FAQ } from '@/types'
+import { authFetch } from '@/lib/auth-fetch'
 
 interface WebsiteAnalysisStepProps {
   onComplete: (profile: BusinessProfile) => void
@@ -476,7 +477,7 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
     ])
 
     try {
-      const response = await fetch('/api/analyze-website', {
+      const response = await authFetch('/api/analyze-website', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: normalizedUrl, businessName }),
@@ -577,7 +578,7 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
     setSearchResult(null)
 
     try {
-      const response = await fetch('/api/find-faq-answer', {
+      const response = await authFetch('/api/find-faq-answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, websiteContent }),
@@ -634,7 +635,7 @@ export function WebsiteAnalysisStep({ onComplete, initialProfile }: WebsiteAnaly
     setIsReformulating(true)
 
     try {
-      const response = await fetch('/api/find-faq-answer', {
+      const response = await authFetch('/api/find-faq-answer', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

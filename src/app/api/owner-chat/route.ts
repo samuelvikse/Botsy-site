@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatWithOwner } from '@/lib/groq'
 import type { OwnerChatMessage, BusinessProfile, Instruction, OwnerChatResponse, PendingAction } from '@/types'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse<OwnerChatResponse | { error: string }>> {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { message, history, businessProfile, activeInstructions, pendingAction, companyId } = body as {
       message: string

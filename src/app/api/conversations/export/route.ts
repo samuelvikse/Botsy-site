@@ -11,6 +11,8 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { verifyIdToken } from '@/lib/auth-server'
 import { timestampToDate } from '@/lib/excel-export'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 interface ConversationExport {
   id: string
@@ -108,19 +110,14 @@ const channelNames: Record<string, string> = {
   instagram: 'Instagram',
 }
 
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Ugyldig autentisering' }, { status: 401 })
-    }
-
-    const token = authHeader.substring(7)
-    const decodedToken = await verifyIdToken(token)
-    if (!decodedToken) {
-      return NextResponse.json({ error: 'Ugyldig token' }, { status: 401 })
-    }
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
 
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
@@ -131,6 +128,9 @@ export async function GET(request: NextRequest) {
     if (!companyId) {
       return NextResponse.json({ error: 'companyId er påkrevd' }, { status: 400 })
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     if (!db) {
       return NextResponse.json({ error: 'Database ikke initialisert' }, { status: 500 })

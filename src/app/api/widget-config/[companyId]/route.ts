@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore'
+import { widgetCorsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering - never cache this route
 export const dynamic = 'force-dynamic'
@@ -37,6 +38,10 @@ const DEMO_CONFIG = {
   animationStyle: 'scale' as const,
 }
 
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: widgetCorsHeaders })
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ companyId: string }> }
@@ -51,8 +56,8 @@ export async function GET(
         config: DEMO_CONFIG,
       }, {
         headers: {
+          ...widgetCorsHeaders,
           'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Access-Control-Allow-Origin': '*',
         },
       })
     }
@@ -68,7 +73,7 @@ export async function GET(
     if (!companyDoc.exists()) {
       return NextResponse.json(
         { success: false, error: 'Bedrift ikke funnet' },
-        { status: 404 }
+        { status: 404, headers: widgetCorsHeaders }
       )
     }
 
@@ -104,14 +109,14 @@ export async function GET(
       },
     }, {
       headers: {
+        ...widgetCorsHeaders,
         'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Access-Control-Allow-Origin': '*',
       },
     })
   } catch {
     return NextResponse.json(
       { success: false, error: 'Kunne ikke hente konfigurasjon' },
-      { status: 500 }
+      { status: 500, headers: widgetCorsHeaders }
     )
   }
 }

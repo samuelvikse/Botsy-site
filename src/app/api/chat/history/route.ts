@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { widgetCorsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-}
-
 // Handle OPTIONS for CORS preflight
 export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders })
+  return NextResponse.json({}, { headers: widgetCorsHeaders })
 }
 
 // Initialize Firebase Client SDK
@@ -36,6 +31,13 @@ function getFirebaseApp() {
 
 export async function GET(request: NextRequest) {
   try {
+    // If Authorization header is present, verify it; otherwise allow (widget mode)
+    const authHeader = request.headers.get('authorization')
+    if (authHeader) {
+      const user = await verifyAuth(request)
+      if (!user) return unauthorizedResponse()
+    }
+
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('companyId')
     const sessionId = searchParams.get('sessionId')
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
     if (!companyId || !sessionId) {
       return NextResponse.json(
         { success: false, error: 'companyId og sessionId er påkrevd' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: widgetCorsHeaders }
       )
     }
 
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
         success: true,
         messages: [],
         isManualMode: false,
-      }, { headers: corsHeaders })
+      }, { headers: widgetCorsHeaders })
     }
 
     const data = sessionSnap.data()
@@ -77,11 +79,11 @@ export async function GET(request: NextRequest) {
       customerTypingAt: data.customerTypingAt?.toDate?.()?.toISOString() || null,
       lastReadByAgent: data.lastReadByAgent?.toDate?.()?.toISOString() || null,
       lastReadByCustomer: data.lastReadByCustomer?.toDate?.()?.toISOString() || null,
-    }, { headers: corsHeaders })
+    }, { headers: widgetCorsHeaders })
   } catch {
     return NextResponse.json(
       { success: false, error: 'Kunne ikke hente meldinger' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: widgetCorsHeaders }
     )
   }
 }

@@ -6,6 +6,7 @@ import { loadStripe, Appearance } from '@stripe/stripe-js'
 import PaymentForm from './PaymentForm'
 import { Loader2, Sparkles, Check, Clock, Shield, AlertCircle, RefreshCw, Zap } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { authFetch } from '@/lib/auth-fetch'
 import { Button } from '@/components/ui/button'
 import { PRICING } from '@/lib/pricing'
 
@@ -42,11 +43,9 @@ export default function StripeCheckout({ onSuccess, onCancel, returnUrl }: Strip
     setError(null)
 
     try {
-      const token = await user.getIdToken()
-      const response = await fetch('/api/stripe/create-subscription', {
+      const response = await authFetch('/api/stripe/create-subscription', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       })

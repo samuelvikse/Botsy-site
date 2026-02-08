@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { scrapeWithFAQPage, formatForAnalysis } from '@/lib/scraper'
 import { analyzeWebsiteContent, generateAnalysisSummary } from '@/lib/groq'
 import type { BusinessProfile, FAQ, AnalyzeWebsiteResponse } from '@/types'
+import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse<AnalyzeWebsiteResponse & { summary?: string }>> {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse() as NextResponse<AnalyzeWebsiteResponse & { summary?: string }>
+
     const body = await request.json()
     const { url, businessName } = body
 

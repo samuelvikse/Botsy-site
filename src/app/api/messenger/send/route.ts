@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getMessengerChannel, saveMessengerMessage } from '@/lib/messenger-firestore'
 import { sendMessengerMessage } from '@/lib/messenger'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const { companyId, senderId, message } = await request.json()
 
     if (!companyId || !senderId || !message) {
@@ -12,6 +21,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     // Get Messenger channel configuration
     const channel = await getMessengerChannel(companyId)

@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBusinessProfile, getEmailHistory } from '@/lib/email-firestore'
 import { summarizeEmailConversation, summarizeLastEmail } from '@/lib/email-ai'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 /**
  * POST - Summarize email conversation or last email
  * mode: "last" (siste mail) or "conversation" (hele samtalen, default)
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request)
+    if (!user) return unauthorizedResponse()
+
     const body = await request.json()
     const { companyId, customerEmail, mode = 'conversation' } = body
 
@@ -17,6 +26,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const access = await requireCompanyAccess(user.uid, companyId)
+    if (!access) return forbiddenResponse()
 
     const [businessProfile, emailHistory] = await Promise.all([
       getBusinessProfile(companyId),

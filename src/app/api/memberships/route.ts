@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 import type { Membership, MembershipPermissions } from '@/types'
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
 // GET - Fetch membership(s)
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     const companyId = searchParams.get('companyId')
+
+    if (companyId) {
+      const access = await requireCompanyAccess(user.uid, companyId)
+      if (!access) return forbiddenResponse()
+    }
 
     // If both userId and companyId are provided, get specific membership
     if (userId && companyId) {
@@ -170,9 +184,17 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a new membership
 export async function POST(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { userId, companyId, role, permissions, invitedBy, status } = body
+
+    if (companyId) {
+      const access = await requireCompanyAccess(user.uid, companyId)
+      if (!access) return forbiddenResponse()
+    }
 
     if (!userId || !companyId || !role) {
       return NextResponse.json(
@@ -220,6 +242,9 @@ export async function POST(request: NextRequest) {
 
 // PATCH - Update a membership
 export async function PATCH(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { membershipId, updates } = body
@@ -277,6 +302,9 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE - Remove a membership
 export async function DELETE(request: NextRequest) {
+  const user = await verifyAuth(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const membershipId = searchParams.get('membershipId')

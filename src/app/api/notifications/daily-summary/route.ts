@@ -5,6 +5,8 @@ import { getAllSMSChats } from '@/lib/sms-firestore'
 import { getAllMessengerChats } from '@/lib/messenger-firestore'
 import { getLeaderboard } from '@/lib/leaderboard-firestore'
 import { renderDailySummaryEmail } from '@/emails/DailySummaryEmail'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { adminCorsHeaders } from '@/lib/cors'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -26,14 +28,21 @@ interface EmployeeStats {
  * POST - Send daily summary emails
  * Can be called by a cron job (e.g., Vercel Cron)
  */
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: adminCorsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Verify cron secret if set (for security)
+    // Verify cron secret if set (for security), otherwise verify user auth
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+      // Cron job - allowed
+    } else {
+      const user = await verifyAuth(request)
+      if (!user) return unauthorizedResponse()
     }
 
     const { companyId } = await request.json()
@@ -56,15 +65,17 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Gather statistics for the day
-    const stats = await gatherDailyStats(companyId)
+    // Summarize yesterday (cron runs in the morning)
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    const stats = await gatherDailyStats(companyId, yesterday)
     const employeeOfTheDay = await findEmployeeOfTheDay(companyId)
     const insights = generateInsights(stats, employeeOfTheDay)
-    const recentEscalations = await getRecentEscalations(companyId)
+    const recentEscalations = await getRecentEscalations(companyId, yesterday)
 
-    // Format date
-    const today = new Date()
-    const dateStr = today.toLocaleDateString('nb-NO', {
+    // Format yesterday's date
+    const dateStr = yesterday.toLocaleDateString('nb-NO', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -105,7 +116,7 @@ export async function POST(request: NextRequest) {
         await resend.emails.send({
           from: 'Botsy <noreply@botsy.no>',
           to: user.email,
-          subject: `Daglig Oppsummering - ${today.toLocaleDateString('nb-NO')}`,
+          subject: `Daglig Oppsummering - ${yesterday.toLocaleDateString('nb-NO')}`,
           html,
         })
 
@@ -131,11 +142,13 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Gather statistics for today
+ * Gather statistics for a given day
  */
-async function gatherDailyStats(companyId: string): Promise<DailyStats> {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+async function gatherDailyStats(companyId: string, targetDate: Date): Promise<DailyStats> {
+  const dayStart = new Date(targetDate)
+  dayStart.setHours(0, 0, 0, 0)
+  const dayEnd = new Date(targetDate)
+  dayEnd.setHours(23, 59, 59, 999)
 
   let totalConversations = 0
   let escalatedCount = 0
@@ -146,7 +159,7 @@ async function gatherDailyStats(companyId: string): Promise<DailyStats> {
     // Widget chats
     const widgetChats = await getAllWidgetChats(companyId)
     for (const chat of widgetChats) {
-      if (chat.lastMessageAt >= today) {
+      if (chat.lastMessageAt >= dayStart && chat.lastMessageAt <= dayEnd) {
         totalConversations++
         if (chat.isManualMode) {
           escalatedCount++
@@ -171,7 +184,7 @@ async function gatherDailyStats(companyId: string): Promise<DailyStats> {
     // SMS chats
     const smsChats = await getAllSMSChats(companyId)
     for (const chat of smsChats) {
-      if (chat.lastMessageAt >= today) {
+      if (chat.lastMessageAt >= dayStart && chat.lastMessageAt <= dayEnd) {
         totalConversations++
       }
     }
@@ -179,7 +192,7 @@ async function gatherDailyStats(companyId: string): Promise<DailyStats> {
     // Messenger chats
     const messengerChats = await getAllMessengerChats(companyId)
     for (const chat of messengerChats) {
-      if (chat.lastMessageAt >= today) {
+      if (chat.lastMessageAt >= dayStart && chat.lastMessageAt <= dayEnd) {
         totalConversations++
         if (chat.isManualMode) {
           escalatedCount++
@@ -244,18 +257,18 @@ function generateInsights(stats: DailyStats, employee: EmployeeStats | null): st
 
   if (stats.totalConversations > 0) {
     if (stats.resolvedByBot >= 80) {
-      insights.push('Botsy håndterte over 80% av samtalene automatisk i dag - utmerket!')
+      insights.push('Botsy håndterte over 80% av samtalene automatisk i går - utmerket!')
     } else if (stats.resolvedByBot >= 60) {
-      insights.push('God dag! Botsy håndterte flertallet av samtalene automatisk.')
+      insights.push('God dag! Botsy håndterte flertallet av samtalene automatisk i går.')
     } else if (stats.resolvedByBot < 40) {
-      insights.push('Mange samtaler trengte manuell hjelp i dag. Vurder å oppdatere FAQ-ene.')
+      insights.push('Mange samtaler trengte manuell hjelp i går. Vurder å oppdatere FAQ-ene.')
     }
 
     if (stats.totalConversations >= 10) {
-      insights.push(`${stats.totalConversations} samtaler i dag - høy aktivitet!`)
+      insights.push(`${stats.totalConversations} samtaler i går - høy aktivitet!`)
     }
   } else {
-    insights.push('Ingen samtaler registrert i dag.')
+    insights.push('Ingen samtaler registrert i går.')
   }
 
   if (employee && employee.points > 0) {
@@ -271,9 +284,9 @@ function generateInsights(stats: DailyStats, employee: EmployeeStats | null): st
 }
 
 /**
- * Get recent escalations from today
+ * Get recent escalations from a given day
  */
-async function getRecentEscalations(companyId: string): Promise<Array<{
+async function getRecentEscalations(companyId: string, targetDate: Date): Promise<Array<{
   customerName: string
   message: string
   time: string
@@ -286,14 +299,16 @@ async function getRecentEscalations(companyId: string): Promise<Array<{
     channel: string
   }> = []
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const dayStart = new Date(targetDate)
+  dayStart.setHours(0, 0, 0, 0)
+  const dayEnd = new Date(targetDate)
+  dayEnd.setHours(23, 59, 59, 999)
 
   try {
     // Check widget chats for escalations
     const widgetChats = await getAllWidgetChats(companyId)
     for (const chat of widgetChats) {
-      if (chat.isManualMode && chat.lastMessageAt >= today) {
+      if (chat.isManualMode && chat.lastMessageAt >= dayStart && chat.lastMessageAt <= dayEnd) {
         const lastUserMsg = chat.messages?.filter(m => m.role === 'user').pop()
         escalations.push({
           customerName: `Besøkende ${chat.sessionId.slice(-6)}`,
@@ -307,7 +322,7 @@ async function getRecentEscalations(companyId: string): Promise<Array<{
     // Check messenger chats for escalations
     const messengerChats = await getAllMessengerChats(companyId)
     for (const chat of messengerChats) {
-      if (chat.isManualMode && chat.lastMessageAt >= today) {
+      if (chat.isManualMode && chat.lastMessageAt >= dayStart && chat.lastMessageAt <= dayEnd) {
         escalations.push({
           customerName: `Facebook ${chat.senderId.slice(-6)}`,
           message: chat.lastMessage?.text.slice(0, 100) || 'Ingen melding',
