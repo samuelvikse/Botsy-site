@@ -121,3 +121,12 @@ export function unauthorizedResponse() {
 export function forbiddenResponse() {
   return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: adminCorsHeaders })
 }
+
+/**
+ * Check if the authenticated user is a platform admin (developer).
+ */
+const ADMIN_EMAILS = ['hei@botsy.no']
+
+export function isAdmin(email: string | null): boolean {
+  return !!email && ADMIN_EMAILS.includes(email)
+}

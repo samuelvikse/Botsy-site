@@ -6,7 +6,7 @@ import { analyzeWebsiteContent } from '@/lib/groq'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { BusinessProfile, FAQ } from '@/types'
-import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
+import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse, isAdmin } from '@/lib/api-auth'
 import { adminCorsHeaders } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const access = await requireCompanyAccess(user.uid, companyId, user.token)
-    if (!access) return forbiddenResponse()
+    if (!access && !isAdmin(user.email)) return forbiddenResponse()
 
     console.log(`[Sync API] Starting manual sync for company: ${companyId}`)
 
@@ -221,7 +221,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const access = await requireCompanyAccess(user.uid, companyId, user.token)
-    if (!access) return forbiddenResponse()
+    if (!access && !isAdmin(user.email)) return forbiddenResponse()
 
     await saveSyncConfig(companyId, config)
 
@@ -254,7 +254,7 @@ export async function GET(request: NextRequest) {
     }
 
     const access = await requireCompanyAccess(user.uid, companyId, user.token)
-    if (!access) return forbiddenResponse()
+    if (!access && !isAdmin(user.email)) return forbiddenResponse()
 
     const config = await getSyncConfig(companyId)
 
