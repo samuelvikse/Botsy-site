@@ -42,8 +42,9 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult | nul
 }
 
 /**
- * Check if a user has access to a specific company via the memberships collection.
- * Returns the membership info or null if no access.
+ * Check if a user has access to a specific company.
+ * First checks the memberships collection, then falls back to the users document
+ * (company owners don't always have a membership document).
  */
 export async function requireCompanyAccess(
   userId: string,
@@ -51,6 +52,12 @@ export async function requireCompanyAccess(
   idToken?: string
 ): Promise<CompanyAccess | null> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (idToken) {
+      headers['Authorization'] = `Bearer ${idToken}`
+    }
+
+    // 1. Check memberships collection
     const queryBody = {
       structuredQuery: {
         from: [{ collectionId: 'memberships' }],
@@ -79,39 +86,45 @@ export async function requireCompanyAccess(
       },
     }
 
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (idToken) {
-      headers['Authorization'] = `Bearer ${idToken}`
-    }
-
     const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
       headers,
       body: JSON.stringify(queryBody),
     })
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Could not read error body')
-      console.error(`[requireCompanyAccess] Firestore query failed: ${response.status} ${response.statusText} - ${errorText}`)
-      return null
+    if (response.ok) {
+      const data = await response.json()
+      if (data && data.length > 0 && data[0].document) {
+        const doc = data[0].document
+        const fields = doc.fields || {}
+        const role = fields.role?.stringValue as 'owner' | 'admin' | 'employee'
+        const status = fields.status?.stringValue || 'active'
+        const membershipId = doc.name.split('/').pop() || ''
+
+        if (status === 'suspended') return null
+        return { role, membershipId, status }
+      }
     }
 
-    const data = await response.json()
-    if (!data || data.length === 0 || !data[0].document) {
-      console.log(`[requireCompanyAccess] No membership found for user=${userId} company=${companyId}`)
-      return null
+    // 2. Fallback: check users/{userId} document for legacy owners
+    // Company owners created during signup don't get a membership document.
+    // Their role and companyId are stored directly in the users document.
+    const userDocUrl = `${FIRESTORE_BASE_URL}/users/${userId}`
+    const userResponse = await fetch(userDocUrl, { headers })
+
+    if (!userResponse.ok) return null
+
+    const userDoc = await userResponse.json()
+    const userFields = userDoc.fields || {}
+    const userCompanyId = userFields.companyId?.stringValue
+    const userRole = userFields.role?.stringValue
+
+    if (userCompanyId === companyId && userRole) {
+      const role = (userRole === 'pending' ? 'employee' : userRole) as 'owner' | 'admin' | 'employee'
+      return { role, membershipId: 'legacy', status: 'active' }
     }
 
-    const doc = data[0].document
-    const fields = doc.fields || {}
-    const role = fields.role?.stringValue as 'owner' | 'admin' | 'employee'
-    const status = fields.status?.stringValue || 'active'
-    const membershipId = doc.name.split('/').pop() || ''
-
-    // Suspended users have no access
-    if (status === 'suspended') return null
-
-    return { role, membershipId, status }
+    return null
   } catch (error) {
     console.error('[requireCompanyAccess] Exception:', error)
     return null
