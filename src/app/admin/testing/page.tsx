@@ -38,7 +38,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/ui/toast'
 import { db } from '@/lib/firebase'
-import { collection, getDocs, query, where, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
+import { collection, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore'
 import { Input } from '@/components/ui/input'
 import { authFetch } from '@/lib/auth-fetch'
 
@@ -314,28 +314,26 @@ function TestingContent() {
     )
   }) || []
 
-  // Grant free month to a company
+  // Grant free month to a company (updates Stripe + Firestore)
   const handleGrantFreeMonth = async (companyId: string, businessName?: string) => {
-    if (!db) return
     setGrantingAccess(companyId)
 
     try {
-      const companyRef = doc(db, 'companies', companyId)
-      const newTrialEnd = new Date()
-      newTrialEnd.setMonth(newTrialEnd.getMonth() + 1)
-
-      await updateDoc(companyRef, {
-        subscriptionStatus: 'trialing',
-        trialEndsAt: Timestamp.fromDate(newTrialEnd),
-        grantedFreeAccess: true,
-        grantedFreeAccessAt: Timestamp.now(),
-        grantedFreeAccessBy: user?.email,
+      const response = await authFetch('/api/admin/grant-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, type: 'free-month' }),
       })
+      const data = await response.json()
 
-      toast.success('Gratis måned gitt!', `${businessName || companyId} har fått 1 måned gratis tilgang til ${newTrialEnd.toLocaleDateString('nb-NO')}`)
-      
-      // Refresh data
-      handleFetchCompanies()
+      if (data.success) {
+        const trialEnd = new Date(data.trialEndsAt).toLocaleDateString('nb-NO')
+        const stripeInfo = data.stripeAction === 'trial_extended' ? ' (Stripe oppdatert)' : data.stripeAction === 'stripe_error' ? ' (Stripe-feil, kun Firestore oppdatert)' : ''
+        toast.success('Gratis måned gitt!', `${businessName || companyId} har fått 1 måned gratis tilgang til ${trialEnd}${stripeInfo}`)
+        handleFetchCompanies()
+      } else {
+        toast.error('Feil', data.error || 'Kunne ikke gi gratis tilgang')
+      }
     } catch (error) {
       console.error('Error granting free month:', error)
       toast.error('Feil', 'Kunne ikke gi gratis tilgang')
@@ -429,26 +427,25 @@ function TestingContent() {
     }
   }
 
-  // Grant lifetime free access to a company
+  // Grant lifetime free access to a company (cancels Stripe + updates Firestore)
   const handleGrantLifetime = async (companyId: string, businessName?: string) => {
-    if (!db) return
     setGrantingAccess(companyId)
 
     try {
-      const companyRef = doc(db, 'companies', companyId)
-
-      await updateDoc(companyRef, {
-        subscriptionStatus: 'active',
-        subscriptionTier: 'lifetime',
-        lifetimeAccess: true,
-        grantedLifetimeAt: Timestamp.now(),
-        grantedLifetimeBy: user?.email,
+      const response = await authFetch('/api/admin/grant-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, type: 'lifetime' }),
       })
+      const data = await response.json()
 
-      toast.success('Lifetime-tilgang gitt!', `${businessName || companyId} har nå gratis tilgang for alltid`)
-      
-      // Refresh data
-      handleFetchCompanies()
+      if (data.success) {
+        const stripeInfo = data.stripeAction === 'subscription_cancelled' ? ' (Stripe-abonnement kansellert)' : data.stripeAction === 'stripe_error' ? ' (Stripe-feil, kun Firestore oppdatert)' : ''
+        toast.success('Lifetime-tilgang gitt!', `${businessName || companyId} har nå gratis tilgang for alltid${stripeInfo}`)
+        handleFetchCompanies()
+      } else {
+        toast.error('Feil', data.error || 'Kunne ikke gi lifetime-tilgang')
+      }
     } catch (error) {
       console.error('Error granting lifetime access:', error)
       toast.error('Feil', 'Kunne ikke gi lifetime-tilgang')
