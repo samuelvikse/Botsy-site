@@ -585,7 +585,7 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
   useEffect(() => {
     if (faqs.length > 1 && !isLoading && !hasCheckedDuplicates) {
       const pairs: SimilarFaqPair[] = []
-      const SIMILARITY_THRESHOLD = 0.5 // 50% word overlap
+      const SIMILARITY_THRESHOLD = 0.75 // 75% word overlap
 
       for (let i = 0; i < faqs.length; i++) {
         for (let j = i + 1; j < faqs.length; j++) {
@@ -1343,14 +1343,14 @@ function KnowledgeBaseView({ companyId }: { companyId: string }) {
                 onClick={handleSkipPair}
                 className="flex-1"
               >
-                Hopp over
+                Behold begge
               </Button>
               <Button
                 onClick={() => handleMergeFaqs(similarPairs[currentPairIndex].faq1, similarPairs[currentPairIndex].faq2)}
                 disabled={isSaving}
                 className="flex-1 bg-botsy-lime text-botsy-dark hover:bg-botsy-lime/90"
               >
-                {isSaving ? 'Slår sammen...' : 'Slå sammen begge'}
+                {isSaving ? 'Slår sammen...' : 'Slå sammen svar'}
               </Button>
             </div>
 
