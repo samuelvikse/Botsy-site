@@ -1,27 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { parseFirestoreFields, toFirestoreValue } from '@/lib/firestore-utils'
 import { verifyAuth, requireCompanyAccess, unauthorizedResponse, forbiddenResponse } from '@/lib/api-auth'
 import { adminCorsHeaders } from '@/lib/cors'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-// Initialize Firebase Client SDK
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-}
+const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
+const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
-function getFirebaseApp() {
-  if (getApps().length === 0) {
-    return initializeApp(firebaseConfig)
-  }
-  return getApp()
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
 }
 
 interface ToggleModeRequest {
@@ -59,23 +48,36 @@ export async function PUT(request: NextRequest) {
     const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
-    const app = getFirebaseApp()
-    const db = getFirestore(app)
+    const docPath = `companies/${companyId}/customerChats/${sessionId}`
 
-    const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-    const sessionSnap = await getDoc(sessionRef)
+    // Check if session exists
+    const getResponse = await fetch(`${FIRESTORE_BASE_URL}/${docPath}`, {
+      headers: firestoreHeaders(user.token),
+    })
 
-    if (!sessionSnap.exists()) {
+    if (!getResponse.ok) {
       return NextResponse.json(
         { success: false, error: 'Chat-session ikke funnet' },
         { status: 404 }
       )
     }
 
-    await updateDoc(sessionRef, {
-      isManualMode: isManual,
-      manualModeUpdatedAt: serverTimestamp(),
+    // Update manual mode
+    const updateUrl = `${FIRESTORE_BASE_URL}/${docPath}?updateMask.fieldPaths=isManualMode&updateMask.fieldPaths=manualModeUpdatedAt`
+    const updateResponse = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: firestoreHeaders(user.token),
+      body: JSON.stringify({
+        fields: {
+          isManualMode: toFirestoreValue(isManual),
+          manualModeUpdatedAt: toFirestoreValue(new Date().toISOString()),
+        },
+      }),
     })
+
+    if (!updateResponse.ok) {
+      throw new Error('Failed to update manual mode')
+    }
 
     return NextResponse.json({
       success: true,
@@ -108,36 +110,51 @@ export async function POST(request: NextRequest) {
     const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
-    const app = getFirebaseApp()
-    const db = getFirestore(app)
+    const docPath = `companies/${companyId}/customerChats/${sessionId}`
 
-    const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-    const sessionSnap = await getDoc(sessionRef)
+    // Get existing session
+    const getResponse = await fetch(`${FIRESTORE_BASE_URL}/${docPath}`, {
+      headers: firestoreHeaders(user.token),
+    })
 
-    if (!sessionSnap.exists()) {
+    if (!getResponse.ok) {
       return NextResponse.json(
         { success: false, error: 'Chat-session ikke funnet' },
         { status: 404 }
       )
     }
 
-    const existingData = sessionSnap.data()
+    const existingDoc = await getResponse.json()
+    const existingData = existingDoc.fields ? parseFirestoreFields(existingDoc.fields) : {}
+    const existingMessages = (existingData.messages as Array<Record<string, unknown>>) || []
 
     // Add the manual message
-    await updateDoc(sessionRef, {
-      messages: [
-        ...(existingData?.messages || []),
-        {
-          role: 'assistant',
-          content: message,
-          timestamp: new Date(),
-          isManual: true,
+    const updatedMessages = [
+      ...existingMessages,
+      {
+        role: 'assistant',
+        content: message,
+        timestamp: new Date().toISOString(),
+        isManual: true,
+      },
+    ]
+
+    const updateUrl = `${FIRESTORE_BASE_URL}/${docPath}?updateMask.fieldPaths=messages&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=isManualMode`
+    const updateResponse = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: firestoreHeaders(user.token),
+      body: JSON.stringify({
+        fields: {
+          messages: toFirestoreValue(updatedMessages),
+          updatedAt: toFirestoreValue(new Date().toISOString()),
+          isManualMode: toFirestoreValue(true),
         },
-      ],
-      updatedAt: serverTimestamp(),
-      // Ensure manual mode is on when sending manual messages
-      isManualMode: true,
+      }),
     })
+
+    if (!updateResponse.ok) {
+      throw new Error('Failed to send manual message')
+    }
 
     return NextResponse.json({
       success: true,
@@ -171,24 +188,24 @@ export async function GET(request: NextRequest) {
     const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
-    const app = getFirebaseApp()
-    const db = getFirestore(app)
+    const docPath = `companies/${companyId}/customerChats/${sessionId}`
+    const getResponse = await fetch(`${FIRESTORE_BASE_URL}/${docPath}`, {
+      headers: firestoreHeaders(user.token),
+    })
 
-    const sessionRef = doc(db, 'companies', companyId, 'customerChats', sessionId)
-    const sessionSnap = await getDoc(sessionRef)
-
-    if (!sessionSnap.exists()) {
+    if (!getResponse.ok) {
       return NextResponse.json(
         { success: false, error: 'Chat-session ikke funnet' },
         { status: 404 }
       )
     }
 
-    const data = sessionSnap.data()
+    const doc = await getResponse.json()
+    const data = doc.fields ? parseFirestoreFields(doc.fields) : {}
 
     return NextResponse.json({
       success: true,
-      isManualMode: data?.isManualMode || false,
+      isManualMode: (data.isManualMode as boolean) || false,
     })
   } catch {
     return NextResponse.json(

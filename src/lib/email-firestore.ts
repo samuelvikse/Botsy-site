@@ -8,6 +8,14 @@ import { parseFirestoreFields, toFirestoreValue } from './firestore-utils'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function authHeaders(idToken?: string): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`
+  }
+  return headers
+}
+
 export interface EmailChannel {
   provider: 'sendgrid' | 'mailgun' | 'smtp' | 'gmail'
   emailAddress: string
@@ -34,9 +42,11 @@ export interface EmailChannel {
 /**
  * Get Email channel configuration for a company
  */
-export async function getEmailChannel(companyId: string): Promise<(EmailChannel & { autoEmailReply?: boolean }) | null> {
+export async function getEmailChannel(companyId: string, idToken?: string): Promise<(EmailChannel & { autoEmailReply?: boolean }) | null> {
   try {
-    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`, {
+      headers: authHeaders(idToken),
+    })
 
     if (!response.ok) {
       if (response.status === 404) return null
@@ -87,7 +97,7 @@ export async function getEmailChannel(companyId: string): Promise<(EmailChannel 
 /**
  * Find company by email address
  */
-export async function findCompanyByEmail(emailAddress: string): Promise<string | null> {
+export async function findCompanyByEmail(emailAddress: string, idToken?: string): Promise<string | null> {
   try {
     const normalizedEmail = emailAddress.toLowerCase().trim()
 
@@ -123,7 +133,7 @@ export async function findCompanyByEmail(emailAddress: string): Promise<string |
       `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(idToken),
         body: JSON.stringify(query)
       }
     )
@@ -152,9 +162,11 @@ export async function findCompanyByEmail(emailAddress: string): Promise<string |
 /**
  * Get business profile for AI context
  */
-export async function getBusinessProfile(companyId: string): Promise<Record<string, unknown> | null> {
+export async function getBusinessProfile(companyId: string, idToken?: string): Promise<Record<string, unknown> | null> {
   try {
-    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`, {
+      headers: authHeaders(idToken),
+    })
 
     if (!response.ok) return null
 
@@ -173,9 +185,11 @@ export async function getBusinessProfile(companyId: string): Promise<Record<stri
 /**
  * Get FAQs for AI context
  */
-export async function getFAQs(companyId: string): Promise<Array<Record<string, unknown>>> {
+export async function getFAQs(companyId: string, idToken?: string): Promise<Array<Record<string, unknown>>> {
   try {
-    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/faqs`)
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/faqs`, {
+      headers: authHeaders(idToken),
+    })
 
     if (!response.ok) return []
 
@@ -196,9 +210,11 @@ export async function getFAQs(companyId: string): Promise<Array<Record<string, u
 /**
  * Get active instructions for AI context
  */
-export async function getActiveInstructions(companyId: string): Promise<Array<{ content: string; priority: string }>> {
+export async function getActiveInstructions(companyId: string, idToken?: string): Promise<Array<{ content: string; priority: string }>> {
   try {
-    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`)
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`, {
+      headers: authHeaders(idToken),
+    })
 
     if (!response.ok) return []
 
@@ -255,7 +271,8 @@ export interface EmailMessage {
 export async function saveEmailMessage(
   companyId: string,
   customerEmail: string,
-  message: Omit<EmailMessage, 'id'>
+  message: Omit<EmailMessage, 'id'>,
+  idToken?: string
 ): Promise<string> {
   try {
     const normalizedEmail = customerEmail.toLowerCase().trim().replace(/[.#$[\]]/g, '_')
@@ -263,7 +280,9 @@ export async function saveEmailMessage(
     const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
     // First, try to get existing chat
-    const chatResponse = await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`)
+    const chatResponse = await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`, {
+      headers: authHeaders(idToken),
+    })
 
     const messageData = {
       id: messageId,
@@ -283,7 +302,7 @@ export async function saveEmailMessage(
 
       await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(idToken),
         body: JSON.stringify({
           fields: {
             customerEmail: toFirestoreValue(customerEmail.toLowerCase().trim()),
@@ -297,7 +316,7 @@ export async function saveEmailMessage(
       // Create new chat
       await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(idToken),
         body: JSON.stringify({
           fields: {
             customerEmail: toFirestoreValue(customerEmail.toLowerCase().trim()),
@@ -323,13 +342,16 @@ export async function saveEmailMessage(
 export async function getEmailHistory(
   companyId: string,
   customerEmail: string,
-  limitCount = 20
+  limitCount = 20,
+  idToken?: string
 ): Promise<EmailMessage[]> {
   try {
     const normalizedEmail = customerEmail.toLowerCase().trim().replace(/[.#$[\]]/g, '_')
     const chatPath = `companies/${companyId}/emailChats/${normalizedEmail}`
 
-    const response = await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`)
+    const response = await fetch(`${FIRESTORE_BASE_URL}/${chatPath}`, {
+      headers: authHeaders(idToken),
+    })
 
     if (!response.ok) return []
 
@@ -359,7 +381,8 @@ export async function getEmailHistory(
  * Get all email conversations for a company
  */
 export async function getAllEmailChats(
-  companyId: string
+  companyId: string,
+  idToken?: string
 ): Promise<Array<{
   customerEmail: string
   lastSubject: string
@@ -369,7 +392,9 @@ export async function getAllEmailChats(
   lastReadByAgent: Date | null
 }>> {
   try {
-    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/emailChats`)
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/emailChats`, {
+      headers: authHeaders(idToken),
+    })
 
     if (!response.ok) return []
 
@@ -544,7 +569,7 @@ export async function updateGmailCheckState(
  * Get knowledge documents for AI context
  * Documents are sorted by uploadedAt (newest first) so newer info takes priority
  */
-export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
+export async function getKnowledgeDocuments(companyId: string, idToken?: string): Promise<Array<{
   faqs: Array<{ question: string; answer: string }>
   rules: string[]
   policies: string[]
@@ -554,7 +579,9 @@ export async function getKnowledgeDocuments(companyId: string): Promise<Array<{
 }>> {
   try {
     const response = await fetch(
-      `${FIRESTORE_BASE_URL}/companies/${companyId}/knowledgeDocs`
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/knowledgeDocs`, {
+        headers: authHeaders(idToken),
+      }
     )
 
     if (!response.ok) {

@@ -37,11 +37,11 @@ export async function POST(request: NextRequest) {
 
     // Fetch context in parallel
     const [businessProfile, faqs, instructions, emailHistory, knowledgeDocuments] = await Promise.all([
-      getBusinessProfile(companyId),
-      getFAQs(companyId),
-      getActiveInstructions(companyId),
-      getEmailHistory(companyId, customerEmail, 10),
-      getKnowledgeDocuments(companyId),
+      getBusinessProfile(companyId, user.token),
+      getFAQs(companyId, user.token),
+      getActiveInstructions(companyId, user.token),
+      getEmailHistory(companyId, customerEmail, 10, user.token),
+      getKnowledgeDocuments(companyId, user.token),
     ])
 
     // Get the last inbound email for subject/body

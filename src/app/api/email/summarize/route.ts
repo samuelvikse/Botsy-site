@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
     if (!access) return forbiddenResponse()
 
     const [businessProfile, emailHistory] = await Promise.all([
-      getBusinessProfile(companyId),
-      getEmailHistory(companyId, customerEmail, 20),
+      getBusinessProfile(companyId, user.token),
+      getEmailHistory(companyId, customerEmail, 20, user.token),
     ])
 
     if (!emailHistory || emailHistory.length === 0) {

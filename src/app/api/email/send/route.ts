@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     if (!access) return forbiddenResponse()
 
     // Get email channel configuration
-    const channel = await getEmailChannel(companyId)
+    const channel = await getEmailChannel(companyId, user.token)
 
     if (!channel || !channel.isActive) {
       return NextResponse.json(
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       subject: replySubject,
       body: emailBody,
       timestamp: new Date(),
-    }).catch(() => {})
+    }, user.token).catch(() => {})
 
     return NextResponse.json({ success: true })
   } catch (error) {

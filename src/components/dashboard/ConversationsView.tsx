@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { authFetch } from '@/lib/auth-fetch'
+import { getAuth } from 'firebase/auth'
 import { getAllSMSChats, getSMSHistory, saveSMSMessage } from '@/lib/sms-firestore'
 import { getSMSChannel } from '@/lib/sms-firestore'
 import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
@@ -308,7 +309,8 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
 
       // Fetch Email chats
       try {
-        const emailChats = await getAllEmailChats(companyId)
+        const idToken = await getAuth().currentUser?.getIdToken()
+        const emailChats = await getAllEmailChats(companyId, idToken)
         emailChats.forEach((chat) => {
           const emailConvId = `email-${chat.customerEmail.replace(/[.@]/g, '_')}`
           const isInbound = chat.lastMessage?.direction === 'inbound'
@@ -412,7 +414,8 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         }))
       } else if (conversation.channel === 'email' && conversation.email) {
         // Fetch Email messages
-        const emailHistory = await getEmailHistory(companyId, conversation.email, 100)
+        const idToken = await getAuth().currentUser?.getIdToken()
+        const emailHistory = await getEmailHistory(companyId, conversation.email, 100, idToken)
         msgs = emailHistory.map((msg) => ({
           id: msg.id,
           role: msg.direction === 'inbound' ? 'user' : 'assistant',
