@@ -581,6 +581,7 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
       })
 
       const data = await response.json()
+      console.log('[Manual Mode] Response:', response.status, data)
       if (data.success) {
         setManualMode(newMode)
         // Update conversation in list
@@ -592,9 +593,11 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
         setSelectedConversation((prev) =>
           prev ? { ...prev, isManualMode: newMode } : null
         )
+      } else {
+        console.error('[Manual Mode] API returned error:', data.error)
       }
-    } catch {
-      // Error toggling manual mode - silently fail
+    } catch (error) {
+      console.error('[Manual Mode] Error toggling manual mode:', error)
     }
   }
 

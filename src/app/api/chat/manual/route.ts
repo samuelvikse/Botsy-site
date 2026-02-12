@@ -55,8 +55,13 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    console.log(`[Chat Manual] PUT toggle: company=${companyId}, session=${sessionId}, manual=${isManual}, user=${user.uid}`)
+
     const access = await requireCompanyAccess(user.uid, companyId, user.token)
-    if (!access) return forbiddenResponse()
+    if (!access) {
+      console.log(`[Chat Manual] Access denied for user ${user.uid} on company ${companyId}`)
+      return forbiddenResponse()
+    }
 
     const app = getFirebaseApp()
     const db = getFirestore(app)
@@ -81,7 +86,8 @@ export async function PUT(request: NextRequest) {
       success: true,
       isManualMode: isManual,
     })
-  } catch {
+  } catch (error) {
+    console.error('[Chat Manual] PUT error:', error)
     return NextResponse.json(
       { success: false, error: 'Kunne ikke endre modus' },
       { status: 500 }
@@ -145,7 +151,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Melding sendt',
     })
-  } catch {
+  } catch (error) {
+    console.error('[Chat Manual] POST error:', error)
     return NextResponse.json(
       { success: false, error: 'Kunne ikke sende melding' },
       { status: 500 }
