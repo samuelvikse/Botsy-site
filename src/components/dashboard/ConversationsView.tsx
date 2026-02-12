@@ -29,7 +29,7 @@ import { authFetch } from '@/lib/auth-fetch'
 import { getAuth } from 'firebase/auth'
 import { getAllSMSChats, getSMSHistory, saveSMSMessage } from '@/lib/sms-firestore'
 import { getSMSChannel } from '@/lib/sms-firestore'
-import { getAllWidgetChats, getWidgetChatHistory } from '@/lib/firestore'
+import { getAllWidgetChats, getWidgetChatHistory, addManualMessage } from '@/lib/firestore'
 import { getAllEmailChats, getEmailHistory } from '@/lib/email-firestore'
 import { getSMSProvider } from '@/lib/sms'
 import { Facebook, Mail, Instagram } from 'lucide-react'
@@ -731,43 +731,31 @@ export const ConversationsView = memo(function ConversationsView({ companyId, in
           throw new Error(data.error)
         }
       } else {
-        // Widget chat - send via API
-        const response = await authFetch('/api/chat/manual', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            companyId,
-            sessionId: selectedConversation.phone,
-            message: newMessage,
-          }),
-        })
+        // Widget chat - write directly to Firestore (no API round-trip)
+        // Optimistic UI update first
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: newMessage,
+            timestamp: new Date(),
+            isManual: true,
+          },
+        ])
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === selectedConversation.id
+              ? { ...c, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const }
+              : c
+          )
+        )
+        setSelectedConversation((prev) =>
+          prev ? { ...prev, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const } : null
+        )
 
-        const data = await response.json()
-        if (data.success) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}`,
-              role: 'assistant',
-              content: newMessage,
-              timestamp: new Date(),
-              isManual: true,
-            },
-          ])
-          // Update conversation to show we've replied
-          setConversations((prev) =>
-            prev.map((c) =>
-              c.id === selectedConversation.id
-                ? { ...c, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const }
-                : c
-            )
-          )
-          setSelectedConversation((prev) =>
-            prev ? { ...prev, lastMessage: newMessage, lastMessageAt: new Date(), lastMessageRole: 'assistant' as const } : null
-          )
-        } else {
-          throw new Error(data.error)
-        }
+        // Write to Firestore in background
+        addManualMessage(companyId, selectedConversation.phone, newMessage).catch(() => {})
       }
 
       setNewMessage('')

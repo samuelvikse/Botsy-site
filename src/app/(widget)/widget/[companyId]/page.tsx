@@ -825,7 +825,7 @@ export default function WidgetPage({
               {messages.map((msg, msgIndex) => {
                 const isAssistant = msg.role === 'assistant'
                 const isGreeting = msg.id === 'greeting'
-                const showFeedback = isAssistant && !isGreeting
+                const showFeedback = false
 
                 return (
                   <motion.div
@@ -851,15 +851,6 @@ export default function WidgetPage({
                       >
                         {msg.content}
                       </div>
-                      {msg.role === 'user' && (
-                        <div className="flex justify-end mt-0.5 mr-1">
-                          {lastReadByAgent ? (
-                            <CheckCheck className="h-3 w-3 text-blue-400" />
-                          ) : (
-                            <Check className="h-3 w-3 text-white/30" />
-                          )}
-                        </div>
-                      )}
                       {showFeedback && (
                         <div className="flex items-center gap-1 mt-1 ml-1">
                           <button
@@ -930,8 +921,7 @@ export default function WidgetPage({
                   className="flex justify-start"
                 >
                   <div className="bg-white/10 px-4 py-2 rounded-2xl rounded-bl-md">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/50 text-xs">Agent skriver</span>
+                    <div className="flex items-center">
                       <div className="flex gap-0.5">
                         {[0, 1, 2].map((i) => (
                           <motion.div
