@@ -90,10 +90,17 @@ export async function requireCompanyAccess(
       body: JSON.stringify(queryBody),
     })
 
-    if (!response.ok) return null
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Could not read error body')
+      console.error(`[requireCompanyAccess] Firestore query failed: ${response.status} ${response.statusText} - ${errorText}`)
+      return null
+    }
 
     const data = await response.json()
-    if (!data || data.length === 0 || !data[0].document) return null
+    if (!data || data.length === 0 || !data[0].document) {
+      console.log(`[requireCompanyAccess] No membership found for user=${userId} company=${companyId}`)
+      return null
+    }
 
     const doc = data[0].document
     const fields = doc.fields || {}
@@ -105,7 +112,8 @@ export async function requireCompanyAccess(
     if (status === 'suspended') return null
 
     return { role, membershipId, status }
-  } catch {
+  } catch (error) {
+    console.error('[requireCompanyAccess] Exception:', error)
     return null
   }
 }
