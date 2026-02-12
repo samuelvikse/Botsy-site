@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing companyId' }, { status: 400 })
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // If senderId is provided, fetch messages for that chat

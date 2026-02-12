@@ -12,6 +12,10 @@ import { adminCorsHeaders } from '@/lib/cors'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: adminCorsHeaders })
 }
@@ -28,7 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'companyId er påkrevd' }, { status: 400 })
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Query for unanswered questions in the last 7 days
@@ -37,7 +41,8 @@ export async function GET(request: NextRequest) {
 
     // Fetch unanswered questions from the unansweredQuestions subcollection
     const response = await fetch(
-      `${FIRESTORE_BASE_URL}/companies/${companyId}/unansweredQuestions?orderBy=createdAt desc&pageSize=20`
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/unansweredQuestions?orderBy=createdAt desc&pageSize=20`,
+      { headers: { 'Authorization': `Bearer ${user.token}` } }
     )
 
     if (!response.ok) {
@@ -80,14 +85,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'questionId og companyId er påkrevd' }, { status: 400 })
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Update the document to mark it as resolved
     const url = `${FIRESTORE_BASE_URL}/companies/${companyId}/unansweredQuestions/${questionId}?updateMask.fieldPaths=resolved`
     const response = await fetch(url, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify({
         fields: {
           resolved: { booleanValue: true },

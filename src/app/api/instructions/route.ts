@@ -7,6 +7,10 @@ import { adminCorsHeaders } from '@/lib/cors'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 // Force dynamic rendering (uses request.url)
 export const dynamic = 'force-dynamic'
 
@@ -30,11 +34,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Use REST API to get instructions
-    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`)
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`, {
+      headers: { 'Authorization': `Bearer ${user.token}` },
+    })
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -107,7 +113,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     if (!instruction || !instruction.content) {
@@ -137,7 +143,7 @@ export async function POST(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/companies/${companyId}/instructions`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({
           fields: {
             content: toFirestoreValue(docData.content),
@@ -202,7 +208,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Build update fields and mask
@@ -226,7 +232,7 @@ export async function PATCH(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/companies/${companyId}/instructions/${instructionId}?${updateMask}`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({ fields }),
       }
     )
@@ -262,7 +268,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Soft delete by setting isActive to false
@@ -270,7 +276,7 @@ export async function DELETE(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/companies/${companyId}/instructions/${instructionId}?updateMask.fieldPaths=isActive`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({
           fields: {
             isActive: toFirestoreValue(false),

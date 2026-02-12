@@ -9,6 +9,10 @@ import crypto from 'crypto'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex')
 }
@@ -33,7 +37,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // First, try the simple query without orderBy to avoid composite index requirement
@@ -68,7 +72,7 @@ export async function GET(request: NextRequest) {
 
     const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify(queryBody),
     })
 
@@ -136,7 +140,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Check if there's already a pending invitation for this email
@@ -176,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     const checkResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify(checkQuery),
     })
 
@@ -196,7 +200,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${FIRESTORE_BASE_URL}/invitations`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify({
         fields: {
           companyId: toFirestoreValue(companyId),
@@ -284,7 +288,7 @@ export async function DELETE(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/invitations/${invitationId}?updateMask.fieldPaths=status`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({
           fields: {
             status: toFirestoreValue('cancelled'),

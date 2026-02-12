@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     console.log(`[Sync API] Starting manual sync for company: ${companyId}`)
@@ -220,7 +220,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     await saveSyncConfig(companyId, config)
@@ -253,7 +253,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     const config = await getSyncConfig(companyId)

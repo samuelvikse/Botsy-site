@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Validate file type
@@ -447,7 +447,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     const { getKnowledgeDocuments } = await import('@/lib/firestore')
@@ -482,7 +482,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     const { deleteKnowledgeDocument } = await import('@/lib/firestore')

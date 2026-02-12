@@ -13,6 +13,10 @@ import { adminCorsHeaders } from '@/lib/cors'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: adminCorsHeaders })
 }
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'companyId er påkrevd' }, { status: 400 })
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Build query
@@ -80,7 +84,7 @@ export async function GET(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/companies/${companyId}:runQuery`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify(queryBody),
       }
     )

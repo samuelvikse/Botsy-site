@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Company ID required' }, { status: 400 })
   }
 
-  const access = await requireCompanyAccess(user.uid, companyId)
+  const access = await requireCompanyAccess(user.uid, companyId, user.token)
   if (!access) return forbiddenResponse()
 
   if (!db) {

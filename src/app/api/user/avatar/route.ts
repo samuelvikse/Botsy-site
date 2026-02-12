@@ -6,6 +6,10 @@ import { adminCorsHeaders } from '@/lib/cors'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 // Note: Avatar upload is handled client-side using Firebase Storage SDK
 // This endpoint is for updating the avatar URL in the user document after upload
 
@@ -33,7 +37,7 @@ export async function POST(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/users/${userId}?updateMask.fieldPaths=avatarUrl`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({
           fields: {
             avatarUrl: toFirestoreValue(avatarUrl),
@@ -75,7 +79,7 @@ export async function DELETE(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/users/${userId}?updateMask.fieldPaths=avatarUrl`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({
           fields: {
             avatarUrl: toFirestoreValue(null),

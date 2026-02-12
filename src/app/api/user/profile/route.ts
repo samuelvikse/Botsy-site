@@ -6,6 +6,10 @@ import { adminCorsHeaders } from '@/lib/cors'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 // PATCH - Update user profile
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: adminCorsHeaders })
@@ -52,7 +56,7 @@ export async function PATCH(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/users/${userId}?${updateMask}`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({ fields }),
       }
     )

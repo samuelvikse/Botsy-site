@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ escalations: [] })
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     const escalations = await getPendingEscalations(companyId)
@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest) {
     const { escalationId, action, userId, companyId, conversationId } = await request.json()
 
     if (companyId) {
-      const access = await requireCompanyAccess(user.uid, companyId)
+      const access = await requireCompanyAccess(user.uid, companyId, user.token)
       if (!access) return forbiddenResponse()
     }
 
@@ -138,7 +138,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     await dismissEscalation(companyId, escalationId)

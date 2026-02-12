@@ -13,6 +13,7 @@ const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJE
 export interface AuthResult {
   uid: string
   email: string | null
+  token: string
 }
 
 export interface CompanyAccess {
@@ -37,7 +38,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult | nul
   const user = await verifyIdTokenRest(token)
   if (!user) return null
 
-  return { uid: user.uid, email: user.email }
+  return { uid: user.uid, email: user.email, token }
 }
 
 /**
@@ -46,7 +47,8 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult | nul
  */
 export async function requireCompanyAccess(
   userId: string,
-  companyId: string
+  companyId: string,
+  idToken?: string
 ): Promise<CompanyAccess | null> {
   try {
     const queryBody = {
@@ -77,9 +79,14 @@ export async function requireCompanyAccess(
       },
     }
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (idToken) {
+      headers['Authorization'] = `Bearer ${idToken}`
+    }
+
     const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(queryBody),
     })
 

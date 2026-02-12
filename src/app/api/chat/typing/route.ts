@@ -23,18 +23,22 @@ export async function PUT(request: NextRequest) {
     }
 
     // Require auth for agent/owner actions; allow customer widget requests without auth
+    let authToken: string | null = null
     if (who === 'agent') {
       const user = await verifyAuth(request)
       if (!user) return unauthorizedResponse()
+      authToken = user.token
     }
 
     const fieldName = who === 'customer' ? 'customerTypingAt' : 'agentTypingAt'
 
     // Update the typing timestamp on the session document
     const url = `${FIRESTORE_BASE_URL}/companies/${companyId}/customerChats/${sessionId}?updateMask.fieldPaths=${fieldName}`
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`
     const response = await fetch(url, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         fields: {
           [fieldName]: { timestampValue: new Date().toISOString() },

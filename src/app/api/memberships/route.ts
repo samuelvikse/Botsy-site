@@ -7,6 +7,10 @@ import type { Membership, MembershipPermissions } from '@/types'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 // GET - Fetch membership(s)
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: adminCorsHeaders })
@@ -22,7 +26,7 @@ export async function GET(request: NextRequest) {
     const companyId = searchParams.get('companyId')
 
     if (companyId) {
-      const access = await requireCompanyAccess(user.uid, companyId)
+      const access = await requireCompanyAccess(user.uid, companyId, user.token)
       if (!access) return forbiddenResponse()
     }
 
@@ -57,7 +61,7 @@ export async function GET(request: NextRequest) {
 
       const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify(queryBody),
       })
 
@@ -106,7 +110,7 @@ export async function GET(request: NextRequest) {
 
       const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify(queryBody),
       })
 
@@ -139,7 +143,9 @@ export async function GET(request: NextRequest) {
       const membershipsWithUsers = await Promise.all(
         memberships.map(async (membership) => {
           try {
-            const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${membership.userId}`)
+            const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${membership.userId}`, {
+              headers: { 'Authorization': `Bearer ${user.token}` },
+            })
             if (userResponse.ok) {
               const userData = await userResponse.json()
               if (userData.fields) {
@@ -192,7 +198,7 @@ export async function POST(request: NextRequest) {
     const { userId, companyId, role, permissions, invitedBy, status } = body
 
     if (companyId) {
-      const access = await requireCompanyAccess(user.uid, companyId)
+      const access = await requireCompanyAccess(user.uid, companyId, user.token)
       if (!access) return forbiddenResponse()
     }
 
@@ -207,7 +213,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${FIRESTORE_BASE_URL}/memberships`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify({
         fields: {
           userId: toFirestoreValue(userId),
@@ -282,7 +288,7 @@ export async function PATCH(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/memberships/${membershipId}?${updateMask}`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({ fields }),
       }
     )
@@ -318,6 +324,7 @@ export async function DELETE(request: NextRequest) {
 
     const response = await fetch(`${FIRESTORE_BASE_URL}/memberships/${membershipId}`, {
       method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${user.token}` },
     })
 
     if (!response.ok) {

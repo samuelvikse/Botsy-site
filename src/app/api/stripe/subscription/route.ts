@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     const companyData = await getDocumentRest('companies', companyId)
 
     // Get invoices from subcollection
-    const invoices = await getInvoicesRest(companyId)
+    const invoices = await getInvoicesRest(companyId, user.token)
 
     return NextResponse.json({
       subscription: {
@@ -264,10 +264,11 @@ export async function PUT(request: NextRequest) {
 /**
  * Get invoices from subcollection using REST API
  */
-async function getInvoicesRest(companyId: string) {
+async function getInvoicesRest(companyId: string, authToken: string) {
   try {
     const response = await fetch(
-      `${FIRESTORE_BASE_URL}/companies/${companyId}/invoices?orderBy=createdAt desc&pageSize=12`
+      `${FIRESTORE_BASE_URL}/companies/${companyId}/invoices?orderBy=createdAt desc&pageSize=12`,
+      { headers: { 'Authorization': `Bearer ${authToken}` } }
     )
 
     if (!response.ok) {

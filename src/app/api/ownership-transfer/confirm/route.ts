@@ -6,6 +6,10 @@ import { adminCorsHeaders } from '@/lib/cors'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 // POST - Confirm ownership transfer
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: adminCorsHeaders })
@@ -65,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify(queryBody),
     })
 
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
         `${FIRESTORE_BASE_URL}/ownershipTransfers/${docId}?updateMask.fieldPaths=status`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: firestoreHeaders(user.token),
           body: JSON.stringify({
             fields: { status: toFirestoreValue('expired') },
           }),
@@ -123,7 +127,7 @@ export async function POST(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/ownershipTransfers/${docId}?updateMask.fieldPaths=${confirmField}`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({
           fields: { [confirmField]: toFirestoreValue(true) },
         }),
@@ -139,7 +143,8 @@ export async function POST(request: NextRequest) {
         docId as string,
         parsed.companyId as string,
         parsed.fromUserId as string,
-        parsed.toUserId as string
+        parsed.toUserId as string,
+        user.token
       )
       return NextResponse.json({ success: true, completed: true })
     }
@@ -157,14 +162,15 @@ async function completeOwnershipTransfer(
   transferId: string,
   companyId: string,
   fromUserId: string,
-  toUserId: string
+  toUserId: string,
+  authToken: string
 ): Promise<void> {
   // Update transfer status
   await fetch(
     `${FIRESTORE_BASE_URL}/ownershipTransfers/${transferId}?updateMask.fieldPaths=status`,
     {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(authToken),
       body: JSON.stringify({
         fields: { status: toFirestoreValue('completed') },
       }),
@@ -201,7 +207,7 @@ async function completeOwnershipTransfer(
 
   const oldOwnerResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: firestoreHeaders(authToken),
     body: JSON.stringify(oldOwnerQuery),
   })
 
@@ -214,7 +220,7 @@ async function completeOwnershipTransfer(
         `${FIRESTORE_BASE_URL}/memberships/${oldOwnerMembershipId}?updateMask.fieldPaths=role&updateMask.fieldPaths=permissions`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: firestoreHeaders(authToken),
           body: JSON.stringify({
             fields: {
               role: toFirestoreValue('admin'),
@@ -256,7 +262,7 @@ async function completeOwnershipTransfer(
 
   const newOwnerResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: firestoreHeaders(authToken),
     body: JSON.stringify(newOwnerQuery),
   })
 
@@ -269,7 +275,7 @@ async function completeOwnershipTransfer(
         `${FIRESTORE_BASE_URL}/memberships/${newOwnerMembershipId}?updateMask.fieldPaths=role&updateMask.fieldPaths=permissions`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: firestoreHeaders(authToken),
           body: JSON.stringify({
             fields: {
               role: toFirestoreValue('owner'),
@@ -286,7 +292,7 @@ async function completeOwnershipTransfer(
     `${FIRESTORE_BASE_URL}/companies/${companyId}?updateMask.fieldPaths=ownerId`,
     {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(authToken),
       body: JSON.stringify({
         fields: { ownerId: toFirestoreValue(toUserId) },
       }),
@@ -298,7 +304,7 @@ async function completeOwnershipTransfer(
     `${FIRESTORE_BASE_URL}/users/${fromUserId}?updateMask.fieldPaths=role`,
     {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(authToken),
       body: JSON.stringify({
         fields: { role: toFirestoreValue('admin') },
       }),
@@ -309,7 +315,7 @@ async function completeOwnershipTransfer(
     `${FIRESTORE_BASE_URL}/users/${toUserId}?updateMask.fieldPaths=role`,
     {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(authToken),
       body: JSON.stringify({
         fields: { role: toFirestoreValue('owner') },
       }),

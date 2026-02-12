@@ -7,6 +7,10 @@ import { adminCorsHeaders } from '@/lib/cors'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 // GET - Fetch all channel configurations
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: adminCorsHeaders })
@@ -27,13 +31,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Get SMS channel from subcollection
     let smsChannel = null
     try {
-      const smsResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/channels/sms`)
+      const smsResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}/channels/sms`, {
+        headers: { 'Authorization': `Bearer ${user.token}` },
+      })
       if (smsResponse.ok) {
         const smsDoc = await smsResponse.json()
         if (smsDoc.fields) {
@@ -52,7 +58,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get other channels from company document
-    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
+    const response = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`, {
+      headers: { 'Authorization': `Bearer ${user.token}` },
+    })
 
     let channels: Record<string, unknown> = {}
     if (response.ok) {
@@ -95,7 +103,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     if (!channel || !['sms', 'messenger', 'instagram', 'email'].includes(channel)) {
@@ -130,7 +138,7 @@ export async function POST(request: NextRequest) {
         `${FIRESTORE_BASE_URL}/companies/${companyId}/channels/sms`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: firestoreHeaders(user.token),
           body: JSON.stringify(smsData),
         }
       )
@@ -187,7 +195,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get existing document first
-    const getResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
+    const getResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`, {
+      headers: { 'Authorization': `Bearer ${user.token}` },
+    })
     let existingChannels: Record<string, unknown> = {}
 
     if (getResponse.ok) {
@@ -216,7 +226,7 @@ export async function POST(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/companies/${companyId}?updateMask.fieldPaths=channels&updateMask.fieldPaths=updatedAt`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify(updateData),
       }
     )
@@ -254,7 +264,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     if (!channel || !['sms', 'messenger', 'instagram', 'email'].includes(channel)) {
@@ -278,7 +288,7 @@ export async function DELETE(request: NextRequest) {
         `${FIRESTORE_BASE_URL}/companies/${companyId}/channels/sms?updateMask.fieldPaths=isActive&updateMask.fieldPaths=updatedAt`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: firestoreHeaders(user.token),
           body: JSON.stringify(smsData),
         }
       )
@@ -290,7 +300,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Handle other channels - get existing and update
-    const getResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
+    const getResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`, {
+      headers: { 'Authorization': `Bearer ${user.token}` },
+    })
     let existingChannels: Record<string, unknown> = {}
 
     if (getResponse.ok) {
@@ -318,7 +330,7 @@ export async function DELETE(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/companies/${companyId}?updateMask.fieldPaths=channels&updateMask.fieldPaths=updatedAt`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify(updateData),
       }
     )

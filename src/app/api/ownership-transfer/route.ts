@@ -7,6 +7,10 @@ import crypto from 'crypto'
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'botsy-no'
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`
 
+function firestoreHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex')
 }
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     const queryBody = {
@@ -63,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify(queryBody),
     })
 
@@ -119,11 +123,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const access = await requireCompanyAccess(user.uid, companyId)
+    const access = await requireCompanyAccess(user.uid, companyId, user.token)
     if (!access) return forbiddenResponse()
 
     // Verify the fromUser is the current owner
-    const companyResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`)
+    const companyResponse = await fetch(`${FIRESTORE_BASE_URL}/companies/${companyId}`, {
+      headers: { 'Authorization': `Bearer ${user.token}` },
+    })
     if (!companyResponse.ok) {
       return NextResponse.json(
         { error: 'Bedriften finnes ikke' },
@@ -171,7 +177,7 @@ export async function POST(request: NextRequest) {
 
     const membershipResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify(membershipQuery),
     })
 
@@ -215,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     const existingResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify(existingQuery),
     })
 
@@ -228,7 +234,7 @@ export async function POST(request: NextRequest) {
             `${FIRESTORE_BASE_URL}/ownershipTransfers/${existingId}?updateMask.fieldPaths=status`,
             {
               method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
+              headers: firestoreHeaders(user.token),
               body: JSON.stringify({
                 fields: { status: toFirestoreValue('cancelled') },
               }),
@@ -246,7 +252,7 @@ export async function POST(request: NextRequest) {
 
     const createResponse = await fetch(`${FIRESTORE_BASE_URL}/ownershipTransfers`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: firestoreHeaders(user.token),
       body: JSON.stringify({
         fields: {
           companyId: toFirestoreValue(companyId),
@@ -308,7 +314,7 @@ export async function DELETE(request: NextRequest) {
       `${FIRESTORE_BASE_URL}/ownershipTransfers/${transferId}?updateMask.fieldPaths=status`,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: firestoreHeaders(user.token),
         body: JSON.stringify({
           fields: { status: toFirestoreValue('cancelled') },
         }),
