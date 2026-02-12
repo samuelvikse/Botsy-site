@@ -44,7 +44,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<OwnerChat
       message,
       history || [],
       businessProfile || null,
-      activeInstructions || []
+      activeInstructions || [],
+      companyId
     )
 
     // Build response

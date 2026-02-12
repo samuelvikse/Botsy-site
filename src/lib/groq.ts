@@ -161,12 +161,85 @@ DU KAN GJØRE DISSE TINGENE FOR EIEREN:
    Når eieren svarer "ja", "ok", "gjør det", "bekreft", etc. på en av handlingene over (unntatt eksport),
    inkluder [CONFIRMED] i starten av svaret ditt.
 
+=== BOTSY PLATTFORM-KUNNSKAP ===
+Du har full kunnskap om Botsy-plattformen. Når eieren spør om hvordan noe fungerer, svar basert på dette:
+
+**Widget-installasjon:**
+- Embed-kode: <script src="https://botsy.no/widget.js" data-company-id="DIN_BEDRIFTS_ID"></script>
+- Plasseres rett før </body>-taggen på nettsiden
+- Fungerer på alle plattformer: WordPress, Wix, Squarespace, Shopify, egne nettsider
+- Tar under 5 minutter. Widgeten vises som chat-knapp i hjørnet, utvides til chatvindu ved klikk
+- På mobil går den automatisk til fullskjerm
+
+**Bedrifts-ID:**
+- Finnes i dashboardet under Innstillinger → Widget (øverst på siden)
+- Brukes i embed-koden som data-company-id
+
+**Widget-tilpasning (Innstillinger → Widget):**
+- Farge: Primærfarge (8 forhåndsvalg + egendefinert) og tekstfarge
+- Logo: Last opp bedriftslogo (JPEG, PNG, GIF, WebP, SVG)
+- Posisjon: Nederst til venstre eller høyre
+- Størrelse: Liten, Medium eller Stor
+- Animasjon: Scale, Slide, Fade, Bounce eller Flip
+- Aktiver/deaktiver widgeten uten å fjerne koden
+
+**Kunnskapsbase (Kunnskap-fanen):**
+- Last opp dokumenter: PDF, DOCX, TXT eller Markdown
+- AI analyserer og trekker ut FAQs, regler og viktig info automatisk
+- FAQs kan også legges til manuelt eller via Admin Bot
+- Dokumenter er tilleggskunnskap – FAQs har høyere prioritet
+
+**Nettside-synkronisering:**
+- Botsy crawler nettsiden automatisk hver time
+- Oppdager endringer i priser, åpningstider, produkter
+- Trekker ut FAQs automatisk fra nettsiden
+- Kan synkroniseres manuelt fra Kunnskap-fanen
+
+**Tone og personlighet (Innstillinger → Tone):**
+- Tone: Formell, Vennlig eller Uformell
+- Emoji, humor, svarlengde, egne instruksjoner, velkomstmelding
+- Unngå-fraser, foretrukne fraser og eksempelsvar
+
+**Samtaler:**
+- Alle kanaler i ett dashboard. Søk og filtrer etter kanal
+- Ta over samtaler manuelt (manuell modus)
+- AI-forslag for e-postsvar, eskalering til teamet
+- Eksporter samtaler til CSV/XLSX
+
+**Kanaler:**
+- Widget: Embed-kode på nettsiden
+- SMS: Via Twilio eller MessageBird
+- Instagram: Via Facebook/Instagram Graph API
+- Messenger: Facebook Messenger
+- E-post: IMAP/SMTP, SendGrid, Mailgun eller Gmail OAuth
+
+**Team (Innstillinger → Team):**
+- Inviter med e-post. Roller: Eier, Admin, Ansatt
+- Konfigurer tilganger per ansatt
+- Leaderboard og overføring av eierskap
+
+**Analyse:**
+- Tidsperiode: 7, 30 eller 90 dager
+- Samtalestatistikk, kanalfordeling, toppspørsmål, trender
+- Eksporter til Excel
+
+**Priser:**
+- 699 kr/mnd (introduksjonspris). 14 dager gratis prøveperiode
+- Ingen skjulte kostnader, ingen bindingstid
+- Inkluderer: Ubegrensede meldinger, alle kanaler, FAQs/dokumenter, analyse, team (opptil 20), GDPR, 2FA
+
+**Sikkerhet:**
+- GDPR-kompatibel, data kun i EU/EØS, AES-256-kryptering
+- Data brukes IKKE til AI-modelltrening
+- Tofaktorautentisering (2FA), full dataeksport, kontosletting
+
 VIKTIG:
 - Svar alltid vennlig og naturlig på norsk
 - Hold svarene korte og konsise
 - Spør om bekreftelse for FAQ, instruksjoner og synkronisering
 - For eksport: Start nedlastingen direkte uten å spørre
-- Bruk riktig JSON-format for handlinger`
+- Bruk riktig JSON-format for handlinger
+- Når du viser embed-koden, bruk eierens faktiske bedrifts-ID hvis tilgjengelig i konteksten`
 
 // Prompt for finding answers to FAQ questions
 const FAQ_ANSWER_PROMPT = `Du er en ekspert på å finne svar i nettside-innhold.
@@ -405,9 +478,14 @@ export async function chatWithOwner(
   message: string,
   history: OwnerChatMessage[],
   businessProfile: BusinessProfile | null,
-  activeInstructions: Instruction[]
+  activeInstructions: Instruction[],
+  companyId?: string
 ): Promise<OwnerChatResult> {
   let context = ''
+
+  if (companyId) {
+    context += `\nEierens bedrifts-ID: ${companyId}`
+  }
 
   if (businessProfile) {
     context += `\nBedriftsprofil:
