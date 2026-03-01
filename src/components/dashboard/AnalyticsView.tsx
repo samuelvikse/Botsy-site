@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState, useEffect, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
@@ -12,6 +12,9 @@ import {
   Download,
   Users,
   Loader2,
+  Phone,
+  MessageCircle,
+  Instagram,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -45,13 +48,23 @@ interface HourlyPlatformData {
   Gjennomsnitt: number
 }
 
+interface ChannelBreakdown {
+  name: string
+  count: number
+  color: string
+  icon: string
+}
+
 interface AnalyticsData {
   totalConversations: number
   totalMessages: number
   averageMessagesPerConversation: number
   topQuestions: Array<{ question: string; count: number }>
-  conversationsPerDay: Array<{ date: string; count: number }>
+  conversationsPerDay: Array<{ date: string; count: number; Widget: number; SMS: number; Email: number; Messenger: number; Instagram: number }>
   conversationsByHour: HourlyPlatformData[]
+  channelBreakdown: ChannelBreakdown[]
+  averageConversationsPerDay: number
+  peakHour: string | null
   isLoading: boolean
 }
 
@@ -68,6 +81,9 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
     topQuestions: [],
     conversationsPerDay: [],
     conversationsByHour: [],
+    channelBreakdown: [],
+    averageConversationsPerDay: 0,
+    peakHour: null,
     isLoading: true,
   })
 
@@ -133,12 +149,19 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
 
         // Fetch all 5 collections in parallel
         const collectionNames = ['customerChats', 'smsChats', 'emailChats', 'messengerChats', 'instagramChats'] as const
-        const platformLabels: Record<string, keyof HourlyPlatformData> = {
+        const platformLabels: Record<string, string> = {
           customerChats: 'Widget',
           smsChats: 'SMS',
           emailChats: 'Email',
           messengerChats: 'Messenger',
           instagramChats: 'Instagram',
+        }
+        const platformColors: Record<string, string> = {
+          Widget: '#CCFF00',
+          SMS: '#3B82F6',
+          Email: '#8B5CF6',
+          Messenger: '#F59E0B',
+          Instagram: '#EC4899',
         }
 
         const snapshots = await Promise.all(
@@ -149,8 +172,9 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
 
         let totalMessages = 0
         let filteredConversations = 0
-        const conversationsPerDay: Record<string, number> = {}
+        const conversationsPerDay: Record<string, { count: number; Widget: number; SMS: number; Email: number; Messenger: number; Instagram: number }> = {}
         const questionCounts: Record<string, number> = {}
+        const channelCounts: Record<string, number> = { Widget: 0, SMS: 0, Email: 0, Messenger: 0, Instagram: 0 }
 
         // Hourly buckets per platform
         const hourlyBuckets: Record<string, Record<string, number>> = {}
@@ -161,13 +185,13 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
 
         snapshots.forEach((snapshot, idx) => {
           const collName = collectionNames[idx]
-          const platform = platformLabels[collName] as string
+          const platform = platformLabels[collName]
 
           snapshot.forEach((doc) => {
             const data = doc.data()
             const messages = data.messages || []
 
-            // Parse timestamp - handle Firestore Timestamp, string, or number
+            // Parse timestamp
             let createdAt: Date
             const ts = data.createdAt || data.lastMessageAt
             if (ts instanceof Timestamp) {
@@ -177,19 +201,22 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
             } else if (ts) {
               createdAt = new Date(ts)
             } else {
-              return // skip if no timestamp
+              return
             }
 
             if (createdAt < startDate) return
 
             filteredConversations++
             totalMessages += messages.length
+            channelCounts[platform] = (channelCounts[platform] || 0) + 1
 
-            // Count conversations per day (only for widget chats to avoid double counting in bar chart)
-            if (collName === 'customerChats' && ts) {
-              const dateStr = createdAt.toISOString().split('T')[0]
-              conversationsPerDay[dateStr] = (conversationsPerDay[dateStr] || 0) + 1
+            // Count conversations per day — ALL channels
+            const dateStr = createdAt.toISOString().split('T')[0]
+            if (!conversationsPerDay[dateStr]) {
+              conversationsPerDay[dateStr] = { count: 0, Widget: 0, SMS: 0, Email: 0, Messenger: 0, Instagram: 0 }
             }
+            conversationsPerDay[dateStr].count++
+            conversationsPerDay[dateStr][platform as keyof typeof conversationsPerDay[string]] = ((conversationsPerDay[dateStr][platform as keyof typeof conversationsPerDay[string]] as number) || 0) + 1
 
             // Hourly bucket
             const hour = `${createdAt.getHours().toString().padStart(2, '0')}:00`
@@ -197,15 +224,13 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
               hourlyBuckets[hour][platform] = (hourlyBuckets[hour][platform] || 0) + 1
             }
 
-            // Extract questions (user messages, widget only)
-            if (collName === 'customerChats') {
-              messages.forEach((msg: { role: string; content: string }) => {
-                if (msg.role === 'user' && msg.content.includes('?')) {
-                  const question = msg.content.slice(0, 50)
-                  questionCounts[question] = (questionCounts[question] || 0) + 1
-                }
-              })
-            }
+            // Extract questions (user messages)
+            messages.forEach((msg: { role: string; content: string }) => {
+              if (msg.role === 'user' && msg.content.includes('?')) {
+                const question = msg.content.slice(0, 50)
+                questionCounts[question] = (questionCounts[question] || 0) + 1
+              }
+            })
           })
         })
 
@@ -215,11 +240,18 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
           .slice(0, 5)
           .map(([question, count]) => ({ question, count }))
 
-        // Format conversations per day
+        // Format conversations per day (all channels)
         const formattedPerDay = Object.entries(conversationsPerDay)
           .sort((a, b) => a[0].localeCompare(b[0]))
-          .slice(-7)
-          .map(([date, count]) => ({ date, count }))
+          .map(([date, data]) => ({
+            date,
+            count: data.count,
+            Widget: data.Widget,
+            SMS: data.SMS,
+            Email: data.Email,
+            Messenger: data.Messenger,
+            Instagram: data.Instagram,
+          }))
 
         // Build hourly platform data
         const platformKeys = ['Widget', 'SMS', 'Email', 'Messenger', 'Instagram'] as const
@@ -238,6 +270,32 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
             }
           })
 
+        // Channel breakdown
+        const channelBreakdown: ChannelBreakdown[] = Object.entries(channelCounts)
+          .filter(([, count]) => count > 0)
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, count]) => ({
+            name,
+            count,
+            color: platformColors[name] || '#6B7A94',
+            icon: name,
+          }))
+
+        // Average conversations per day
+        const dayCount = Object.keys(conversationsPerDay).length || 1
+        const averageConversationsPerDay = Math.round((filteredConversations / dayCount) * 10) / 10
+
+        // Peak hour
+        let peakHourValue = 0
+        let peakHourKey: string | null = null
+        Object.entries(hourlyBuckets).forEach(([hour, platforms]) => {
+          const total = platformKeys.reduce((sum, k) => sum + (platforms[k] || 0), 0)
+          if (total > peakHourValue) {
+            peakHourValue = total
+            peakHourKey = hour
+          }
+        })
+
         setAnalytics({
           totalConversations: filteredConversations,
           totalMessages,
@@ -247,6 +305,9 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
           topQuestions,
           conversationsPerDay: formattedPerDay,
           conversationsByHour,
+          channelBreakdown,
+          averageConversationsPerDay,
+          peakHour: peakHourKey,
           isLoading: false,
         })
       } catch {
@@ -261,6 +322,16 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
     () => Math.max(...analytics.conversationsPerDay.map(d => d.count), 1),
     [analytics.conversationsPerDay]
   )
+
+  const channelIconComponent = (name: string) => {
+    switch (name) {
+      case 'SMS': return <Phone className="h-4 w-4" />
+      case 'Widget': return <MessageCircle className="h-4 w-4" />
+      case 'Messenger': return <MessageSquare className="h-4 w-4" />
+      case 'Instagram': return <Instagram className="h-4 w-4" />
+      default: return <MessageCircle className="h-4 w-4" />
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -321,7 +392,7 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
         </div>
       ) : (
         <>
-          {/* Stats Overview */}
+          {/* Stats Overview — all computed from real Firestore data */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Totale samtaler"
@@ -337,13 +408,13 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
             />
             <StatCard
               title="Snitt per samtale"
-              value={`${analytics.averageMessagesPerConversation} meldinger`}
+              value={analytics.averageMessagesPerConversation > 0 ? `${analytics.averageMessagesPerConversation} meld.` : '0'}
               icon={<Zap className="h-5 w-5" />}
               color="purple"
             />
             <StatCard
-              title="Responstid"
-              value="< 10 sek"
+              title="Snitt per dag"
+              value={analytics.averageConversationsPerDay > 0 ? analytics.averageConversationsPerDay.toString() : '0'}
               icon={<Clock className="h-5 w-5" />}
               color="green"
             />
@@ -351,24 +422,24 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
 
           {/* Charts Row */}
           <div className="grid lg:grid-cols-2 gap-6">
-            {/* Conversations Over Time */}
+            {/* Conversations Over Time — ALL channels */}
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-white mb-6">Samtaler per dag</h2>
               {analytics.conversationsPerDay.length > 0 ? (
                 <div className="h-48 flex items-end gap-2">
-                  {analytics.conversationsPerDay.map((day, i) => (
+                  {analytics.conversationsPerDay.slice(-parseInt(timeRange)).map((day, i) => (
                     <motion.div
                       key={day.date}
                       className="flex-1 flex flex-col items-center gap-2"
                       initial={{ height: 0 }}
                       animate={{ height: 'auto' }}
-                      transition={{ delay: i * 0.1 }}
+                      transition={{ delay: i * 0.05 }}
                     >
                       <div
                         className="w-full bg-gradient-to-t from-botsy-lime/50 to-botsy-lime rounded-t-lg relative group"
                         style={{ height: `${(day.count / maxConversations) * 140}px`, minHeight: '4px' }}
                       >
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-gray-900 px-2 py-1 rounded text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-gray-900 px-2 py-1 rounded text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                           {day.count} samtaler
                         </div>
                       </div>
@@ -385,15 +456,42 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
               )}
             </Card>
 
-            {/* Response Distribution */}
+            {/* Channel Distribution — real calculated data */}
             <Card className="p-6">
-              <h2 className="text-lg font-semibold text-white mb-6">Svarfordeling</h2>
-              <div className="space-y-4">
-                <ResponseBar label="Automatisk løst" percentage={87} color="#CCFF00" />
-                <ResponseBar label="Henvist til FAQ" percentage={45} color="#3B82F6" />
-                <ResponseBar label="Brukte instruksjoner" percentage={23} color="#8B5CF6" />
-                <ResponseBar label="Kunne ikke svare" percentage={8} color="#EF4444" />
-              </div>
+              <h2 className="text-lg font-semibold text-white mb-6">Kanalfordeling</h2>
+              {analytics.channelBreakdown.length > 0 ? (
+                <div className="space-y-4">
+                  {analytics.channelBreakdown.map((channel) => {
+                    const percentage = analytics.totalConversations > 0
+                      ? Math.round((channel.count / analytics.totalConversations) * 100)
+                      : 0
+                    return (
+                      <div key={channel.name}>
+                        <div className="flex items-center justify-between text-sm mb-1.5">
+                          <span className="flex items-center gap-2 text-[#A8B4C8]">
+                            <span style={{ color: channel.color }}>{channelIconComponent(channel.name)}</span>
+                            {channel.name}
+                          </span>
+                          <span className="text-white font-medium">{channel.count} ({percentage}%)</span>
+                        </div>
+                        <div className="h-2 bg-white/[0.05] rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ backgroundColor: channel.color }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentage}%` }}
+                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="h-48 flex items-center justify-center text-[#6B7A94] border border-dashed border-white/[0.1] rounded-xl">
+                  Ingen data ennå
+                </div>
+              )}
             </Card>
           </div>
 
@@ -489,38 +587,53 @@ export const AnalyticsView = memo(function AnalyticsView({ companyId }: Analytic
             )}
           </Card>
 
-          {/* Performance Insights */}
-          <div className="grid sm:grid-cols-3 gap-4">
-            <Card className="p-5 bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-green-400" />
+          {/* Real Insights — computed from actual data */}
+          {analytics.totalConversations > 0 && (
+            <div className="grid sm:grid-cols-3 gap-4">
+              <Card className="p-5 bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-green-400" />
+                  </div>
+                  <span className="text-green-400 font-medium">Aktivitet</span>
                 </div>
-                <span className="text-green-400 font-medium">Styrke</span>
-              </div>
-              <p className="text-white text-sm">Rask responstid på under 10 sekunder gir god kundeopplevelse</p>
-            </Card>
+                <p className="text-white text-sm">
+                  {analytics.averageConversationsPerDay >= 1
+                    ? `I snitt ${analytics.averageConversationsPerDay} samtaler per dag de siste ${timeRange} dagene`
+                    : `${analytics.totalConversations} samtaler totalt de siste ${timeRange} dagene`
+                  }
+                </p>
+              </Card>
 
-            <Card className="p-5 bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-                  <Zap className="h-5 w-5 text-yellow-400" />
-                </div>
-                <span className="text-yellow-400 font-medium">Tips</span>
-              </div>
-              <p className="text-white text-sm">Legg til flere FAQs for å øke andelen automatisk løste spørsmål</p>
-            </Card>
+              {analytics.peakHour && (
+                <Card className="p-5 bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-10 w-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                      <Clock className="h-5 w-5 text-yellow-400" />
+                    </div>
+                    <span className="text-yellow-400 font-medium">Mest aktiv tid</span>
+                  </div>
+                  <p className="text-white text-sm">
+                    Flest henvendelser kommer rundt kl. {analytics.peakHour}
+                  </p>
+                </Card>
+              )}
 
-            <Card className="p-5 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                  <Bot className="h-5 w-5 text-blue-400" />
-                </div>
-                <span className="text-blue-400 font-medium">Innsikt</span>
-              </div>
-              <p className="text-white text-sm">Botsy bruker instruksjonene dine aktivt i {23}% av svarene</p>
-            </Card>
-          </div>
+              {analytics.channelBreakdown.length > 0 && (
+                <Card className="p-5 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                      <Bot className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <span className="text-blue-400 font-medium">Mest brukt kanal</span>
+                  </div>
+                  <p className="text-white text-sm">
+                    {analytics.channelBreakdown[0].name} er den mest brukte kanalen med {analytics.channelBreakdown[0].count} samtaler
+                  </p>
+                </Card>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -555,33 +668,5 @@ function StatCard({
       <p className="text-2xl font-bold text-white mb-1">{value}</p>
       <p className="text-[#6B7A94] text-sm">{title}</p>
     </Card>
-  )
-}
-
-function ResponseBar({
-  label,
-  percentage,
-  color,
-}: {
-  label: string
-  percentage: number
-  color: string
-}) {
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-[#A8B4C8]">{label}</span>
-        <span className="text-white font-medium">{percentage}%</span>
-      </div>
-      <div className="h-2 bg-white/[0.05] rounded-full overflow-hidden">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ backgroundColor: color }}
-          initial={{ width: 0 }}
-          animate={{ width: `${percentage}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-        />
-      </div>
-    </div>
   )
 }
