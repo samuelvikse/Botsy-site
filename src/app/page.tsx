@@ -25,7 +25,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { PRICING } from '@/lib/pricing'
 
@@ -63,7 +63,15 @@ const slideInRight = {
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const { user, loading } = useAuth()
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
     <div className="min-h-screen bg-botsy-dark overflow-x-hidden">
@@ -80,7 +88,7 @@ export default function LandingPage() {
         transition={{ duration: 0.5 }}
         className="fixed top-0 w-full z-50"
       >
-        <div className="absolute inset-0 bg-botsy-dark/80 backdrop-blur-xl border-b border-white/[0.06]" />
+        <div className={`absolute inset-0 bg-botsy-dark/80 backdrop-blur-xl transition-colors duration-300 ${scrolled ? 'border-b border-white/[0.06]' : ''}`} />
         <div className="container mx-auto h-20 flex items-center justify-between relative">
           <Link href="/" onClick={(e) => { if (window.location.pathname === '/') { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}} className="flex items-center gap-3 relative z-10 group">
             <div className="relative">
@@ -98,7 +106,7 @@ export default function LandingPage() {
 
           {/* Desktop Navigation - Centered */}
           <div className="hidden lg:flex items-center absolute left-1/2 -translate-x-1/2">
-            <div className="flex items-center gap-1 bg-white/[0.03] rounded-full px-2 py-1.5 border border-white/[0.06]">
+            <div className={`flex items-center gap-1 rounded-full px-2 py-1.5 transition-all duration-300 ${scrolled ? 'bg-white/[0.03] border border-white/[0.06]' : ''}`}>
               <Link href="/funksjoner" className="text-[#A8B4C8] hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium px-4 py-2 rounded-full">
                 Funksjoner
               </Link>
