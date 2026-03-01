@@ -21,11 +21,11 @@ export function getAllowedOrigin(requestOrigin?: string | null): string {
 
 /**
  * CORS headers for admin-only API routes.
- * Allows requests from both botsy.no and admin.botsy.no.
- * Use getAdminCorsHeaders(request) for dynamic origin matching.
+ * Uses ADMIN_ORIGIN since the admin panel is the primary caller.
+ * The middleware also sets CORS headers dynamically based on request origin.
  */
 export const adminCorsHeaders = {
-  'Access-Control-Allow-Origin': APP_ORIGIN,
+  'Access-Control-Allow-Origin': ADMIN_ORIGIN,
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Credentials': 'true',
