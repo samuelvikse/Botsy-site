@@ -136,7 +136,7 @@ function OnboardingContent() {
             setIsCreatingCompany(false)
             // If onboarding already completed, redirect to admin
             if (companyData?.onboardingCompleted) {
-              router.push('/admin')
+              window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
               return
             }
             // Payment done but onboarding not completed - skip to website analysis
@@ -317,7 +317,7 @@ function OnboardingContent() {
         onboardingCompleted: true,
       }, { merge: true })
 
-      router.push('/admin')
+      window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
     } catch {
       // Silent fail - user will see no redirect
     } finally {
@@ -413,7 +413,7 @@ function OnboardingContent() {
                       Sett opp chatboten
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
-                    <Button variant="outline" onClick={() => router.push('/admin')}>
+                    <Button variant="outline" onClick={() => window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'}>
                       Gå til admin-panelet
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>

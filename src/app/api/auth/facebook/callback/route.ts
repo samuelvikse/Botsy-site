@@ -21,6 +21,7 @@ import { db } from '@/lib/firebase'
  * - error_description: Description of the error
  */
 export async function GET(request: NextRequest) {
+  const adminBaseUrl = process.env.ADMIN_APP_URL || 'https://admin.botsy.no'
   try {
     const { searchParams } = new URL(request.url)
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       console.error('[Facebook OAuth Callback] Error from Facebook:', errorParam, errorDescription)
 
       // Redirect back to admin with error
-      const adminUrl = new URL('/admin', request.nextUrl.origin)
+      const adminUrl = new URL('/', adminBaseUrl)
       adminUrl.searchParams.set('fb_error', errorDescription)
       return NextResponse.redirect(adminUrl)
     }
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     if (!code || !state) {
       console.error('[Facebook OAuth Callback] Missing code or state')
-      const adminUrl = new URL('/admin', request.nextUrl.origin)
+      const adminUrl = new URL('/', adminBaseUrl)
       adminUrl.searchParams.set('fb_error', 'Invalid callback parameters')
       return NextResponse.redirect(adminUrl)
     }
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     const [companyId, channel] = state.split(':')
     if (!companyId || !channel || !['instagram', 'messenger'].includes(channel)) {
       console.error('[Facebook OAuth Callback] Invalid state:', state)
-      const adminUrl = new URL('/admin', request.nextUrl.origin)
+      const adminUrl = new URL('/', adminBaseUrl)
       adminUrl.searchParams.set('fb_error', 'Invalid state parameter')
       return NextResponse.redirect(adminUrl)
     }
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     if (pages.length === 0) {
       console.error('[Facebook OAuth Callback] No pages found')
-      const adminUrl = new URL('/admin', request.nextUrl.origin)
+      const adminUrl = new URL('/', adminBaseUrl)
       adminUrl.searchParams.set('fb_error', 'No Facebook pages found. You need at least one Facebook page to connect.')
       return NextResponse.redirect(adminUrl)
     }
@@ -154,7 +155,7 @@ export async function GET(request: NextRequest) {
       } else {
         // No Instagram account linked to this page
         console.error('[Facebook OAuth Callback] No Instagram account linked to page')
-        const adminUrl = new URL('/admin', request.nextUrl.origin)
+        const adminUrl = new URL('/', adminBaseUrl)
         adminUrl.searchParams.set('fb_error', 'No Instagram business account is linked to this Facebook page. Please link your Instagram account in Meta Business Suite first.')
         return NextResponse.redirect(adminUrl)
       }
@@ -184,7 +185,7 @@ export async function GET(request: NextRequest) {
     console.log('[Facebook OAuth Callback] Channel saved to Firestore successfully')
 
     // Redirect back to admin with success
-    const adminUrl = new URL('/admin', request.nextUrl.origin)
+    const adminUrl = new URL('/', adminBaseUrl)
     adminUrl.searchParams.set('fb_success', channel)
     adminUrl.searchParams.set('fb_page', selectedPage.name)
 
@@ -192,7 +193,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[Facebook OAuth Callback] Error:', error)
 
-    const adminUrl = new URL('/admin', request.nextUrl.origin)
+    const adminUrl = new URL('/', adminBaseUrl)
     adminUrl.searchParams.set(
       'fb_error',
       error instanceof Error ? error.message : 'An unexpected error occurred'

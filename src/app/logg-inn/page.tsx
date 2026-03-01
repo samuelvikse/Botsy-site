@@ -9,6 +9,8 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, Loader2, Phone } from 'luc
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
+
 type LoginMethod = 'email' | 'phone'
 
 export default function LoginPage() {
@@ -58,7 +60,7 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password)
-      router.push('/admin')
+      window.location.href = ADMIN_URL
     } catch (err) {
       // Check if MFA is required
       if (err instanceof Error && err.message === 'MFA_REQUIRED') {
@@ -93,7 +95,7 @@ export default function LoginPage() {
 
     try {
       await verifyPhoneCode(verificationCode)
-      router.push('/admin')
+      window.location.href = ADMIN_URL
     } catch {
       // Error is handled by the auth context
     } finally {
@@ -108,7 +110,7 @@ export default function LoginPage() {
 
     try {
       await verifyMfaCode(verificationCode)
-      router.push('/admin')
+      window.location.href = ADMIN_URL
     } catch {
       // Error is handled by the auth context
     } finally {
@@ -123,7 +125,7 @@ export default function LoginPage() {
     try {
       // Pass false to reject new users - they must register first
       await signInWithGoogle(false)
-      router.push('/admin')
+      window.location.href = ADMIN_URL
     } catch (err) {
       // Check if MFA is required
       if (err instanceof Error && err.message === 'MFA_REQUIRED') {

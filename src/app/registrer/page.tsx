@@ -73,11 +73,11 @@ function RegisterContent() {
           })
 
           // Redirect back to invite page
-          router.push(redirectUrl || '/admin')
+          router.push(redirectUrl || (process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'))
         } else {
           // Regular registration - redirect to admin (WelcomeView shows for new users)
           await signUpOnly(formData.email, formData.password, formData.name)
-          router.push('/admin')
+          window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
         }
       } catch {
         // Error is handled by the auth context
@@ -93,8 +93,12 @@ function RegisterContent() {
 
     try {
       await signInWithGoogle(true)
-      // Redirect to invite page if coming from invite, otherwise to admin (WelcomeView)
-      router.push(redirectUrl || '/admin')
+      // Redirect to invite page if coming from invite, otherwise to admin
+      if (redirectUrl) {
+        router.push(redirectUrl)
+      } else {
+        window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
+      }
     } catch {
       // Error is handled by the auth context
     } finally {

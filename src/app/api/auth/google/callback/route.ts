@@ -17,6 +17,7 @@ import { db } from '@/lib/firebase'
  * - error: Set if user denied access
  */
 export async function GET(request: NextRequest) {
+  const adminUrl = process.env.ADMIN_APP_URL || 'https://admin.botsy.no'
   try {
     const { searchParams } = new URL(request.url)
 
@@ -26,9 +27,9 @@ export async function GET(request: NextRequest) {
       console.error('[Google OAuth Callback] Error from Google:', errorParam)
 
       // Redirect back to admin with error
-      const adminUrl = new URL('/admin', request.nextUrl.origin)
-      adminUrl.searchParams.set('google_error', errorParam === 'access_denied' ? 'Du avbrøt tilkoblingen' : errorParam)
-      return NextResponse.redirect(adminUrl)
+      const redirectUrl = new URL('/', adminUrl)
+      redirectUrl.searchParams.set('google_error', errorParam === 'access_denied' ? 'Du avbrøt tilkoblingen' : errorParam)
+      return NextResponse.redirect(redirectUrl)
     }
 
     // Get code and state
@@ -37,9 +38,9 @@ export async function GET(request: NextRequest) {
 
     if (!code || !state) {
       console.error('[Google OAuth Callback] Missing code or state')
-      const adminUrl = new URL('/admin', request.nextUrl.origin)
-      adminUrl.searchParams.set('google_error', 'Ugyldige callback-parametere')
-      return NextResponse.redirect(adminUrl)
+      const redirectUrl = new URL('/', adminUrl)
+      redirectUrl.searchParams.set('google_error', 'Ugyldige callback-parametere')
+      return NextResponse.redirect(redirectUrl)
     }
 
     const companyId = state
@@ -97,19 +98,19 @@ export async function GET(request: NextRequest) {
     console.log('[Google OAuth Callback] Email channel saved to Firestore')
 
     // Redirect back to admin with success
-    const adminUrl = new URL('/admin', request.nextUrl.origin)
-    adminUrl.searchParams.set('google_success', 'email')
-    adminUrl.searchParams.set('google_email', profile.emailAddress)
+    const redirectUrl = new URL('/', adminUrl)
+    redirectUrl.searchParams.set('google_success', 'email')
+    redirectUrl.searchParams.set('google_email', profile.emailAddress)
 
-    return NextResponse.redirect(adminUrl)
+    return NextResponse.redirect(redirectUrl)
   } catch (error) {
     console.error('[Google OAuth Callback] Error:', error)
 
-    const adminUrl = new URL('/admin', request.nextUrl.origin)
-    adminUrl.searchParams.set(
+    const redirectUrl = new URL('/', adminUrl)
+    redirectUrl.searchParams.set(
       'google_error',
       error instanceof Error ? error.message : 'En uventet feil oppstod'
     )
-    return NextResponse.redirect(adminUrl)
+    return NextResponse.redirect(redirectUrl)
   }
 }
