@@ -12,6 +12,8 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth, db } from '@/lib/firebase'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
+
 function RegisterContent() {
   const searchParams = useSearchParams()
   const redirectUrl = searchParams.get('redirect')
@@ -73,11 +75,11 @@ function RegisterContent() {
           })
 
           // Redirect back to invite page
-          router.push(redirectUrl || (process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'))
+          router.push(redirectUrl || ADMIN_URL)
         } else {
           // Regular registration - redirect to admin (WelcomeView shows for new users)
           await signUpOnly(formData.email, formData.password, formData.name)
-          window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
+          window.location.href = ADMIN_URL
         }
       } catch {
         // Error is handled by the auth context
@@ -97,7 +99,7 @@ function RegisterContent() {
       if (redirectUrl) {
         router.push(redirectUrl)
       } else {
-        window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
+        window.location.href = ADMIN_URL
       }
     } catch {
       // Error is handled by the auth context

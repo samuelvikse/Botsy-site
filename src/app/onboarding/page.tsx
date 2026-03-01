@@ -36,6 +36,8 @@ import { PRICING } from '@/lib/pricing'
 import type { BusinessProfile } from '@/types'
 import { authFetch } from '@/lib/auth-fetch'
 import dynamic from 'next/dynamic'
+
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
 import { CreditCard, Shield } from 'lucide-react'
 
 const StripeCheckout = dynamic(() => import('@/components/stripe/StripeCheckout'), {
@@ -136,7 +138,7 @@ function OnboardingContent() {
             setIsCreatingCompany(false)
             // If onboarding already completed, redirect to admin
             if (companyData?.onboardingCompleted) {
-              window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
+              window.location.href = ADMIN_URL
               return
             }
             // Payment done but onboarding not completed - skip to website analysis
@@ -317,7 +319,7 @@ function OnboardingContent() {
         onboardingCompleted: true,
       }, { merge: true })
 
-      window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'
+      window.location.href = ADMIN_URL
     } catch {
       // Silent fail - user will see no redirect
     } finally {
@@ -413,7 +415,7 @@ function OnboardingContent() {
                       Sett opp chatboten
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
-                    <Button variant="outline" onClick={() => window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.botsy.no'}>
+                    <Button variant="outline" onClick={() => window.location.href = ADMIN_URL}>
                       Gå til admin-panelet
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
