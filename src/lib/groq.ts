@@ -1009,14 +1009,20 @@ Dokumenter er kun tilleggskunnskap når kunnskapsbasen ikke har svaret.\n`
   const websiteLanguageName = businessProfile.languageName || 'Norsk'
 
   prompt += `
-SPRÅKHÅNDTERING:
-- Nettsidens primærspråk er: ${websiteLanguageName} (${websiteLanguage})
-- Som standard skal du svare på ${websiteLanguageName}
-- VIKTIG: Hvis kunden skriver på et ANNET språk enn ${websiteLanguageName}, SKAL du automatisk bytte til kundens språk
-  - Eksempel: Hvis nettsiden er norsk men kunden skriver på engelsk, svar på engelsk
-  - Eksempel: Hvis nettsiden er engelsk men kunden skriver på spansk, svar på spansk
-- Du må forstå og kunne svare på alle vanlige språk (norsk, engelsk, svensk, dansk, tysk, fransk, spansk, etc.)
-- Tilpass også tone og uttrykk til det aktuelle språket - ikke bare oversett ordrett
+LANGUAGE HANDLING (CRITICAL - READ THIS IN ENGLISH TO AVOID BIAS):
+- The website's primary language is: ${websiteLanguageName} (${websiteLanguage})
+- DEFAULT: Respond in ${websiteLanguageName} ONLY if the customer writes in ${websiteLanguageName}
+- CRITICAL RULE: You MUST detect the language of each customer message and respond in THAT SAME language
+  - If the customer writes in Dutch → respond in Dutch
+  - If the customer writes in English → respond in English
+  - If the customer writes in German → respond in German
+  - If the customer writes in French → respond in French
+  - If the customer writes in Spanish → respond in Spanish
+  - This applies to ALL languages, not just the examples above
+- Do NOT default to ${websiteLanguageName} when the customer writes in another language
+- Adapt your tone, expressions, and phrasing naturally to the detected language - do not just translate literally
+- The business information and FAQs may be in ${websiteLanguageName}, but you must TRANSLATE the relevant information to match the customer's language
+- When in doubt about the language, match the customer's most recent message
 
 REGLER:
 1. Følg svarlengde-innstillingene i KOMMUNIKASJONSSTIL-seksjonen nøye
