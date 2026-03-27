@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         from: 'Botsy <hei@botsy.no>',
-        to: 'hei@botsy.no',
+        to: 'post@svbruvik.no',
         reply_to: email,
         subject: subject,
         html: emailHtml,

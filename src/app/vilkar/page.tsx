@@ -171,7 +171,7 @@ export default function TermsPage() {
               <p className="text-[#A8B4C8] leading-relaxed">
                 <strong className="text-white">Slik bruker du angreretten:</strong> For å benytte
                 angreretten, kontakt oss på{' '}
-                <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">hei@botsy.no</a>{' '}
+                <a href="mailto:post@svbruvik.no" className="text-botsy-lime hover:underline">post@svbruvik.no</a>{' '}
                 innen 14 dager etter kjøpet. Du kan også bruke{' '}
                 <a href="https://www.regjeringen.no/no/dokumenter/angrerettskjema/id2637022/" target="_blank" rel="noopener noreferrer" className="text-botsy-lime hover:underline">
                   standard angreskjema
@@ -216,8 +216,8 @@ export default function TermsPage() {
                 <p>Org.nr: 837 094 682</p>
                 <p>Adresse: Haugesund, Rogaland</p>
                 <p>E-post:{' '}
-                  <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">
-                    hei@botsy.no
+                  <a href="mailto:post@svbruvik.no" className="text-botsy-lime hover:underline">
+                    post@svbruvik.no
                   </a>
                 </p>
               </div>

@@ -215,8 +215,8 @@ export function SubscriptionConfirmationEmail({
               </Text>
               <Text style={{ ...styles.paragraph, fontSize: '14px', textAlign: 'center' as const, margin: 0 }}>
                 Kontakt oss på{' '}
-                <Link href="mailto:hei@botsy.no" style={{ color: styles.colors.lime, textDecoration: 'none' }}>
-                  hei@botsy.no
+                <Link href="mailto:post@svbruvik.no" style={{ color: styles.colors.lime, textDecoration: 'none' }}>
+                  post@svbruvik.no
                 </Link>
               </Text>
             </Section>

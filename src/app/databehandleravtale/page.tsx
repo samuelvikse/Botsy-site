@@ -233,8 +233,8 @@ export default function DPAPage() {
                 <p>Org.nr: 837 094 682</p>
                 <p>Haugesund, Rogaland</p>
                 <p>E-post:{' '}
-                  <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">
-                    hei@botsy.no
+                  <a href="mailto:post@svbruvik.no" className="text-botsy-lime hover:underline">
+                    post@svbruvik.no
                   </a>
                 </p>
               </div>

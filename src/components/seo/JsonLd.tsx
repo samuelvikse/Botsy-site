@@ -47,14 +47,14 @@ export function OrganizationJsonLd({
       {
         '@type': 'ContactPoint',
         contactType: 'customer service',
-        email: 'hei@botsy.no',
+        email: 'post@svbruvik.no',
         availableLanguage: ['Norwegian', 'English', 'Swedish'],
         areaServed: 'NO',
       },
       {
         '@type': 'ContactPoint',
         contactType: 'sales',
-        email: 'hei@botsy.no',
+        email: 'post@svbruvik.no',
         availableLanguage: ['Norwegian', 'English'],
         areaServed: 'NO',
       },
@@ -429,7 +429,7 @@ export function LocalBusinessJsonLd({
     priceRange: '699-1499 NOK/mnd',
     image: `${url}/brand/botsy-full-logo.svg`,
     telephone: '+47',
-    email: 'hei@botsy.no',
+    email: 'post@svbruvik.no',
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'NO',

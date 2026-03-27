@@ -197,8 +197,8 @@ export default function PrivacyPage() {
               <p className="text-[#A8B4C8] leading-relaxed">
                 Har du spørsmål om personvern eller ønsker å utøve rettighetene dine?
                 Kontakt oss på{' '}
-                <a href="mailto:hei@botsy.no" className="text-botsy-lime hover:underline">
-                  hei@botsy.no
+                <a href="mailto:post@svbruvik.no" className="text-botsy-lime hover:underline">
+                  post@svbruvik.no
                 </a>
               </p>
               <div className="mt-4 p-4 bg-white/[0.03] rounded-xl">
@@ -207,7 +207,7 @@ export default function PrivacyPage() {
                   Vikse Bruvik Technology<br />
                   Org.nr: 837 094 682<br />
                   Haugesund, Rogaland<br />
-                  E-post: hei@botsy.no
+                  E-post: post@svbruvik.no
                 </p>
               </div>
             </section>

@@ -194,8 +194,8 @@ export function SubscriptionCancelledEmail({
               </Text>
               <Text style={{ ...styles.footerText, marginTop: '8px' }}>
                 Har du spørsmål? Kontakt oss på{' '}
-                <Link href="mailto:hei@botsy.no" style={styles.footerLink}>
-                  hei@botsy.no
+                <Link href="mailto:post@svbruvik.no" style={styles.footerLink}>
+                  post@svbruvik.no
                 </Link>
               </Text>
             </Section>

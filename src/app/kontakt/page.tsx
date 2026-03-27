@@ -371,8 +371,8 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold mb-1">E-post</h3>
-                    <a href="mailto:hei@botsy.no" className="text-[#A8B4C8] hover:text-botsy-lime transition-colors">
-                      hei@botsy.no
+                    <a href="mailto:post@svbruvik.no" className="text-[#A8B4C8] hover:text-botsy-lime transition-colors">
+                      post@svbruvik.no
                     </a>
                   </div>
                 </div>
