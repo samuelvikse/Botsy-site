@@ -10,6 +10,7 @@ import { createVippsAgreement, isVippsConfigured } from '@/lib/vipps'
 import { updateDocumentRest, getDocumentRest } from '@/lib/firebase-rest'
 import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
 import { adminCorsHeaders } from '@/lib/cors'
+import { SIGNUP_PAUSED } from '@/lib/signup-paused'
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: adminCorsHeaders })
@@ -19,6 +20,14 @@ export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request)
     if (!user) return unauthorizedResponse()
+
+    // Project paused: no new purchases.
+    if (SIGNUP_PAUSED) {
+      return NextResponse.json(
+        { error: 'Nye kjøp er midlertidig satt på pause.' },
+        { status: 403, headers: adminCorsHeaders }
+      )
+    }
 
     // Check if Vipps is configured
     if (!isVippsConfigured()) {

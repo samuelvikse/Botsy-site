@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, User, Check, Loader2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
+import { SIGNUP_PAUSED } from '@/lib/signup-paused'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth, db } from '@/lib/firebase'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
@@ -21,6 +22,10 @@ function RegisterContent() {
 
   // Check if this is an invited user (coming from invite page)
   const isInvitedUser = redirectUrl?.startsWith('/invite/')
+
+  // While the project is paused, block new self-serve signups but still let
+  // invited team members of existing customers register.
+  const signupBlocked = SIGNUP_PAUSED && !isInvitedUser
 
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -48,6 +53,7 @@ function RegisterContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (signupBlocked) return
     if (!termsAccepted) return
     clearError()
 
@@ -90,6 +96,7 @@ function RegisterContent() {
   }
 
   const handleGoogleSignIn = async () => {
+    if (signupBlocked) return
     clearError()
     setIsGoogleLoading(true)
 
@@ -106,6 +113,51 @@ function RegisterContent() {
     } finally {
       setIsGoogleLoading(false)
     }
+  }
+
+  if (signupBlocked) {
+    return (
+      <div className="min-h-screen bg-botsy-dark flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md text-center"
+        >
+          <Link href="/" className="inline-block mb-8">
+            <Image
+              src="/brand/botsy-full-logo.svg"
+              alt="Botsy"
+              width={120}
+              height={40}
+              className="h-10 w-auto mx-auto"
+            />
+          </Link>
+
+          <h1 className="text-3xl font-bold text-white mb-3">
+            Vi tar imot nye kunder igjen snart
+          </h1>
+          <p className="text-[#A8B4C8] mb-8">
+            Registrering er midlertidig satt på pause. Eksisterende kunder
+            påvirkes ikke – Botsy fortsetter å svare som normalt. Vil du ha
+            beskjed når vi åpner igjen, ta gjerne kontakt.
+          </p>
+
+          <div className="flex flex-col gap-3">
+            <Link href="/kontakt">
+              <Button size="xl" className="w-full">
+                Kontakt oss
+              </Button>
+            </Link>
+            <Link href="/logg-inn">
+              <Button variant="outline" size="lg" className="w-full">
+                Logg inn
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    )
   }
 
   return (

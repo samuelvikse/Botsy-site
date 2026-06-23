@@ -5,6 +5,7 @@ import { checkRateLimit, getRateLimitIdentifier, RATE_LIMITS } from '@/lib/rate-
 import { formatStripeError } from '@/lib/stripe-errors'
 import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
 import { adminCorsHeaders } from '@/lib/cors'
+import { SIGNUP_PAUSED } from '@/lib/signup-paused'
 
 /**
  * POST - Create a subscription with embedded payment
@@ -18,6 +19,14 @@ export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request)
     if (!user) return unauthorizedResponse()
+
+    // Project paused: no new purchases.
+    if (SIGNUP_PAUSED) {
+      return NextResponse.json(
+        { error: 'Nye kjøp er midlertidig satt på pause.' },
+        { status: 403, headers: adminCorsHeaders }
+      )
+    }
 
     // Rate limiting - strict for checkout
     const rateLimitResult = checkRateLimit(

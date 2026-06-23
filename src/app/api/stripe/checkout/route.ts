@@ -3,6 +3,7 @@ import { stripe, STRIPE_CONFIG } from '@/lib/stripe'
 import { getDocumentRest, updateDocumentRest } from '@/lib/firebase-rest'
 import { verifyAuth, unauthorizedResponse } from '@/lib/api-auth'
 import { adminCorsHeaders } from '@/lib/cors'
+import { SIGNUP_PAUSED } from '@/lib/signup-paused'
 
 /**
  * POST - Create a Stripe Checkout Session for subscription
@@ -15,6 +16,14 @@ export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request)
     if (!user) return unauthorizedResponse()
+
+    // Project paused: no new purchases.
+    if (SIGNUP_PAUSED) {
+      return NextResponse.json(
+        { error: 'Nye kjøp er midlertidig satt på pause.' },
+        { status: 403, headers: adminCorsHeaders }
+      )
+    }
 
     if (!stripe) {
       console.error('[Stripe Checkout] Stripe not configured')
